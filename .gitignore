@@ -18,3 +18,6 @@ design/shade.html
 *.jks
 *.keystore
 keystore.properties
+
+# Browser automation scratch files (screenshots, uploads)
+.playwright-mcp/
