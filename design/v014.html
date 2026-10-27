@@ -1,0 +1,52 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk v0.1.4</title>
+<style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; --card:#1c1c1f; --div:rgba(255,255,255,.08); --menu:#2b2b2f; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1760px; height:971px; overflow:hidden; display:flex; gap:10px; background:#000; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .screen { position:relative; width:875px; height:971px; overflow:hidden;
+    background: radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%), radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.35), transparent 60%), linear-gradient(155deg,#0f2c63,#07122a); }
+  .cap { position:absolute; left:14px; top:10px; font-size:13px; color:#ffd76a; background:rgba(0,0,0,.6); padding:4px 9px; border-radius:6px; z-index:9; }
+  .page { position:absolute; left:60px; top:50px; width:600px; height:600px; background:#0c0c0e; border-radius:14px; padding:14px 18px 20px; box-shadow:0 16px 48px rgba(0,0,0,.55); overflow:hidden; }
+  .gt { font-size:13px; color:var(--accent); font-weight:600; margin:14px 12px 8px; }
+  .card { background:var(--card); border-radius:22px; overflow:hidden; }
+  .row { display:flex; align-items:center; padding:13px 20px; min-height:60px; font-size:15px; gap:14px; } .row + .row { border-top:1px solid var(--div); }
+  .row .t { flex:1; } .row small { display:block; font-size:12.5px; margin-top:3px; color:var(--subtle); } .row small.v { color:var(--accent); }
+  .new { font-size:10px; font-weight:700; background:var(--accent); border-radius:6px; padding:1px 5px; margin-left:6px; vertical-align:2px; }
+  .sw { width:44px; height:24px; border-radius:12px; background:var(--accent); position:relative; } .sw::after { content:""; position:absolute; right:3px; top:3px; width:18px; height:18px; border-radius:9px; background:#fff; }
+  .radio { width:18px; height:18px; border-radius:9px; border:2px solid #8a8a90; } .radio.on { border-color:var(--accent); background:radial-gradient(circle,var(--accent) 0 4px,transparent 5px); }
+  .dim { position:absolute; left:60px; top:50px; width:600px; height:600px; border-radius:14px; background:rgba(0,0,0,.45); }
+  .sheet { position:absolute; left:72px; top:318px; width:576px; background:rgba(43,43,47,.94); backdrop-filter:blur(30px); border-radius:26px; padding:10px 0 4px; box-shadow:0 -10px 30px rgba(0,0,0,.5); }
+  .grab { width:40px; height:4px; border-radius:2px; background:#5a5a60; margin:0 auto 10px; }
+  .st { font-size:17px; font-weight:700; padding:4px 24px 0; } .ss { font-size:12.5px; color:var(--subtle); padding:3px 24px 8px; }
+  .opt { display:flex; align-items:center; gap:14px; padding:12px 24px; font-size:15px; } .opt small { color:var(--subtle); font-size:12.5px; margin-left:6px; } .opt .radio { margin-left:auto; }
+  .btns { display:flex; align-items:center; margin-top:6px; } .btns div { flex:1; text-align:center; padding:14px; font-size:15px; font-weight:600; } .btns .vd { flex:0 0 1px; height:20px; padding:0; background:#55555a; } .btns .ap { color:var(--accent); }
+  /* desktop + menu */
+  .taskbar { position:absolute; left:0; right:0; bottom:0; height:48px; background:rgba(28,28,30,.62); backdrop-filter:blur(24px); display:flex; align-items:center; gap:8px; padding:0 10px; }
+  .taskbar i { width:30px; height:30px; border-radius:9px; }
+  .drawer { position:absolute; left:137px; top:150px; width:600px; height:600px; background:rgba(38,38,42,.82); backdrop-filter:blur(30px); border-radius:26px; padding:22px; }
+  .search { height:40px; border-radius:20px; background:rgba(255,255,255,.08); margin-bottom:22px; color:var(--subtle); font-size:14px; display:flex; align-items:center; padding:0 18px; }
+  .grid { display:grid; grid-template-columns:repeat(6,1fr); row-gap:22px; }
+  .tile { display:flex; flex-direction:column; align-items:center; gap:7px; font-size:12px; } .tile i { width:52px; height:52px; border-radius:15px; }
+  .tile.held i { outline:2px solid rgba(255,255,255,.7); outline-offset:3px; }
+  .ctx { position:absolute; width:250px; background:var(--menu); border-radius:22px; padding:8px 0; box-shadow:0 10px 34px rgba(0,0,0,.55); font-size:14px; }
+  .ctx .head { display:flex; align-items:center; gap:10px; padding:8px 18px 10px; font-weight:600; } .ctx .head i { width:22px; height:22px; border-radius:7px; }
+  .ctx hr { border:0; border-top:1px solid rgba(255,255,255,.1); margin:4px 0; }
+  .ctx div.it { padding:10px 20px; display:flex; } .ctx div.it span { margin-left:auto; color:var(--subtle); } .ctx div.hl { background:rgba(255,255,255,.12); }
+  .sub { position:absolute; width:200px; background:var(--menu); border-radius:18px; padding:6px 0; box-shadow:0 10px 34px rgba(0,0,0,.55); font-size:14px; }
+  .sub div { padding:10px 18px; display:flex; align-items:center; } .sub div small { color:var(--subtle); margin-left:6px; font-size:12px; } .sub .ck { margin-left:auto; color:var(--accent); font-weight:700; }
+  .note { position:absolute; font-size:12.5px; color:#cfe1ff; background:rgba(0,0,0,.6); padding:5px 9px; border-radius:6px; }
+  .sw.off { background:#3a3a3e; } .sw.off::after { right:auto; left:3px; background:#c8c8cc; }
+</style></head><body style="width:875px">
+<div class="screen" id="a"></div>
+<script>
+a.innerHTML = `<div class="cap">Settings → Windows: notifications open in windows</div>
+<div class="page" style="height:290px">
+  <div class="gt">Windows</div><div class="card">
+    <div class="row"><div class="t">Open apps in windows<small>Tap an app to open it as a pop-up window</small></div><div class="sw"></div></div>
+    <div class="row"><div class="t">Open notifications in windows <span class="new">NEW</span><small>Apps opened from a notification switch to a pop-up window</small></div><div class="sw off"></div></div>
+    <div class="row"><div class="t">New window size<small class="v">Medium</small></div></div>
+  </div>
+</div>
+<div class="note" style="left:60px;top:360px;max-width:600px">Off by default. Uses the app's own window size if it has one (long press → Window size).<br>The app may show full screen for a moment before it becomes a window.</div>`;
+</script></body></html>

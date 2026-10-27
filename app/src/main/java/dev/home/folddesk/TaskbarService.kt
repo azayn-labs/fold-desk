@@ -18,6 +18,7 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -109,6 +110,15 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         override fun onReceive(context: Context, intent: Intent) = updateVisibility()
     }
 
+    /**
+     * When a notification was tapped, and the app in front then. The app it
+     * opens comes up full screen; [updateVisibility] turns it into a window.
+     */
+    private var notificationTap: Pair<Long, String?>? = null
+
+    /** Package of the last focused app window; the shade takes focus while it's open. */
+    private var lastFocused: String? = null
+
     /** Label of the window whose handle menu was opened last. */
     private var lastHandleLabel: String? = null
 
@@ -119,6 +129,9 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             when (source?.viewIdResourceName) {
                 CAPTION_HANDLE -> lastHandleLabel = source.contentDescription?.toString()?.removeSuffix(" Window handle")
                 CLOSE_WINDOW -> lastHandleLabel?.let { shell.desk.dismissOpen(it) }
+                NOTIFICATION_ROW -> if (shell.desk.notificationsInWindows) {
+                    notificationTap = SystemClock.uptimeMillis() to lastFocused
+                }
             }
         }
         if (event.packageName == Launcher.ONE_UI_HOME) {
@@ -432,16 +445,21 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         val apps = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
         val top = apps.maxByOrNull { it.layer }
         val topPackage = top?.root?.packageName?.toString()
-        val focused = apps.firstOrNull { it.isFocused }?.root?.packageName?.toString()
+        val focusedWindow = apps.firstOrNull { it.isFocused }
+        val focused = focusedWindow?.root?.packageName?.toString()
+        if (focused != null) lastFocused = focused
         shell.desk.focusedPackage = focused?.takeIf { it != packageName }
         focused?.let { pkg -> shell.desk.onAppFocused(pkg)?.let { shell.followAppToDesktop(it, pkg) } }
 
         val screen = wm.maximumWindowMetrics.bounds
         val bounds = Rect().also { top?.getBoundsInScreen(it) }
-        // Pop-up windows never span the screen's width; see Shell.open.
-        if (topPackage != null && topPackage != packageName) {
-            val split = windows.any { it.type == AccessibilityWindowInfo.TYPE_SPLIT_SCREEN_DIVIDER }
-            shell.desk.noteAppWindow(topPackage, fullScreen = split || bounds.width() >= screen.width())
+        // Pop-up windows never span the screen's width; see Shell.open. Go by
+        // focus: pop-up windows stay layered above a full-screen app.
+        val split = windows.any { it.type == AccessibilityWindowInfo.TYPE_SPLIT_SCREEN_DIVIDER }
+        val focusedBounds = Rect().also { focusedWindow?.getBoundsInScreen(it) }
+        val focusedFullScreen = !split && focusedBounds.width() >= screen.width()
+        if (focused != null && focused != packageName) {
+            shell.desk.noteAppWindow(focused, fullScreen = split || focusedFullScreen)
         }
         // Step aside for anything in front that reaches into the taskbar's strip:
         // full-screen apps, bottom-sheet dialogs, windows dragged over it.
@@ -459,6 +477,18 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             .filter { it.height() > screen.height() / 3 }
         if (shade.isNotEmpty()) shell.closePopups()
         val shadeCoversTaskbar = shade.any { Rect.intersects(it, strip) }
+        notificationTap?.let { (at, before) ->
+            if (SystemClock.uptimeMillis() - at > NOTIFICATION_OPEN_MS) {
+                notificationTap = null
+            } else if (focused != null && focused != before && focused != packageName &&
+                focused != Launcher.ONE_UI_HOME && focusedFullScreen &&
+                FoldDeskApp.isInnerScreen(resources.configuration)
+            ) {
+                // Launching it again with window options turns its task into a window.
+                notificationTap = null
+                shell.desk.appForPackage(focused)?.let { Launcher.open(this, it, true, shell.desk.windowSizeFor(it)) }
+            }
+        }
         val keyboard = windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
         val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
         val show = FoldDeskApp.isInnerScreen(resources.configuration) && !locked &&
@@ -638,6 +668,9 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         private const val CAPTION_HANDLE = "com.android.systemui:id/caption_handle"
         private const val MINIMIZE_WINDOW = "com.android.systemui:id/minimize_window"
         private const val CLOSE_WINDOW = "com.android.systemui:id/close_window"
+        private const val NOTIFICATION_ROW = "com.android.systemui:id/expandableNotificationRow"
+        /** How long after a notification tap its app may take to come up. */
+        private const val NOTIFICATION_OPEN_MS = 4000L
         private const val SYSTEM_UI = "com.android.systemui"
         private const val MAX_WINDOWS_TO_MINIMIZE = 12
         private const val RECENTS_TASK = "${Launcher.ONE_UI_HOME}:id/taskView"

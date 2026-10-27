@@ -78,6 +78,8 @@ class DeskState(private val context: Context) {
         private set
     var openInWindow by mutableStateOf(sp.getBoolean("openInWindow", true))
         private set
+    var notificationsInWindows by mutableStateOf(sp.getBoolean("notificationsInWindows", false))
+        private set
     /**
      * Launcher package the cover screen hands over to; FoldDesk's own package
      * means FoldDesk runs on both screens. Migrates the old on/off switch.
@@ -527,6 +529,11 @@ class DeskState(private val context: Context) {
     fun updateOpenInWindow(value: Boolean) {
         openInWindow = value
         sp.edit().putBoolean("openInWindow", value).apply()
+    }
+
+    fun updateNotificationsInWindows(value: Boolean) {
+        notificationsInWindows = value
+        sp.edit().putBoolean("notificationsInWindows", value).apply()
     }
 
     fun updateCoverLauncher(pkg: String) {

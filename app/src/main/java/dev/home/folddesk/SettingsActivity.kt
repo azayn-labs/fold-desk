@@ -195,6 +195,12 @@ private fun SettingsScreen(desk: DeskState) {
                     onTapAt = { desk.updateOpenInWindow(!desk.openInWindow) },
                 ) { Switch(desk.openInWindow) }
                 Divider()
+                SettingRow(
+                    "Open notifications in windows",
+                    hint = "Apps opened from a notification switch to a pop-up window",
+                    onTapAt = { desk.updateNotificationsInWindows(!desk.notificationsInWindows) },
+                ) { Switch(desk.notificationsInWindows) }
+                Divider()
                 SettingRow("New window size", value = desk.windowSize.label, onTapAt = {
                     pick("New window size", WindowSize.entries.toTypedArray(), { e -> e.label }, desk.windowSize, desk::updateWindowSize)
                 })
