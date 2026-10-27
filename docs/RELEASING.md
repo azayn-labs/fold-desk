@@ -2,7 +2,7 @@
 
 Releases are built by GitHub Actions (`.github/workflows/release.yml`) when a
 version tag is pushed. The workflow signs the APK with the project's release key
-(kept only in the repository's encrypted Actions secrets) and attaches
+(kept only in the encrypted secrets of the repository's `release` environment) and attaches
 `FoldDesk-vX.Y.Z.apk` plus its SHA-256 checksum to a new GitHub Release.
 
 ## Publishing a release
@@ -32,15 +32,18 @@ and backed up somewhere safe (e.g. a password manager).
      -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=FoldDesk"
    ```
 
-2. Add these **Actions secrets** (GitHub → Settings → Secrets and variables →
-   Actions), or with the GitHub CLI:
+2. Add these secrets to the **`release` environment** (GitHub → Settings →
+   Environments → release → Environment secrets), or with the GitHub CLI:
 
    ```bash
-   gh secret set FOLDDESK_KEYSTORE_BASE64 < <(base64 -w0 ~/folddesk-release.jks)
-   gh secret set FOLDDESK_KEYSTORE_PASSWORD
-   gh secret set FOLDDESK_KEY_ALIAS --body folddesk
-   gh secret set FOLDDESK_KEY_PASSWORD
+   gh secret set FOLDDESK_KEYSTORE_BASE64 --env release < <(base64 -w0 ~/folddesk-release.jks)
+   gh secret set FOLDDESK_KEYSTORE_PASSWORD --env release
+   gh secret set FOLDDESK_KEY_ALIAS --env release --body folddesk
+   gh secret set FOLDDESK_KEY_PASSWORD --env release
    ```
+
+   The environment can also restrict which tags may deploy (Settings →
+   Environments → release → Deployment branches and tags → `v*`).
 
 3. Optional, to build signed releases locally: create `keystore.properties` in
    the project root (git-ignored):
