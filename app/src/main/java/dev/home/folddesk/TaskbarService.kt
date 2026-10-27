@@ -76,6 +76,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         addBar()
         running = true
         current = this
+        wasInner = FoldDeskApp.isInnerScreen(resources.configuration)
         DesktopDrag.addListener(dragListener)
         registerReceiver(lockReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
@@ -185,6 +186,24 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         removeBar()
         addBar()
         updateVisibility()
+        val inner = FoldDeskApp.isInnerScreen(newConfig)
+        if (inner && !wasInner) handler.postDelayed(::returnToDesktop, UNFOLD_SETTLE_MS)
+        wasInner = inner
+    }
+
+    private var wasInner = true
+
+    /**
+     * Unfolded onto One UI Home (which ran the cover screen): press Home so
+     * Android opens the default home app, FoldDesk. The service is always
+     * running, so this works even when the app process was killed while
+     * folded, and needs no background-start or usage permission.
+     */
+    private fun returnToDesktop() {
+        if (!shell.desk.coverUsesOneUi) return
+        val front = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .maxByOrNull { it.layer }?.root?.packageName?.toString()
+        if (front == Launcher.ONE_UI_HOME) performGlobalAction(GLOBAL_ACTION_HOME)
     }
 
     override fun onInterrupt() = Unit
@@ -529,6 +548,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
 
     companion object {
         private const val REVEAL_DELAY_MS = 80L
+        private const val UNFOLD_SETTLE_MS = 400L
         private const val CAPTION_HANDLE = "com.android.systemui:id/caption_handle"
         private const val MINIMIZE_WINDOW = "com.android.systemui:id/minimize_window"
         private const val CLOSE_WINDOW = "com.android.systemui:id/close_window"

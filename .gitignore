@@ -21,3 +21,6 @@ keystore.properties
 
 # Browser automation scratch files (screenshots, uploads)
 .playwright-mcp/
+
+# Claude Code local session files
+.claude/
