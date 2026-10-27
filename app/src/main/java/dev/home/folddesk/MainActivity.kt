@@ -1,0 +1,171 @@
+package dev.home.folddesk
+
+import android.content.Intent
+import android.content.res.Configuration
+import android.os.Bundle
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProviderInfo
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import dev.home.folddesk.ui.DesktopScreen
+import dev.home.folddesk.ui.Dex
+import dev.home.folddesk.ui.DesktopGrid
+import dev.home.folddesk.ui.DexTheme
+
+/** The home screen. On the cover screen it hands over to One UI Home. */
+class MainActivity : ComponentActivity(), WidgetActions {
+    private lateinit var shell: ShellController
+    private var inner by mutableStateOf(true)
+
+    /** A widget on its way to the desktop: bound, maybe set up, then placed. */
+    private class Pending(val id: Int, val info: AppWidgetProviderInfo, val at: Cell?)
+    private var pending: Pending? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val desk = (application as FoldDeskApp).desk
+        shell = ShellController(this, desk, keys = null, windowKeys = { TaskbarService.current })
+        ShellController.register(shell)
+        inner = FoldDeskApp.isInnerScreen(resources.configuration)
+
+        // Home never closes; Back only dismisses popups.
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() = shell.closePopups()
+        })
+
+        setContent {
+            DexTheme {
+                if (inner || !desk.coverUsesOneUi) {
+                    DesktopScreen(shell, showTaskbar = !TaskbarService.running, widgetActions = this@MainActivity)
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!handOffCoverScreen()) shell.desk.refreshOpenApps()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        ShellController.closeAll()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        inner = FoldDeskApp.isInnerScreen(newConfig)
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) handOffCoverScreen()
+    }
+
+    private fun handOffCoverScreen(): Boolean {
+        if (inner || !shell.desk.coverUsesOneUi) return false
+        shell.closePopups()
+        return Launcher.openOneUiHome(this)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Widgets.host.startListening()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Widgets.host.stopListening()
+    }
+
+    // --- Widgets ---
+
+    override fun addWidget(info: AppWidgetProviderInfo, at: Cell?) {
+        val id = Widgets.host.allocateAppWidgetId()
+        pending = Pending(id, info, at)
+        if (Widgets.manager.bindAppWidgetIdIfAllowed(id, info.profile, info.provider, null)) {
+            afterBind()
+        } else {
+            // Not a system app: Android asks once per widget app.
+            val ask = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, info.profile)
+            @Suppress("DEPRECATION")
+            startActivityForResult(ask, REQUEST_BIND)
+        }
+    }
+
+    private fun afterBind() {
+        val p = pending ?: return
+        val needsSetup = p.info.configure != null &&
+            (p.info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL) == 0
+        if (needsSetup) {
+            Widgets.host.startAppWidgetConfigureActivityForResult(this, p.id, 0, REQUEST_CONFIGURE, null)
+        } else {
+            place()
+        }
+    }
+
+    private fun place() {
+        val p = pending ?: return
+        pending = null
+        val desk = shell.desk
+        val (cw, ch) = Widgets.defaultSpan(p.info, this, Dex.desktopCellWidth.value, Dex.desktopCellHeight.value)
+        val w = cw.coerceAtMost(DesktopGrid.cols)
+        val h = ch.coerceAtMost(DesktopGrid.rows)
+        val cell = p.at?.takeIf { desk.areaFree(it, w, h, DesktopGrid.cols, DesktopGrid.rows, DesktopGrid.layout) }
+            ?: desk.findFreeArea(w, h, DesktopGrid.cols, DesktopGrid.rows, DesktopGrid.layout)
+        if (cell == null) {
+            Widgets.host.deleteAppWidgetId(p.id)
+            Toast.makeText(this, "No room for this widget on this desktop", Toast.LENGTH_SHORT).show()
+            return
+        }
+        desk.addWidget(DeskWidget(p.id, cell, w, h))
+    }
+
+    private fun cancelPending() {
+        pending?.let { Widgets.host.deleteAppWidgetId(it.id) }
+        pending = null
+    }
+
+    override fun configureWidget(id: Int) {
+        Widgets.host.startAppWidgetConfigureActivityForResult(this, id, 0, REQUEST_RECONFIGURE, null)
+    }
+
+    override fun removeWidget(id: Int) {
+        Widgets.host.deleteAppWidgetId(id)
+        shell.desk.removeWidget(id)
+    }
+
+    @Deprecated("Needed for AppWidgetHost.startAppWidgetConfigureActivityForResult")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        val ok = resultCode == RESULT_OK
+        when (requestCode) {
+            REQUEST_BIND -> if (ok) afterBind() else cancelPending()
+            REQUEST_CONFIGURE -> if (ok) place() else cancelPending()
+        }
+    }
+
+    override fun onDestroy() {
+        ShellController.unregister(shell)
+        super.onDestroy()
+    }
+
+    private companion object {
+        const val REQUEST_BIND = 41
+        const val REQUEST_CONFIGURE = 42
+        const val REQUEST_RECONFIGURE = 43
+    }
+}
+
+/** Widget operations that need the home activity (permission and setup screens). */
+interface WidgetActions {
+    fun addWidget(info: AppWidgetProviderInfo, at: Cell?)
+    fun configureWidget(id: Int)
+    fun removeWidget(id: Int)
+}

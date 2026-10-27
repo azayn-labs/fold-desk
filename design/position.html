@@ -1,0 +1,52 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Taskbar Position</title>
+<style>
+  :root { --bar: rgba(12,12,14,.86); --text: #fafafa; --subtle: #a8a8ad; --accent: #3e91ff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1760px; height: 971px; overflow: hidden; color: var(--text); font-family: "SamsungOne", Roboto, system-ui, sans-serif; display: flex; gap: 10px; background: #000; }
+  .screen { position: relative; width: 875px; height: 971px; overflow: hidden;
+    background: radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%),
+      radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.35), transparent 60%), linear-gradient(155deg, #0f2c63, #07122a); }
+  .vbar { position: absolute; top: 0; bottom: 0; width: 56px; background: var(--bar); display: flex; flex-direction: column; align-items: center; padding: 34px 0 10px; gap: 4px; }
+  .vbar.left { left: 0; } .vbar.right { right: 0; }
+  .k { width: 44px; height: 42px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; position: relative; }
+  .k.on { background: rgba(255,255,255,.2); }
+  .badge { position: absolute; right: 4px; bottom: 4px; font-size: 10px; font-weight: 700; background: var(--accent); border-radius: 6px; padding: 0 4px; line-height: 14px; }
+  .hsep { width: 22px; height: 1px; background: rgba(255,255,255,.18); margin: 6px 0; }
+  .ico { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
+  .dot { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 4px; height: 4px; border-radius: 2px; background: var(--subtle); }
+  .dot.on { height: 14px; background: var(--accent); }
+  .tray { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 11.5px; text-align: center; line-height: 1.25; }
+  .tray small { display: block; color: #d6d6da; font-size: 10px; }
+  .tile { position: absolute; width: 84px; display: flex; flex-direction: column; align-items: center; padding: 8px 2px; font-size: 12px; text-shadow: 0 1px 3px #000; }
+  .tile .ico { width: 48px; height: 48px; border-radius: 15px; font-size: 20px; margin-bottom: 5px; }
+  .drawer { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 520px; height: 600px; border-radius: 26px;
+    background: rgba(28,28,30,.85); backdrop-filter: blur(30px); padding: 18px; }
+  .search { height: 42px; border-radius: 21px; background: rgba(255,255,255,.1); color: #c9c9ce; font-size: 14px; display: flex; align-items: center; padding: 0 16px; }
+  .cap { position: absolute; top: 12px; font-size: 13px; color: #ffd76a; background: rgba(0,0,0,.6); padding: 4px 9px; border-radius: 6px; }
+  .page { position: absolute; left: 150px; top: 120px; width: 600px; background: #0c0c0e; border-radius: 14px; padding: 22px 18px; box-shadow: 0 16px 48px rgba(0,0,0,.55); }
+  .gt { font-size: 13px; color: var(--accent); font-weight: 600; margin: 4px 12px 8px; }
+  .card { background: #1c1c1f; border-radius: 22px; }
+  .row { display: flex; align-items: center; padding: 14px 20px; min-height: 64px; font-size: 15.5px; } .row + .row { border-top: 1px solid rgba(255,255,255,.08); }
+  .row span { flex: 1; } .row small { display: block; color: var(--subtle); font-size: 13px; margin-top: 3px; }
+  .seg { display: flex; background: #2a2a2e; border-radius: 18px; padding: 3px; } .seg i { font-style: normal; padding: 6px 14px; border-radius: 15px; font-size: 13px; color: var(--subtle); }
+  .seg i.on { background: var(--accent); color: #fff; }
+</style></head><body>
+<div class="screen" id="a"></div>
+<div class="screen" id="b"></div>
+<script>
+const A={ch:['#1a73e8','C'],st:['#5f6672','⚙'],wa:['#25d366','✆'],ig:['#d6249f','◎'],fb:['#1877f2','f'],yt:['#ff0033','▶']};
+const ico=k=>`<div class="ico" style="background:${A[k][0]}">${A[k][1]}</div>`;
+const vbar=side=>`<div class="vbar ${side}">
+  <div class="k on">⠿</div><div class="k">❐<span class="badge">1</span></div><div class="hsep"></div>
+  ${['ch','st','wa','ig','fb','yt'].map((k,i)=>`<div class="k">${ico(k)}${i==2?'<span class="dot on"></span>':i>2?'<span class="dot"></span>':''}</div>`).join('')}
+  <div class="tray"><div>📶<br>84%</div><div>15:12<small>Tue<br>27 Oct</small></div><div>🔔</div></div></div>`;
+const icons=x=>['wa','ig','fb','yt'].map((k,i)=>`<div class="tile" style="left:${x}px;top:${30+i*98}px">${ico(k)}${['WhatsApp','Instagram','Facebook','YouTube'][i]}</div>`).join('');
+a.innerHTML = `<div class="page">
+  <div class="gt">Layout</div><div class="card">
+    <div class="row"><span>Taskbar position</span><div class="seg"><i>Bottom</i><i class="on">Left</i><i>Right</i></div></div>
+    <div class="row"><span>Taskbar icons<small>Start or centre of the taskbar</small></span><div class="seg"><i class="on">Start</i><i>Centre</i></div></div>
+  </div></div><div class="cap" style="left:150px">FoldDesk settings → Layout</div>`;
+b.innerHTML = icons(66) + `<div class="drawer"><div class="search">🔍&nbsp; Search</div></div>` + vbar('left') +
+  `<div class="cap" style="left:80px">Taskbar on the left · drawer stays centred · desktop icons start after the bar</div>`;
+</script></body></html>

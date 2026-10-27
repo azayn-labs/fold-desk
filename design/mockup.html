@@ -1,0 +1,205 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FoldDesk Mockup</title>
+<style>
+  /* Modelled on Samsung DeX (One UI): full-width dark taskbar, nav keys on the left,
+     tray + clock on the right, rounded One UI panels. Dark mode, as on the phone. */
+  :root {
+    --bar: rgba(12,12,14,.86); --panel: rgba(38,38,42,.94); --menu: #2b2b2f;
+    --hover: rgba(255,255,255,.12); --pressed: rgba(255,255,255,.2);
+    --accent: #3e91ff; --text: #fafafa; --subtle: #a8a8ad; --divider: rgba(255,255,255,.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 875px; height: 971px; overflow: hidden; color: var(--text);
+    font-family: "SamsungOne", "Samsung Sans", Roboto, "Segoe UI", system-ui, sans-serif; }
+  .screen { position: relative; width: 875px; height: 971px; overflow: hidden;
+    background:
+      radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%),
+      radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.35), transparent 60%),
+      linear-gradient(155deg, #0f2c63 0%, #0b1b3d 55%, #07122a 100%); }
+
+  /* desktop shortcuts: DeX stacks them in a column down the left edge */
+  .desk { position: absolute; top: 14px; left: 10px; }
+  .tile { position: absolute; width: 84px; display: flex; flex-direction: column; align-items: center; padding: 8px 2px 6px; border-radius: 12px; }
+  .tile.sel { background: rgba(255,255,255,.18); outline: 1px solid rgba(255,255,255,.35); }
+  .tile span { margin-top: 5px; font-size: 12px; text-align: center; line-height: 1.25; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .ico { width: 48px; height: 48px; border-radius: 15px; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 600; font-size: 20px; }
+  .ico.s32 { width: 32px; height: 32px; border-radius: 10px; font-size: 14px; }
+  .ico.s20 { width: 20px; height: 20px; border-radius: 6px; font-size: 10px; }
+
+  /* taskbar */
+  .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: var(--bar);
+    backdrop-filter: blur(24px); display: flex; align-items: center; padding: 0 6px; }
+  .key { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .key.on { background: var(--pressed); }
+  .key svg { width: 22px; height: 22px; fill: none; stroke: var(--text); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .key svg.fill { fill: var(--text); stroke: none; }
+  .vsep { width: 1px; height: 22px; background: rgba(255,255,255,.18); margin: 0 6px; }
+  .app { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .app.focus { background: var(--hover); }
+  .app .run { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 2px; background: var(--subtle); }
+  .app.focus .run { width: 14px; background: var(--accent); }
+  .grow { flex: 1; }
+  .tray { display: flex; align-items: center; gap: 2px; font-size: 12.5px; }
+  .tray .pill { display: flex; align-items: center; gap: 7px; padding: 0 10px; height: 36px; border-radius: 8px; }
+  .tray .pill.on { background: var(--pressed); }
+  .tray svg { width: 17px; height: 17px; fill: var(--text); }
+  .nicons { display: flex; gap: 6px; align-items: center; padding: 0 8px; }
+  .clock { text-align: right; line-height: 1.25; padding: 0 10px 0 6px; } .clock small { display: block; font-size: 11px; color: #d6d6da; }
+
+  /* app windows (frame is drawn by One UI's freeform mode) */
+  .win { position: absolute; border-radius: 14px; overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06); }
+  .cap { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13px; }
+  .cap .ctl { margin-left: auto; display: flex; gap: 18px; align-items: center; }
+  .cap .ctl svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .win .body { height: calc(100% - 34px); padding: 14px; font-size: 13px; }
+
+  /* App drawer: DeX opens a rounded translucent panel from the bottom-left */
+  .drawer { position: absolute; left: 8px; bottom: 56px; width: 560px; height: 640px; background: var(--panel);
+    backdrop-filter: blur(30px); border-radius: 26px; padding: 18px 18px 14px; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .search { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 16px; border-radius: 21px;
+    background: rgba(255,255,255,.09); color: var(--subtle); font-size: 14px; }
+  .search svg { width: 18px; height: 18px; fill: var(--subtle); }
+  .grid { margin-top: 14px; flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); align-content: start; row-gap: 2px; }
+  .grid .tile { position: static; width: auto; } .grid .tile span { text-shadow: none; }
+  .grid .tile.sel { outline: none; background: var(--hover); }
+  .dots { display: flex; justify-content: center; gap: 6px; padding: 6px 0 10px; }
+  .dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.3); } .dots i:first-child { background: #fff; }
+  .dfoot { display: flex; align-items: center; border-top: 1px solid var(--divider); padding-top: 10px; gap: 4px; }
+  .dfoot .who { display: flex; align-items: center; gap: 10px; font-size: 13px; flex: 1; }
+  .avatar { width: 30px; height: 30px; border-radius: 15px; background: #6c7bd6; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+  .round { width: 38px; height: 38px; border-radius: 19px; display: flex; align-items: center; justify-content: center; }
+  .round svg { width: 20px; height: 20px; fill: var(--text); }
+
+  /* One UI context menu */
+  .ctx { position: absolute; width: 230px; background: var(--menu); border-radius: 22px; padding: 8px 0;
+    box-shadow: 0 10px 34px rgba(0,0,0,.55); }
+  .ctx > div { padding: 11px 22px; font-size: 14px; } .ctx > div.h { background: var(--hover); }
+  .ctx hr { border: 0; border-top: 1px solid var(--divider); margin: 4px 16px; }
+  .ctx .head { display: flex; align-items: center; gap: 10px; padding: 8px 18px 10px; font-weight: 600; }
+  /* drag-to-remove zone, shown only while a desktop icon is being dragged */
+  .drop { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+    height: 52px; padding: 0 26px 0 20px; border-radius: 26px; background: rgba(38,38,42,.92); backdrop-filter: blur(20px);
+    font-size: 14px; box-shadow: 0 8px 26px rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.08); }
+  .drop svg { width: 20px; height: 20px; fill: none; stroke: var(--text); stroke-width: 2; stroke-linecap: round; }
+  .drop.over { background: #d93a3a; border-color: transparent; transform: translateX(-50%) scale(1.06); }
+  .tile.ghost { opacity: .35; }
+  .tile.dragging { background: rgba(255,255,255,.18); box-shadow: 0 14px 30px rgba(0,0,0,.5); transform: scale(1.08); }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="desk" id="desk"></div>
+  <div id="layer"></div>
+  <div class="taskbar">
+    <div class="key" id="appsKey" title="Apps"><svg class="fill" viewBox="0 0 24 24">
+      <circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/>
+      <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+      <circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg></div>
+    <div class="vsep"></div>
+    <div class="key" title="Recents"><svg viewBox="0 0 24 24"><path d="M7 6v12M12 6v12M17 6v12"/></svg></div>
+    <div class="key" title="Home"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="5"/></svg></div>
+    <div class="key" title="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+    <div class="vsep"></div>
+    <div id="apps" style="display:flex;gap:2px"></div>
+    <div class="grow"></div>
+    <div class="tray">
+      <div class="nicons" id="notifs"></div>
+      <div class="pill" id="statusPill">
+        <svg viewBox="0 0 24 24"><path d="M12 20.5l3.6-4.5a5.8 5.8 0 0 0-7.2 0zM12 3C7.7 3 3.8 4.6 1 7.2L12 21 23 7.2C20.2 4.6 16.3 3 12 3z" opacity=".95"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M2 22h20V2z"/></svg>
+        <span>82%</span>
+        <svg viewBox="0 0 24 24"><path d="M16 4h-2V2h-4v2H8a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z"/></svg>
+      </div>
+      <div class="clock">14:32<small>Tue, 27 Oct</small></div>
+    </div>
+  </div>
+</div>
+<script>
+  // Placeholder icons; the real launcher uses the installed apps' icons.
+  const A = {
+    files: ['My Files', '#f5a524', '▤'], chrome: ['Chrome', '#1a73e8', 'C'], msg: ['Messages', '#4285f4', '✉'],
+    settings: ['Settings', '#5f6672', '⚙'], gmail: ['Gmail', '#ea4335', 'M'], cal: ['Calendar', '#2a7cf6', '27'],
+    gallery: ['Gallery', '#e8457a', '✿'], spotify: ['Spotify', '#1db954', '♫'], yt: ['YouTube', '#ff0033', '▶'],
+    notes: ['Samsung Notes', '#f29d1b', '✎'], maps: ['Maps', '#34a853', '⌖'], docs: ['Docs', '#4285f4', '≡'],
+    slack: ['Slack', '#4a154b', '#'], cam: ['Camera', '#3c4650', '◉'], clock: ['Clock', '#4f5bd5', '◷'],
+    play: ['Play Store', '#01875f', '▶'], wa: ['WhatsApp', '#25d366', '✆'], drive: ['Drive', '#e6a700', '△'],
+    teams: ['Teams', '#5b5fc7', 'T'], calc: ['Calculator', '#1f9d8f', '±'], contacts: ['Contacts', '#f06b3c', '☺'],
+    browser: ['Internet', '#6a4cff', '◎'], store: ['Galaxy Store', '#ff4f7b', '◆'], health: ['Health', '#14b38a', '♥'],
+  };
+  const ico = (k, cls = '') => `<div class="ico ${cls}" style="background:${A[k][1]}">${A[k][2]}</div>`;
+  const s = new URLSearchParams(location.search).get('s') || 'desktop';
+
+  const desk = ['files', 'browser', 'gmail', 'docs', 'spotify', 'notes'];
+  document.getElementById('desk').innerHTML = desk.map((k, i) =>
+    `<div class="tile${s === 'context' && k === 'notes' ? ' sel' : ''}" style="top:${i * 98}px">${ico(k)}<span>${A[k][0]}</span></div>`).join('');
+
+  // Pinned apps first, then other open apps. `focus` = the window in front.
+  const bar = [['files'], ['browser', 'run'], ['msg'], ['settings'], ['slack', 'run'], ['cal', 'run']];
+  const focused = s === 'desktop' ? 'browser' : s === 'context' ? 'slack' : '';
+  document.getElementById('apps').innerHTML = bar.map(([k, run]) =>
+    `<div class="app${k === focused ? ' focus' : ''}">${ico(k, 's32')}${run ? '<div class="run"></div>' : ''}</div>`).join('');
+  document.getElementById('notifs').innerHTML = ['gmail', 'wa', 'slack'].map(k => ico(k, 's20')).join('');
+
+  const svgMin = '<svg viewBox="0 0 14 14"><path d="M2 7h10"/></svg>';
+  const svgMax = '<svg viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" rx="2"/></svg>';
+  const svgClose = '<svg viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8"/></svg>';
+  const win = (k, title, x, y, w, h, capBg, capFg, body) => `
+    <div class="win" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">
+      <div class="cap" style="background:${capBg};color:${capFg}">${ico(k, 's20')}<span>${title}</span>
+        <div class="ctl">${svgMin}${svgMax}${svgClose}</div></div>
+      <div class="body">${body}</div></div>`;
+
+  const layer = document.getElementById('layer');
+  const dragging = s === 'drag' || s === 'dragover';
+  if (dragging) {
+    // Gesture navigation is on, so the device build hides Recents/Home/Back.
+    document.querySelectorAll('.taskbar .key[title=Recents], .taskbar .key[title=Home], .taskbar .key[title=Back]').forEach(e => e.remove());
+    document.querySelectorAll('.taskbar .vsep')[1].remove();
+    const notes = [...document.querySelectorAll('.desk .tile')][5];
+    notes.classList.add('ghost');
+    const pos = s === 'dragover' ? 'left:381px;top:6px' : 'left:300px;top:330px';
+    layer.innerHTML = `
+      <div class="drop${s === 'dragover' ? ' over' : ''}">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>Remove from desktop</div>
+      <div class="tile dragging" style="${pos};z-index:5">${ico('notes')}<span>Samsung Notes</span></div>`;
+  }
+  if (s !== 'drawer' && !dragging) {
+    layer.innerHTML =
+      win('slack', 'Slack', 128, 60, 480, 560, '#3f0e40', '#fff',
+        `<div style="color:#1d1c1d"><b># general</b><p style="margin-top:12px">Alex: shipped the new build</p><p style="margin-top:8px">Sam: testing it on the Fold now</p></div>`)
+        .replace('class="body"', 'class="body" style="background:#fff"') +
+      win('browser', 'Samsung Internet', 250, 170, 560, 640, '#f2f2f4', '#222',
+        `<div style="background:#fff;border-radius:18px;padding:10px 14px;color:#666;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.15)">news.ycombinator.com</div>
+         <div style="color:#222;line-height:2"><b style="color:#ff6600">Hacker News</b><br>1. Show HN: A DeX-style desktop for foldables<br>2. Android 17 freeform windows deep dive<br>3. Why taskbars matter on big phones</div>`)
+        .replace(/class="body"(?! style)/, 'class="body" style="background:#f7f7f9"');
+  }
+  if (s === 'drawer') {
+    document.getElementById('appsKey').classList.add('on');
+    const all = Object.keys(A).sort((a, b) => A[a][0].localeCompare(A[b][0]));
+    layer.innerHTML = `<div class="drawer">
+      <div class="search"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 9.5 16a6.5 6.5 0 0 0 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>Search</div>
+      <div class="grid">${all.map(k => `<div class="tile${k === 'chrome' ? ' sel' : ''}">${ico(k)}<span>${A[k][0]}</span></div>`).join('')}</div>
+      <div class="dots"><i></i><i></i></div>
+      <div class="dfoot">
+        <div class="who"><div class="avatar">U</div>User</div>
+        <div class="round" title="FoldDesk settings"><svg viewBox="0 0 24 24"><path d="M3 5h18v2H3zm0 6h12v2H3zm0 6h18v2H3z"/></svg></div>
+        <div class="round" title="Settings"><svg viewBox="0 0 24 24"><path d="M19.1 12.9a7 7 0 0 0 0-1.9l2.1-1.6-2-3.4-2.4 1a7 7 0 0 0-1.6-1l-.4-2.6h-4l-.4 2.6a7 7 0 0 0-1.6 1l-2.4-1-2 3.4L6.9 11a7 7 0 0 0 0 1.9l-2.1 1.6 2 3.4 2.4-1c.5.4 1 .7 1.6 1l.4 2.6h4l.4-2.6c.6-.3 1.1-.6 1.6-1l2.4 1 2-3.4zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></div>
+        <div class="round" title="Power"><svg viewBox="0 0 24 24"><path d="M11 3h2v10h-2zm5.6 2.4l1.4-1.4A9 9 0 1 1 6 4l1.4 1.4a7 7 0 1 0 9.2 0z"/></svg></div>
+      </div></div>`;
+  }
+  if (s === 'context') {
+    layer.innerHTML += `<div class="ctx" style="left:84px;top:540px">
+      <div class="head">${ico('notes', 's20')}Samsung Notes</div><hr>
+      <div class="h">Open</div><div>Open in full screen</div><hr>
+      <div>Pin to taskbar</div><div>Remove from desktop</div><hr>
+      <div>App info</div><div>Uninstall</div></div>`;
+    document.getElementById('statusPill').classList.remove('on');
+  }
+</script>
+</body>
+</html>

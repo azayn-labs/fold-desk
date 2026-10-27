@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The system draws the wallpaper behind the desktop. -->
+    <style name="Theme.FoldDesk" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">always</item>
+    </style>
+
+    <style name="Theme.FoldDesk.Settings" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">#FFF4F4F6</item>
+    </style>
+</resources>

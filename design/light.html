@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FoldDesk Light Theme</title>
+<style>
+  /* Light counterparts of the dark DeX tokens: frosted white surfaces, near-black text,
+     One UI's light-mode blue. Same shapes and spacing as the dark design. */
+  :root {
+    --bar: rgba(248,248,250,.88); --panel: rgba(250,250,252,.96); --menu: #ffffff;
+    --hover: rgba(0,0,0,.06); --pressed: rgba(0,0,0,.1); --accent: #0a7cff;
+    --text: #1b1b1f; --subtle: #6b6b73; --divider: rgba(0,0,0,.08); --border: rgba(0,0,0,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 875px; height: 971px; overflow: hidden; color: var(--text); font-family: "SamsungOne", Roboto, system-ui, sans-serif; }
+  .screen { position: relative; width: 875px; height: 971px; overflow: hidden;
+    background: radial-gradient(700px 520px at 78% 22%, rgba(255,214,170,.9), transparent 65%),
+      radial-gradient(640px 520px at 20% 85%, rgba(150,200,255,.8), transparent 60%),
+      linear-gradient(155deg, #f3e9e2 0%, #dfe7f5 55%, #cfd9ee 100%); }
+  .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: var(--bar); backdrop-filter: blur(24px);
+    display: flex; align-items: center; padding: 0 6px; border-top: 1px solid var(--border); }
+  .key { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .key.on { background: var(--pressed); }
+  .key svg { width: 22px; height: 22px; }
+  .dnum { position: absolute; right: 5px; bottom: 4px; font-size: 10px; font-weight: 700; color: #fff; background: var(--accent); border-radius: 6px; padding: 0 4px; line-height: 14px; }
+  .vsep { width: 1px; height: 22px; background: rgba(0,0,0,.15); margin: 0 6px; }
+  .app { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .app.focus { background: var(--hover); }
+  .run { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 2px; background: #8e8e96; }
+  .app.focus .run { width: 14px; background: var(--accent); }
+  .ico { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #fff; }
+  .ico.s20 { width: 20px; height: 20px; border-radius: 6px; font-size: 10px; }
+  .ico.s48 { width: 48px; height: 48px; border-radius: 15px; font-size: 20px; }
+  .tray { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 12.5px; padding-right: 10px; }
+  .clock { text-align: right; line-height: 1.25; } .clock small { display: block; font-size: 11px; color: var(--subtle); }
+  .tile { position: absolute; width: 84px; display: flex; flex-direction: column; align-items: center; padding: 8px 2px 6px; }
+  /* Labels on the wallpaper stay white with a shadow, as One UI does in both themes. */
+  .tile span { margin-top: 5px; font-size: 12px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .drawer { position: absolute; left: 8px; bottom: 56px; width: 470px; height: 560px; background: var(--panel); backdrop-filter: blur(30px);
+    border-radius: 26px; padding: 18px 18px 14px; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.18); border: 1px solid var(--border); }
+  .search { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 16px; border-radius: 21px; background: rgba(0,0,0,.05); color: var(--subtle); font-size: 14px; }
+  .grid { margin-top: 14px; flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); align-content: start; row-gap: 2px; }
+  .grid .tile { position: static; width: auto; } .grid .tile span { color: var(--text); text-shadow: none; }
+  .dfoot { display: flex; align-items: center; border-top: 1px solid var(--divider); padding-top: 10px; gap: 4px; font-size: 13px; }
+  .avatar { width: 30px; height: 30px; border-radius: 15px; background: #6c7bd6; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; margin-right: 10px; }
+  .round { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; }
+  .round svg { width: 20px; height: 20px; }
+  .ctx { position: absolute; width: 230px; background: var(--menu); border-radius: 22px; padding: 8px 0; box-shadow: 0 10px 34px rgba(0,0,0,.2); }
+  .ctx > div { padding: 11px 22px; font-size: 14px; display: flex; justify-content: space-between; }
+  .ctx > div.h { background: var(--hover); }
+  .ctx hr { border: 0; border-top: 1px solid var(--divider); margin: 4px 16px; }
+  .ctx .head { font-weight: 600; justify-content: flex-start; gap: 10px; align-items: center; }
+  .switcher { position: absolute; left: 500px; bottom: 56px; display: flex; gap: 12px; padding: 14px; border-radius: 24px; background: var(--panel);
+    box-shadow: 0 20px 60px rgba(0,0,0,.18); border: 1px solid var(--border); }
+  .card { width: 150px; }
+  .thumb { height: 96px; border-radius: 14px; position: relative; overflow: hidden; border: 2px solid transparent;
+    background: linear-gradient(155deg, #f3e9e2 0%, #dfe7f5 55%, #cfd9ee 100%); }
+  .card.cur .thumb { border-color: var(--accent); }
+  .thumb .mw { position: absolute; border-radius: 5px; background: rgba(255,255,255,.95); box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  .thumb .icons { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 5px; }
+  .card .name { display: flex; justify-content: space-between; font-size: 12.5px; padding: 7px 3px 0; }
+  .card .name small { color: var(--subtle); font-size: 11px; }
+  .tag { position: absolute; font-size: 11.5px; color: #7a4a00; background: rgba(255,215,106,.9); padding: 4px 9px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div id="icons"></div>
+  <div class="drawer">
+    <div class="search"><svg viewBox="0 0 24 24" width="18" height="18" fill="#6b6b73"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 9.5 16a6.5 6.5 0 0 0 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>Search</div>
+    <div class="grid" id="grid"></div>
+    <div class="dfoot"><div class="avatar">U</div><span style="flex:1">Galaxy Z Fold7</span>
+      <div class="round"><svg viewBox="0 0 24 24" fill="#1b1b1f"><path d="M3 5h18v2H3zm0 6h12v2H3zm0 6h18v2H3z"/></svg></div>
+      <div class="round"><svg viewBox="0 0 24 24" fill="#1b1b1f"><circle cx="12" cy="12" r="3.5"/><path d="M12 2l1.5 3 3.3-.6.6 3.3 3 1.5-1.5 3 1.5 3-3 1.5-.6 3.3-3.3-.6L12 22l-1.5-3-3.3.6-.6-3.3-3-1.5 1.5-3-1.5-3 3-1.5.6-3.3 3.3.6z" fill="none" stroke="#1b1b1f" stroke-width="1.6"/></svg></div>
+      <div class="round"><svg viewBox="0 0 24 24" fill="none" stroke="#1b1b1f" stroke-width="2" stroke-linecap="round"><path d="M12 3v8"/><path d="M7 6.5a7 7 0 1 0 10 0"/></svg></div></div>
+  </div>
+  <div class="ctx" style="left:250px;top:300px">
+    <div class="head"><div class="ico s20" style="background:#ff0033">▶</div>YouTube</div><hr>
+    <div>Open</div><div>Open in full screen</div><hr>
+    <div class="h">Move to desktop <span>›</span></div><div>Pin to taskbar</div><div>Add to desktop</div><hr><div>App info</div></div>
+  <div class="switcher">
+    <div class="card cur"><div class="thumb"><div class="mw" style="left:30px;top:12px;width:70px;height:48px"></div><div class="mw" style="left:58px;top:30px;width:60px;height:48px"></div>
+      <div class="icons"><div class="ico s20" style="background:#25d366">✆</div><div class="ico s20" style="background:#ff0033">▶</div></div></div>
+      <div class="name"><span>Desktop 1</span><small>Current</small></div></div>
+    <div class="card"><div class="thumb"><div class="mw" style="left:30px;top:12px;width:70px;height:48px"></div>
+      <div class="icons"><div class="ico s20" style="background:#4a154b">#</div></div></div>
+      <div class="name"><span>Work</span><small>1 app</small></div></div>
+  </div>
+  <div class="taskbar">
+    <div class="key on"><svg viewBox="0 0 24 24" fill="#1b1b1f"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg></div>
+    <div class="key"><svg viewBox="0 0 24 24" fill="none" stroke="#1b1b1f" stroke-width="1.8"><rect x="3" y="7" width="13" height="11" rx="2.5"/><path d="M8 4h10.5l2.5 2.5V14"/></svg><span class="dnum">1</span></div>
+    <div class="vsep"></div>
+    <div class="app"><div class="ico" style="background:#1a73e8">C</div></div>
+    <div class="app"><div class="ico" style="background:#5f6672">⚙</div></div>
+    <div class="app focus"><div class="ico" style="background:#25d366">✆</div><div class="run"></div></div>
+    <div class="app"><div class="ico" style="background:#ff0033">▶</div><div class="run"></div></div>
+    <div class="tray"><div class="ico s20" style="background:#ea4335">M</div>
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="#1b1b1f"><path d="M12 20.5l3.6-4.5a5.8 5.8 0 0 0-7.2 0zM12 3C7.7 3 3.8 4.6 1 7.2L12 21 23 7.2C20.2 4.6 16.3 3 12 3z"/></svg>
+      <span>84%</span><div class="clock">14:10<small>Tue, Oct 27</small></div></div>
+  </div>
+  <div class="tag" style="left:540px;top:20px">Light mode: follows your phone's theme</div>
+</div>
+<script>
+  const A = [['Browser','#6a4cff','◎'],['Calculator','#1f9d8f','±'],['Calendar','#2a7cf6','27'],['Camera','#3c4650','◉'],['Chat','#25d366','✆'],
+    ['Clock','#4f5bd5','◷'],['Contacts','#f06b3c','☺'],['Drive','#e6a700','△'],['Email','#ea4335','M'],['Files','#f5a524','▤'],
+    ['Gallery','#e8457a','✿'],['Maps','#34a853','⌖'],['Messages','#4285f4','✉'],['Music','#1db954','♫'],['Notes','#f29d1b','✎'],
+    ['Phone','#2bb24c','✆'],['Photos','#e8457a','◐'],['Podcasts','#8e44ad','◉'],['Settings','#5f6672','⚙'],['Store','#01875f','▶'],
+    ['Video','#ff0033','▶'],['Weather','#4b7bd8','☁'],['Wallet','#222','▭'],['Zoom','#2d8cff','Z']];
+  document.getElementById('grid').innerHTML = A.map(([n,c,g])=>`<div class="tile"><div class="ico s48" style="background:${c}">${g}</div><span>${n}</span></div>`).join('');
+  document.getElementById('icons').innerHTML = [['WhatsApp','#25d366','✆'],['Instagram','#d6249f','◎']].map(([n,c,g],i)=>
+    `<div class="tile" style="left:10px;top:${14+i*98}px"><div class="ico s48" style="background:${c}">${g}</div><span>${n}</span></div>`).join('');
+</script>
+</body>
+</html>

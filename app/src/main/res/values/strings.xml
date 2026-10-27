@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="taskbar_service">FoldDesk taskbar</string>
+    <string name="taskbar_service_description">Shows the DeX-style taskbar above app windows on the inner screen and provides its Back, Home and Recents buttons.</string>
+    <string name="notification_watcher">FoldDesk taskbar notifications</string>
+</resources>

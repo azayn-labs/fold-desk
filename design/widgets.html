@@ -1,0 +1,78 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Desktop Widgets</title>
+<style>
+  :root { --bar: rgba(12,12,14,.86); --panel: rgba(28,28,30,.86); --menu: rgba(43,43,47,.92); --text: #fafafa; --subtle: #a8a8ad; --accent: #3e91ff; --div: rgba(255,255,255,.08); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 2640px; height: 971px; overflow: hidden; color: var(--text); font-family: "SamsungOne", Roboto, system-ui, sans-serif; display: flex; gap: 10px; background: #000; }
+  .screen { position: relative; width: 875px; height: 971px; overflow: hidden;
+    background: radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%),
+      radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.35), transparent 60%), linear-gradient(155deg, #0f2c63, #07122a); }
+  .cap { position: absolute; left: 14px; top: 10px; font-size: 13px; color: #ffd76a; background: rgba(0,0,0,.6); padding: 4px 9px; border-radius: 6px; z-index: 9; }
+  .cap b { color: #fff; }
+  .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: var(--bar); display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .ti { width: 30px; height: 30px; border-radius: 9px; }
+  .tile { position: absolute; width: 84px; display: flex; flex-direction: column; align-items: center; font-size: 12px; text-shadow: 0 1px 3px #000; }
+  .ico { width: 48px; height: 48px; border-radius: 15px; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; }
+  /* widgets */
+  .w { position: absolute; border-radius: 24px; overflow: hidden; }
+  .clock { background: rgba(20,20,24,.55); backdrop-filter: blur(20px); padding: 22px 24px; }
+  .clock .t { font-size: 64px; font-weight: 300; letter-spacing: -1px; } .clock .d { font-size: 15px; color: #d6d6da; margin-top: 2px; }
+  .weather { background: linear-gradient(160deg, #4b7bd8, #2a4f9e); padding: 18px 20px; }
+  .weather .big { font-size: 44px; font-weight: 300; } .weather .s { font-size: 13px; opacity: .9; }
+  .weather .days { display: flex; justify-content: space-between; margin-top: 14px; font-size: 12px; text-align: center; }
+  .cal { background: rgba(250,250,252,.95); color: #1b1b1f; padding: 16px 18px; }
+  .cal .h { color: #0a7cff; font-size: 13px; font-weight: 600; } .cal .e { margin-top: 10px; font-size: 13px; border-left: 3px solid #0a7cff; padding-left: 8px; }
+  .cal .e small { display: block; color: #6b6b73; font-size: 11.5px; }
+  /* picker */
+  .picker { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-52%); width: 600px; height: 760px; border-radius: 26px; background: var(--panel);
+    backdrop-filter: blur(30px); padding: 18px; display: flex; flex-direction: column; }
+  .search { height: 42px; border-radius: 21px; background: rgba(255,255,255,.1); color: #c9c9ce; font-size: 14px; display: flex; align-items: center; padding: 0 16px; }
+  .title { font-size: 20px; font-weight: 600; margin: 4px 4px 14px; }
+  .app { border-radius: 18px; background: rgba(255,255,255,.05); margin-top: 10px; }
+  .apph { display: flex; align-items: center; gap: 12px; padding: 12px 16px; font-size: 15px; }
+  .apph .ico { width: 32px; height: 32px; border-radius: 10px; margin: 0; font-size: 14px; }
+  .apph small { margin-left: auto; color: var(--subtle); font-size: 12.5px; }
+  .previews { display: flex; gap: 14px; padding: 4px 16px 16px; }
+  .pv { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--subtle); }
+  .pv .box { border-radius: 14px; overflow: hidden; }
+  /* edit mode */
+  .sel { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .handle { position: absolute; width: 14px; height: 14px; border-radius: 7px; background: #fff; border: 3px solid var(--accent); }
+  .grid { position: absolute; inset: 14px 10px 56px 10px; background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
+    background-size: 84px 98px; }
+  .ctx { position: absolute; width: 230px; background: var(--menu); backdrop-filter: blur(24px); border-radius: 22px; padding: 8px 0; font-size: 14px; }
+  .ctx div { padding: 11px 22px; } .ctx hr { border: 0; border-top: 1px solid var(--div); margin: 4px 16px; }
+  .size { position: absolute; font-size: 12px; background: var(--accent); padding: 3px 8px; border-radius: 8px; }
+</style></head><body>
+<div class="screen" id="a"></div><div class="screen" id="b"></div><div class="screen" id="c"></div>
+<script>
+const icons = (x0) => [['WhatsApp','#25d366','✆'],['Instagram','#d6249f','◎'],['Facebook','#1877f2','f']]
+  .map(([n,c,g],i)=>`<div class="tile" style="left:${x0}px;top:${24+i*98}px"><div class="ico" style="background:${c}">${g}</div>${n}</div>`).join('');
+const bar = `<div class="taskbar">${['#1a73e8','#5f6672','#25d366','#d6249f','#1877f2','#ff0033'].map(c=>`<div class="ti" style="background:${c}"></div>`).join('')}</div>`;
+const clock = (x,y,w,h,extra='') => `<div class="w clock ${extra}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><div class="t">15:20</div><div class="d">Tuesday, 27 October</div></div>`;
+const weather = (x,y,w,h) => `<div class="w weather" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><div class="s">Springfield</div><div class="big">16°</div><div class="s">Partly cloudy · H 17° L 8°</div>
+  <div class="days"><div>Wed<br>☁ 11°</div><div>Thu<br>🌧 11°</div><div>Fri<br>⛅ 10°</div><div>Sat<br>☀ 12°</div></div></div>`;
+const cal = (x,y,w,h) => `<div class="w cal" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><div class="h">TUESDAY 27</div>
+  <div class="e">Team stand-up<small>09:00 – 09:15</small></div><div class="e">Sprint Planning<small>Fri 09:00</small></div></div>`;
+
+a.innerHTML = icons(10) + bar + `<div class="picker"><div class="title">Widgets</div><div class="search">🔍&nbsp; Search widgets</div>
+  <div class="app"><div class="apph"><div class="ico" style="background:#4f5bd5">◷</div>Clock<small>3 widgets</small></div>
+    <div class="previews"><div class="pv"><div class="box">${clock(0,0,0,0).replace('position','x')}</div></div>
+      <div class="pv"><div class="box" style="width:150px;height:72px;background:rgba(20,20,24,.6);padding:10px;font-size:28px;font-weight:300">15:20</div>4 × 1</div>
+      <div class="pv"><div class="box" style="width:150px;height:72px;background:rgba(20,20,24,.6);padding:10px;font-size:13px">London 14:20<br>Tokyo 22:20</div>4 × 2</div>
+      <div class="pv"><div class="box" style="width:72px;height:72px;background:rgba(20,20,24,.6);display:flex;align-items:center;justify-content:center;font-size:30px">◷</div>2 × 2</div></div></div>
+  <div class="app"><div class="apph"><div class="ico" style="background:#4b7bd8">☁</div>Weather<small>2 widgets</small></div></div>
+  <div class="app"><div class="apph"><div class="ico" style="background:#2a7cf6">27</div>Calendar<small>4 widgets</small></div></div>
+  <div class="app"><div class="apph"><div class="ico" style="background:#ea4335">M</div>Gmail<small>1 widget</small></div></div>
+  <div class="app"><div class="apph"><div class="ico" style="background:#1db954">♫</div>Spotify<small>2 widgets</small></div></div>
+  </div><div class="cap"><b>1 · Long-press empty desktop → Widgets.</b> Tap a widget to add it; long-press to drag it into place</div>`;
+
+b.innerHTML = icons(10) + clock(118, 24, 420, 180) + weather(118, 220, 300, 186) + cal(436, 220, 302, 186) + bar +
+  `<div class="cap"><b>2 · Widgets live on the desktop grid</b> alongside icons; each desktop has its own</div>`;
+
+c.innerHTML = `<div class="grid"></div>` + icons(10) + clock(118, 24, 420, 180, 'sel') +
+  `<div class="handle" style="left:322px;top:12px"></div><div class="handle" style="left:322px;top:205px"></div><div class="handle" style="left:106px;top:108px"></div><div class="handle" style="left:539px;top:108px"></div>
+   <div class="size" style="left:300px;top:215px">5 × 2</div>` + weather(118, 220, 300, 186) + cal(436, 220, 302, 186) + bar +
+  `<div class="ctx" style="left:560px;top:30px"><div>Resize</div><div>Widget settings</div><hr><div>Remove</div></div>
+   <div class="cap"><b>3 · Long-press a widget:</b> drag to move · Resize shows handles that snap to the grid · Remove</div>`;
+</script></body></html>

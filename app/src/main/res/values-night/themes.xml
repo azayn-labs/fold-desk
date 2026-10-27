@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.FoldDesk.Settings" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">#FF0C0C0E</item>
+    </style>
+</resources>

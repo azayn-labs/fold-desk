@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Centred App Launcher</title>
+<style>
+  :root { --bar: rgba(12,12,14,.86); --panel: rgba(38,38,42,.95); --field: rgba(255,255,255,.09); --hover: rgba(255,255,255,.12);
+    --text: #fafafa; --subtle: #a8a8ad; --accent: #3e91ff; --outline: rgba(255,255,255,.12); --scrim: rgba(0,0,0,.3); }
+  body.light { --bar: rgba(248,248,250,.88); --panel: rgba(250,250,252,.96); --field: rgba(0,0,0,.05); --hover: rgba(0,0,0,.06);
+    --text: #1b1b1f; --subtle: #6b6b73; --accent: #0a7cff; --outline: rgba(0,0,0,.06); --scrim: rgba(0,0,0,.12); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 875px; height: 971px; overflow: hidden; color: var(--text); font-family: "SamsungOne", Roboto, system-ui, sans-serif; }
+  .screen { position: relative; width: 875px; height: 971px; overflow: hidden;
+    background: radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%),
+      radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.35), transparent 60%),
+      linear-gradient(155deg, #0f2c63 0%, #0b1b3d 55%, #07122a 100%); }
+  body.light .screen { background: radial-gradient(700px 520px at 78% 22%, rgba(255,214,170,.9), transparent 65%),
+      radial-gradient(640px 520px at 20% 85%, rgba(150,200,255,.8), transparent 60%), linear-gradient(155deg, #f3e9e2 0%, #dfe7f5 55%, #cfd9ee 100%); }
+  .scrim { position: absolute; inset: 0 0 48px 0; background: var(--scrim); }
+  .launcher { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: 760px; height: 820px;
+    background: var(--panel); backdrop-filter: blur(30px); border-radius: 28px; border: 1px solid var(--outline);
+    box-shadow: 0 24px 70px rgba(0,0,0,.4); padding: 22px 24px 18px; display: flex; flex-direction: column; }
+  .top { display: flex; align-items: center; gap: 8px; }
+  .search { flex: 1; display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 18px; border-radius: 23px; background: var(--field); color: var(--subtle); font-size: 15px; }
+  .round { width: 42px; height: 42px; border-radius: 21px; display: flex; align-items: center; justify-content: center; }
+  .round svg { width: 21px; height: 21px; }
+  .grid { margin-top: 22px; flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); align-content: start; row-gap: 10px; }
+  .tile { display: flex; flex-direction: column; align-items: center; padding: 8px 2px 6px; border-radius: 14px; }
+  .tile span { margin-top: 7px; font-size: 12.5px; text-align: center; }
+  .ico { width: 58px; height: 58px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 22px; color: #fff; }
+  .ico.s32 { width: 32px; height: 32px; border-radius: 10px; font-size: 14px; }
+  .dots { display: flex; justify-content: center; gap: 7px; padding-top: 6px; }
+  .dots i { width: 7px; height: 7px; border-radius: 4px; background: var(--subtle); opacity: .4; } .dots i.on { opacity: 1; background: var(--accent); width: 18px; }
+  .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: var(--bar); display: flex; align-items: center; padding: 0 6px; border-top: 1px solid var(--outline); }
+  .key { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .key.on { background: var(--hover); }
+  .app { width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; }
+  .tray { margin-left: auto; font-size: 12.5px; padding-right: 10px; text-align: right; line-height: 1.25; } .tray small { display: block; font-size: 11px; color: var(--subtle); }
+  .tag { position: absolute; font-size: 11.5px; color: #ffd76a; background: rgba(0,0,0,.65); padding: 4px 9px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="scrim"></div>
+  <div class="launcher">
+    <div class="top">
+      <div class="search"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 9.5 16a6.5 6.5 0 0 0 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>Search</div>
+      <div class="round" title="FoldDesk settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5h18M3 12h12M3 19h18"/></svg></div>
+      <div class="round" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5l1.6 2.6 3-.6.7 3 2.6 1.6-1.4 2.9 1.4 2.9-2.6 1.6-.7 3-3-.6L12 21.5l-1.6-2.6-3 .6-.7-3-2.6-1.6 1.4-2.9-1.4-2.9 2.6-1.6.7-3 3 .6z"/></svg></div>
+      <div class="round" title="Power"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v8"/><path d="M7 6.5a7 7 0 1 0 10 0"/></svg></div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="dots"><i class="on"></i><i></i><i></i></div>
+  </div>
+  <div class="taskbar">
+    <div class="key on"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg></div>
+    <div class="app"><div class="ico s32" style="background:#1a73e8">C</div></div>
+    <div class="app"><div class="ico s32" style="background:#5f6672">⚙</div></div>
+    <div class="app"><div class="ico s32" style="background:#25d366">✆</div></div>
+    <div class="tray">14:40<small>Tue, Oct 27</small></div>
+  </div>
+  <div class="tag" style="left:40px;top:16px">Centred on screen · tap outside or the 9-dot button to close</div>
+</div>
+<script>
+  if (new URLSearchParams(location.search).get('s') === 'light') document.body.classList.add('light');
+  const A = [['Browser','#6a4cff','◎'],['Calculator','#1f9d8f','±'],['Calendar','#2a7cf6','27'],['Camera','#3c4650','◉'],['Chat','#25d366','✆'],
+    ['Clock','#4f5bd5','◷'],['Contacts','#f06b3c','☺'],['Drive','#e6a700','△'],['Email','#ea4335','M'],['Files','#f5a524','▤'],
+    ['Gallery','#e8457a','✿'],['Maps','#34a853','⌖'],['Messages','#4285f4','✉'],['Music','#1db954','♫'],['Notes','#f29d1b','✎'],
+    ['Phone','#2bb24c','✆'],['Photos','#e8457a','◐'],['Podcasts','#8e44ad','◉'],['Settings','#5f6672','⚙'],['Store','#01875f','▶'],
+    ['Video','#ff0033','▶'],['Weather','#4b7bd8','☁'],['Wallet','#222','▭'],['Zoom','#2d8cff','Z']];
+  document.getElementById('grid').innerHTML = A.map(([n,c,g])=>`<div class="tile"><div class="ico" style="background:${c}">${g}</div><span>${n}</span></div>`).join('');
+</script>
+</body>
+</html>

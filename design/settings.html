@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FoldDesk Settings Mockup</title>
+<style>
+  /* One UI settings, dark: grouped rounded cards, blue value text, rounded pop-up lists. */
+  :root {
+    --bar: rgba(12,12,14,.86); --bg: #0c0c0e; --card: #1c1c1f; --menu: #2b2b2f;
+    --hover: rgba(255,255,255,.12); --accent: #3e91ff; --text: #fafafa; --subtle: #9a9aa0; --divider: rgba(255,255,255,.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 875px; height: 971px; overflow: hidden; color: var(--text);
+    font-family: "SamsungOne", "Samsung Sans", Roboto, "Segoe UI", system-ui, sans-serif; }
+  .screen { position: relative; width: 875px; height: 971px; overflow: hidden;
+    background: radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%),
+      radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.35), transparent 60%),
+      linear-gradient(155deg, #0f2c63 0%, #0b1b3d 55%, #07122a 100%); }
+
+  /* taskbar (gesture navigation: no Back/Home/Recents) */
+  .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: var(--bar);
+    display: flex; align-items: center; padding: 0 6px; }
+  .taskbar.center .apps { position: absolute; left: 50%; transform: translateX(-50%); }
+  .key { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .key.on { background: rgba(255,255,255,.2); }
+  .key svg { width: 22px; height: 22px; fill: var(--text); }
+  .vsep { width: 1px; height: 22px; background: rgba(255,255,255,.18); margin: 0 6px; }
+  .apps { display: flex; gap: 2px; align-items: center; }
+  .app { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .app.focus { background: rgba(255,255,255,.12); }
+  .app .run { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 2px; background: var(--subtle); }
+  .app.focus .run { width: 14px; background: var(--accent); }
+  .ico { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 14px; }
+  .ico.s20 { width: 20px; height: 20px; border-radius: 6px; font-size: 10px; }
+  .ico.s48 { width: 48px; height: 48px; border-radius: 15px; font-size: 20px; }
+  .grow { flex: 1; }
+  .tray { display: flex; align-items: center; gap: 2px; font-size: 12.5px; margin-left: auto; }
+  .pill { display: flex; align-items: center; gap: 7px; padding: 0 10px; height: 36px; border-radius: 8px; }
+  .pill svg { width: 17px; height: 17px; fill: var(--text); }
+  .clock { text-align: right; line-height: 1.25; padding: 0 10px 0 6px; } .clock small { display: block; font-size: 11px; color: #d6d6da; }
+  .tag { position: absolute; font-size: 11px; color: #ffd76a; background: rgba(0,0,0,.65); padding: 3px 8px; border-radius: 6px; }
+
+  /* settings window (frame drawn by One UI's pop-up view) */
+  .win { position: absolute; left: 150px; top: 40px; width: 600px; height: 860px; border-radius: 14px; overflow: hidden;
+    background: var(--bg); box-shadow: 0 16px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08); }
+  .cap { height: 34px; display: flex; align-items: center; justify-content: center; }
+  .cap i { width: 44px; height: 4px; border-radius: 2px; background: #3e91ff; }
+  .page { height: calc(100% - 34px); overflow: hidden; padding: 6px 18px 18px; }
+  body.scrolled .page > * { transform: translateY(-560px); }
+  h1 { font-size: 30px; font-weight: 600; margin: 14px 8px 18px; }
+  .group-title { font-size: 13px; color: var(--accent); font-weight: 600; margin: 14px 12px 8px; }
+  .card { background: var(--card); border-radius: 22px; overflow: hidden; }
+  .row { display: flex; align-items: center; padding: 14px 20px; gap: 14px; min-height: 64px; }
+  .row + .row { border-top: 1px solid var(--divider); margin: 0 0; }
+  .row .t { flex: 1; }
+  .row .t div { font-size: 15.5px; }
+  .row .t small { display: block; font-size: 13px; color: var(--accent); margin-top: 3px; }
+  .row .t small.grey { color: var(--subtle); }
+  .row.sel { background: var(--hover); }
+  .switch { width: 44px; height: 24px; border-radius: 12px; background: var(--accent); position: relative; flex: none; }
+  .switch::after { content: ""; position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 9px; background: #fff; }
+  .switch.off { background: #4a4a4f; } .switch.off::after { right: auto; left: 3px; }
+  .seg { display: flex; background: #2a2a2e; border-radius: 18px; padding: 3px; flex: none; }
+  .seg span { padding: 6px 16px; border-radius: 15px; font-size: 13px; color: var(--subtle); }
+  .seg span.on { background: var(--accent); color: #fff; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4cd964; }
+  .status i { width: 8px; height: 8px; border-radius: 4px; background: #4cd964; }
+
+  /* One UI choice pop-up */
+  .choice { position: absolute; width: 300px; background: var(--menu); border-radius: 22px; padding: 8px 0;
+    box-shadow: 0 10px 34px rgba(0,0,0,.6); }
+  .choice div { display: flex; align-items: center; padding: 12px 22px; font-size: 14.5px; gap: 12px; }
+  .radio { width: 18px; height: 18px; border-radius: 9px; border: 2px solid #8a8a90; flex: none; }
+  .radio.on { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 0 4px, transparent 5px); }
+  .dim { position: absolute; inset: 0; background: rgba(0,0,0,.35); }
+  .drawer-mock { position: absolute; left: 50%; transform: translateX(-50%); bottom: 56px; width: 560px; height: 600px;
+    border-radius: 26px; background: rgba(38,38,42,.94); box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .drawer-mock::before { content: "App drawer"; position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; color: #a8a8ad; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div id="win"></div>
+  <div class="taskbar" id="bar">
+    <div class="key on"><svg viewBox="0 0 24 24"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg></div>
+    <div class="vsep" id="sep"></div>
+    <div class="apps" id="apps"></div>
+    <div class="tray">
+      <div class="pill" style="gap:6px"><div class="ico s20" style="background:#ea4335">M</div><div class="ico s20" style="background:#25d366">✆</div></div>
+      <div class="pill"><svg viewBox="0 0 24 24"><path d="M12 20.5l3.6-4.5a5.8 5.8 0 0 0-7.2 0zM12 3C7.7 3 3.8 4.6 1 7.2L12 21 23 7.2C20.2 4.6 16.3 3 12 3z"/></svg><span>75%</span>
+        <svg viewBox="0 0 24 24"><path d="M16 4h-2V2h-4v2H8a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z"/></svg></div>
+      <div class="clock">13:10<small>Tue, 27 Oct</small></div>
+    </div>
+  </div>
+</div>
+<script>
+  const s = new URLSearchParams(location.search).get('s') || 'settings';
+  if (s === 'gestures') document.body.classList.add('scrolled');
+  const apps = [['#f5a524','▤'],['#6a4cff','◎',1],['#1a73e8','C'],['#5f6672','⚙',1,1],['#1f9d8f','±',1]];
+  document.getElementById('apps').innerHTML = apps.map(([c,g,run,focus]) =>
+    `<div class="app${focus?' focus':''}"><div class="ico" style="background:${c}">${g}</div>${run?'<div class="run"></div>':''}</div>`).join('');
+
+  const row = (title, value, right = '', cls = '') =>
+    `<div class="row ${cls}"><div class="t"><div>${title}</div>${value ? `<small${value.startsWith('~') ? ' class="grey"' : ''}>${value.replace('~','')}</small>` : ''}</div>${right}</div>`;
+  const seg = (a, b, on) => `<div class="seg"><span${on===0?' class="on"':''}>${a}</span><span${on===1?' class="on"':''}>${b}</span></div>`;
+  const sw = on => `<div class="switch${on?'':' off'}"></div>`;
+
+  const page = `
+    <div class="win"><div class="cap"><i></i></div><div class="page">
+      <h1>FoldDesk settings</h1>
+      <div class="group-title">Layout</div>
+      <div class="card">
+        ${row('Taskbar icons', '', seg('Left', 'Centre', s === 'center' ? 1 : 0))}
+        ${row('App drawer', '', seg('Left', 'Centre', s === 'center' ? 1 : 0))}
+      </div>
+      <div class="group-title">Taskbar shortcuts</div>
+      <div class="card">
+        ${row('Tap your name in the drawer', 'Samsung account', '', s === 'choice' ? 'sel' : '')}
+        ${row('Tap Wi-Fi and battery', 'Quick settings')}
+        ${row('Tap the date and time', 'Notifications')}
+      </div>
+      <div class="group-title">Windows</div>
+      <div class="card">
+        ${row('Open apps in windows', '~Tap an app to open it as a pop-up window', sw(true))}
+        ${row('New window size', 'Medium')}
+      </div>
+      <div class="group-title">Gestures</div>
+      <div class="card">
+        ${row('Swipe up for app drawer', '~Swipe up on empty desktop to open it', sw(true))}
+        ${row('Swipe down to close app drawer', '~When the app list is scrolled to the top', sw(true))}
+        ${row('Swipe to switch desktops', '~Swipe left or right on empty desktop', sw(true))}
+        ${row('Swipe down for notifications', '~Swipe down on empty desktop to open the notification panel', sw(true))}
+      </div>
+      <div class="group-title">Cover screen</div>
+      <div class="card">
+        ${row('Use One UI Home when folded', '~FoldDesk only runs on the inner screen', sw(true))}
+      </div>
+      <div class="group-title">Status</div>
+      <div class="card">
+        ${row('Taskbar service', '', '<div class="status"><i></i>Running</div>')}
+      </div>
+    </div></div>`;
+
+  const win = document.getElementById('win');
+  win.innerHTML = page;
+  if (s === 'center' || s === 'center2') {
+    document.getElementById('bar').classList.add('center');
+    if (s === 'center2') {
+      // The 9-dot button travels with the centred icons, like Windows 11's Start.
+      const apps = document.getElementById('apps');
+      apps.prepend(document.getElementById('sep'));
+      apps.prepend(document.querySelector('.taskbar .key'));
+    } else {
+      document.getElementById('sep').remove();
+    }
+    win.innerHTML += `<div class="tag" style="left:330px;top:900px">Centred taskbar icons</div>`;
+  }
+  if (s === 'center2') {
+    // Drawer open, centred above the button.
+    win.innerHTML = `<div class="drawer-mock"></div><div class="tag" style="left:300px;top:900px">9-dot button moves with the icons</div>`;
+  }
+  if (s === 'choice') {
+    const opts = ['Samsung account', 'Connections', 'Accounts and backup', 'Settings', 'Do nothing'];
+    win.innerHTML += `<div class="dim"></div><div class="choice" style="left:300px;top:300px">
+      ${opts.map((o, i) => `<div><span class="radio${i === 0 ? ' on' : ''}"></span>${o}</div>`).join('')}</div>`;
+  }
+  if (s === 'clockchoice') {
+    const opts = ['Notifications', 'Clock', 'Show desktop (hide all windows)', 'Calendar'];
+    win.innerHTML += `<div class="dim"></div><div class="choice" style="left:330px;top:545px;width:320px">
+      ${opts.map((o, i) => `<div><span class="radio${i === 0 ? ' on' : ''}"></span>${o}</div>`).join('')}</div>`;
+  }
+</script>
+</body>
+</html>

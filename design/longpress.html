@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Long Press Feedback</title>
+<style>
+  :root { --panel: #2b2b2f; --text: #fafafa; --accent: #3e91ff; --divider: rgba(255,255,255,.1); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 960px; height: 420px; overflow: hidden; color: var(--text);
+    font-family: "SamsungOne", Roboto, system-ui, sans-serif;
+    background: linear-gradient(155deg, #0f2c63 0%, #0b1b3d 55%, #07122a 100%); }
+  .frames { display: flex; gap: 0; height: 100%; }
+  .frame { flex: 1; position: relative; border-right: 1px dashed rgba(255,255,255,.18); }
+  .frame:last-child { border-right: 0; }
+  .cap { position: absolute; left: 16px; top: 14px; font-size: 13px; color: #ffd76a; }
+  .cap b { display: block; color: #fff; font-size: 15px; margin-bottom: 3px; }
+  .tile { position: absolute; left: 40px; top: 90px; width: 84px; display: flex; flex-direction: column; align-items: center;
+    padding: 8px 2px 6px; border-radius: 12px; transition: none; }
+  .tile span { margin-top: 5px; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .ico { width: 48px; height: 48px; border-radius: 15px; background: #6a4cff; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .pressed { background: rgba(255,255,255,.14); }
+  .popped { background: rgba(255,255,255,.2); transform: scale(1.08); box-shadow: 0 10px 24px rgba(0,0,0,.45); }
+  .finger { position: absolute; width: 34px; height: 34px; border-radius: 17px; background: rgba(255,255,255,.35);
+    border: 2px solid rgba(255,255,255,.7); left: 65px; top: 112px; }
+  .buzz { position: absolute; left: 112px; top: 96px; font-size: 12px; color: #ffd76a; }
+  .menu { position: absolute; left: 112px; top: 150px; width: 190px; background: var(--panel); border-radius: 20px; padding: 6px 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,.55); font-size: 13px; }
+  .menu div { padding: 8px 18px; } .menu .head { font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .menu hr { border: 0; border-top: 1px solid var(--divider); margin: 3px 14px; }
+  .mini { width: 16px; height: 16px; border-radius: 5px; background: #6a4cff; }
+</style>
+</head>
+<body>
+<div class="frames">
+  <div class="frame">
+    <div class="cap"><b>1 · Touch</b>Tile highlights at once</div>
+    <div class="tile pressed"><div class="ico">◎</div><span>Browser</span></div>
+    <div class="finger"></div>
+  </div>
+  <div class="frame">
+    <div class="cap"><b>2 · Long press reached</b>Vibration tick, icon pops, menu opens</div>
+    <div class="tile popped"><div class="ico">◎</div><span>Browser</span></div>
+    <div class="finger"></div>
+    <div class="buzz">〰 haptic</div>
+    <div class="menu"><div class="head"><span class="mini"></span>Browser</div><hr>
+      <div>Open</div><div>Open in full screen</div><hr><div>Unpin from taskbar</div><div>Remove from desktop</div><hr><div>App info</div><div>Uninstall</div></div>
+  </div>
+  <div class="frame">
+    <div class="cap"><b>3 · Keep moving (desktop only)</b>Menu closes, drag starts</div>
+    <div class="tile" style="opacity:.35"><div class="ico">◎</div><span>Browser</span></div>
+    <div class="tile popped" style="left:150px;top:170px"><div class="ico">◎</div><span>Browser</span></div>
+    <div class="finger" style="left:175px;top:192px"></div>
+  </div>
+</div>
+</body>
+</html>

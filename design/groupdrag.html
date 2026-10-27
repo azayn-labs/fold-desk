@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Group Drag</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1200px; height: 520px; overflow: hidden; color: #fafafa;
+    font-family: "SamsungOne", Roboto, system-ui, sans-serif;
+    background: linear-gradient(155deg, #0f2c63 0%, #0b1b3d 55%, #07122a 100%); }
+  .frames { display: flex; height: 100%; }
+  .frame { flex: 1; position: relative; border-right: 1px dashed rgba(255,255,255,.18); }
+  .frame:last-child { border-right: 0; }
+  .cap { position: absolute; left: 16px; top: 14px; right: 12px; font-size: 13px; color: #ffd76a; line-height: 1.35; }
+  .cap b { display: block; color: #fff; font-size: 15px; margin-bottom: 3px; }
+  .tile { position: absolute; width: 84px; display: flex; flex-direction: column; align-items: center; padding: 8px 2px 6px; border-radius: 12px; }
+  .tile span { margin-top: 5px; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .ico { width: 48px; height: 48px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; }
+  .ghost { opacity: .35; }
+  .lift { background: rgba(255,255,255,.2); transform: scale(1.08); box-shadow: 0 10px 24px rgba(0,0,0,.45); }
+  .stack { position: absolute; width: 84px; height: 90px; }
+  .stack .tile { left: 0; top: 0; }
+  .stack .tile.under span { visibility: hidden; }
+  .badge { position: absolute; right: 2px; top: -6px; min-width: 24px; height: 24px; border-radius: 12px; background: #3e91ff;
+    font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; padding: 0 7px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+  .finger { position: absolute; width: 34px; height: 34px; border-radius: 17px; background: rgba(255,255,255,.35); border: 2px solid rgba(255,255,255,.7); }
+  .finger.tap { background: rgba(62,145,255,.45); border-color: #8fbcff; }
+  .arrow { position: absolute; font-size: 12px; color: #8fbcff; }
+  .cell { position: absolute; width: 84px; height: 98px; border: 1px dashed rgba(255,255,255,.25); border-radius: 12px; }
+</style>
+</head>
+<body>
+<div class="frames" id="f"></div>
+<script>
+  const A = { wa: ['WhatsApp', '#25d366', '✆'], ig: ['Instagram', '#d6249f', '◎'], fb: ['Facebook', '#1877f2', 'f'], yt: ['YouTube', '#ff0033', '▶'] };
+  const tile = (k, x, y, cls = '') => `<div class="tile ${cls}" style="left:${x}px;top:${y}px"><div class="ico" style="background:${A[k][1]}">${A[k][2]}</div><span>${A[k][0]}</span></div>`;
+  const col = (ghosts = []) => ['wa', 'ig', 'fb', 'yt'].map((k, i) => tile(k, 20, 80 + i * 98, ghosts.includes(k) ? 'ghost' : '')).join('');
+  document.getElementById('f').innerHTML = `
+    <div class="frame">
+      <div class="cap"><b>1 · Drag an icon</b>Long-press WhatsApp and start moving, as today</div>
+      ${col(['wa'])}
+      ${tile('wa', 190, 200, 'lift')}
+      <div class="finger" style="left:215px;top:222px"></div>
+    </div>
+    <div class="frame">
+      <div class="cap"><b>2 · Tap others with a second finger</b>Each one flies into the stack; a badge counts them</div>
+      ${col(['wa', 'fb'])}
+      <div class="finger tap" style="left:45px;top:300px"></div>
+      <div class="arrow" style="left:110px;top:300px">tap ↗ joins</div>
+      <div class="stack" style="left:190px;top:200px">
+        ${tile('fb', 8, -6, 'lift under')}${tile('wa', 0, 0, 'lift')}
+        <div class="badge">2</div>
+      </div>
+      <div class="finger" style="left:215px;top:222px"></div>
+    </div>
+    <div class="frame">
+      <div class="cap"><b>3 · Drop</b>Icons land in the drop spot and the next free spots below it, in the order you picked them</div>
+      ${tile('ig', 20, 178)}${tile('yt', 20, 374)}
+      <div class="cell" style="left:20px;top:80px"></div><div class="cell" style="left:20px;top:276px"></div>
+      ${tile('wa', 200, 178)}${tile('fb', 200, 276)}
+    </div>
+    <div class="frame">
+      <div class="cap"><b>Or drop on "Remove"</b>All grouped icons leave the desktop together</div>
+      <div style="position:absolute;left:50%;top:70px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border-radius:22px;background:#d93a3a;font-size:13px;white-space:nowrap">🗑 Remove from desktop</div>
+      <div class="stack" style="left:110px;top:90px">${tile('fb', 8, -6, 'lift under')}${tile('wa', 0, 0, 'lift')}<div class="badge">2</div></div>
+      ${col(['wa', 'fb'])}
+    </div>`;
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+
+# Personal captures from the phone (wallpaper, notifications, app lists):
+# kept locally for reference, not versioned.
+design/device/
+design/wallpaper-*.png
+design/qs-panel.png
+design/glass.*
+design/shade-material.png
+design/shade.html

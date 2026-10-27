@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Multiple Desktops</title>
+<style>
+  :root { --bar: rgba(12,12,14,.86); --panel: rgba(38,38,42,.95); --menu: #2b2b2f; --hover: rgba(255,255,255,.12);
+    --accent: #3e91ff; --text: #fafafa; --subtle: #a8a8ad; --divider: rgba(255,255,255,.1); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 875px; height: 971px; overflow: hidden; color: var(--text); font-family: "SamsungOne", Roboto, system-ui, sans-serif; }
+  .screen { position: relative; width: 875px; height: 971px; overflow: hidden;
+    background: radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%),
+      radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.35), transparent 60%),
+      linear-gradient(155deg, #0f2c63 0%, #0b1b3d 55%, #07122a 100%); }
+  .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: var(--bar); display: flex; align-items: center; padding: 0 6px; }
+  .key { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .key.on { background: rgba(255,255,255,.2); }
+  .key svg { width: 22px; height: 22px; }
+  .dnum { position: absolute; right: 5px; bottom: 4px; font-size: 10px; font-weight: 700; background: var(--accent); border-radius: 6px; padding: 0 4px; line-height: 14px; }
+  .vsep { width: 1px; height: 22px; background: rgba(255,255,255,.18); margin: 0 6px; }
+  .app { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .app.focus { background: var(--hover); }
+  .run { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 2px; background: var(--subtle); }
+  .app.focus .run { width: 14px; background: var(--accent); }
+  .ico { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #fff; }
+  .ico.s20 { width: 20px; height: 20px; border-radius: 6px; font-size: 10px; }
+  .ico.s48 { width: 48px; height: 48px; border-radius: 15px; font-size: 20px; }
+  .tray { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 12.5px; padding-right: 10px; }
+  .clock { text-align: right; line-height: 1.25; } .clock small { display: block; font-size: 11px; color: #d6d6da; }
+  .tile { position: absolute; width: 84px; display: flex; flex-direction: column; align-items: center; padding: 8px 2px 6px; }
+  .tile span { margin-top: 5px; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .win { position: absolute; border-radius: 14px; overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,.5); }
+  .win .cap { height: 30px; display: flex; align-items: center; justify-content: center; }
+  .win .cap i { width: 40px; height: 4px; border-radius: 2px; background: #3e91ff; }
+  .tag { position: absolute; font-size: 11.5px; color: #ffd76a; background: rgba(0,0,0,.65); padding: 4px 9px; border-radius: 6px; }
+
+  /* desktop switcher */
+  .switcher { position: absolute; left: 8px; bottom: 56px; display: flex; gap: 12px; padding: 14px; border-radius: 24px; background: var(--panel);
+    box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .card { width: 200px; }
+  .thumb { height: 128px; border-radius: 14px; position: relative; overflow: hidden; border: 2px solid transparent;
+    background: linear-gradient(155deg, #1d3f86 0%, #13295a 60%, #0b1b3d 100%); }
+  .card.cur .thumb { border-color: var(--accent); }
+  .thumb .mw { position: absolute; border-radius: 5px; background: rgba(255,255,255,.85); }
+  .thumb .icons { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 5px; }
+  .card .name { display: flex; align-items: center; justify-content: space-between; font-size: 13px; padding: 8px 4px 0; }
+  .card .name small { color: var(--subtle); font-size: 11.5px; }
+  .add { width: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 128px; border-radius: 14px;
+    border: 2px dashed rgba(255,255,255,.25); color: var(--subtle); font-size: 13px; gap: 6px; }
+  .add b { font-size: 26px; font-weight: 300; color: var(--text); }
+
+  .ctx { position: absolute; width: 240px; background: var(--menu); border-radius: 22px; padding: 8px 0; box-shadow: 0 10px 34px rgba(0,0,0,.55); }
+  .ctx > div { padding: 10px 22px; font-size: 14px; display: flex; justify-content: space-between; }
+  .ctx > div.h { background: var(--hover); }
+  .ctx hr { border: 0; border-top: 1px solid var(--divider); margin: 4px 16px; }
+  .ctx .head { font-weight: 600; justify-content: flex-start; gap: 10px; align-items: center; }
+  .sub { position: absolute; width: 170px; background: var(--menu); border-radius: 18px; padding: 6px 0; box-shadow: 0 10px 34px rgba(0,0,0,.55); }
+  .sub div { padding: 10px 20px; font-size: 14px; } .sub div.dim { color: var(--subtle); }
+  .card.target .thumb { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(62,145,255,.35); }
+  .card .hint { color: var(--accent); font-size: 11.5px; }
+  .drag { position: absolute; width: 64px; height: 64px; border-radius: 16px; background: rgba(255,255,255,.2);
+    box-shadow: 0 12px 28px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; transform: scale(1.08); }
+  .finger { position: absolute; width: 34px; height: 34px; border-radius: 17px; background: rgba(255,255,255,.35); border: 2px solid rgba(255,255,255,.7); }
+  .pill { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; height: 44px;
+    padding: 0 20px; border-radius: 22px; background: var(--panel); box-shadow: 0 10px 30px rgba(0,0,0,.45); font-size: 14px; }
+  .dots { display: flex; gap: 6px; } .dots i { width: 7px; height: 7px; border-radius: 4px; background: rgba(255,255,255,.3); } .dots i.on { background: var(--accent); width: 18px; }
+  .swipe { position: absolute; height: 4px; border-radius: 2px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.7)); }
+</style>
+</head>
+<body>
+<div class="screen" id="s"></div>
+<script>
+  const A = { wa: ['WhatsApp','#25d366','✆'], ig: ['Instagram','#d6249f','◎'], fb: ['Facebook','#1877f2','f'], yt: ['YouTube','#ff0033','▶'],
+    ch: ['Chrome','#1a73e8','C'], st: ['Settings','#5f6672','⚙'], sl: ['Slack','#4a154b','#'], gm: ['Gmail','#ea4335','M'], co: ['Code','#2a7cf6','◇'] };
+  const ico = (k, c='') => `<div class="ico ${c}" style="background:${A[k][1]}">${A[k][2]}</div>`;
+  const st = new URLSearchParams(location.search).get('s') || 'switcher';
+  // Desktop 1: chat apps; Desktop 2: work apps.
+  const d1 = { icons: ['wa','ig','fb'], open: ['wa','yt'] }, d2 = { icons: ['sl','gm','co'], open: ['sl','co'] };
+  const two = st === 'desk2' || st === 'swipe'; const cur = two ? d2 : d1, n = two ? 2 : 1;
+  const desktopsKey = `<div class="key${st==='switcher'?' on':''}" title="Desktops"><svg viewBox="0 0 24 24" fill="none" stroke="#fafafa" stroke-width="1.8"><rect x="3" y="6" width="13" height="11" rx="2.5"/><path d="M8 3h11a2 2 0 0 1 2 2v9"/></svg><span class="dnum">${n}</span></div>`;
+  const bar = `<div class="taskbar">
+      <div class="key"><svg viewBox="0 0 24 24" fill="#fafafa"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg></div>
+      ${desktopsKey}
+      <div class="vsep"></div>
+      ${['ch','st'].map(k=>`<div class="app">${ico(k)}</div>`).join('')}
+      ${cur.open.map((k,i)=>`<div class="app${i===0?' focus':''}">${ico(k)}<div class="run"></div></div>`).join('')}
+      <div class="tray"><span>84%</span><div class="clock">13:55<small>Tue, Oct 27</small></div></div></div>`;
+  const icons = cur.icons.map((k,i)=>`<div class="tile" style="left:10px;top:${14+i*98}px">${ico(k,'s48')}<span>${A[k][0]}</span></div>`).join('');
+  const win = (k, x, y, w, h, bg) => `<div class="win" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${bg}"><div class="cap"><i></i></div>
+     <div style="display:flex;gap:10px;align-items:center;padding:10px 16px;color:#222;font-size:14px">${ico(k,'s20')}${A[k][0]}</div></div>`;
+  const wins = st === 'swipe' ? '' : n === 1 ? win('yt', 160, 80, 470, 420, '#f2f2f2') + win('wa', 300, 220, 430, 480, '#e9f5ee')
+                       : win('co', 150, 70, 520, 470, '#eef2fb') + win('sl', 320, 240, 420, 460, '#f7f2f8');
+  const thumb = (d, cur) => `<div class="thumb">
+       <div class="mw" style="left:40px;top:16px;width:90px;height:64px;opacity:.8"></div><div class="mw" style="left:80px;top:40px;width:80px;height:66px"></div>
+       <div class="icons">${d.open.map(k=>ico(k,'s20')).join('')}</div></div>`;
+  let extra = '';
+  if (st === 'switcher') {
+    extra = `<div class="switcher">
+      <div class="card cur">${thumb(d1)}<div class="name"><span>Desktop 1</span><small>Current</small></div></div>
+      <div class="card">${thumb(d2)}<div class="name"><span>Desktop 2</span><small>2 apps</small></div></div>
+      <div><div class="add"><b>+</b>New desktop</div></div></div>
+      <div class="tag" style="left:30px;bottom:270px">Desktops button → tap a desktop to switch</div>`;
+  }
+  if (st === 'menu') {
+    extra = `<div class="ctx" style="left:150px;top:600px">
+      <div class="head">${ico('yt','s20')}YouTube</div><hr>
+      <div>Open</div><div>Open in full screen</div><hr>
+      <div class="h">Move to desktop <span>›</span></div>
+      <div>Pin to taskbar</div><div>Add to desktop</div><hr><div>App info</div></div>
+      <div class="sub" style="left:395px;top:700px"><div class="dim">Desktop 1 (this)</div><div>Desktop 2</div><div>New desktop</div></div>`;
+  }
+  if (st === 'drag') {
+    extra = `<div class="switcher">
+      <div class="card cur">${thumb(d1)}<div class="name"><span>Desktop 1</span><small>Current</small></div></div>
+      <div class="card target">${thumb(d2)}<div class="name"><span>Desktop 2</span><span class="hint">Drop to move · hold to go</span></div></div>
+      <div><div class="add"><b>+</b>New desktop</div></div></div>
+      <div class="drag" style="left:395px;top:745px">${ico('yt','s48')}</div>
+      <div class="finger" style="left:420px;top:770px"></div>
+      <div class="tag" style="left:30px;top:640px">Long-press an app (taskbar or desktop) and drag:<br>desktops appear; drop on one to move the app there,<br>or hold over it to switch and take the app along</div>`;
+  }
+  if (st === 'swipe') {
+    extra = `<div class="pill"><span>Desktop 2</span><div class="dots"><i></i><i class="on"></i></div></div>
+      <div class="swipe" style="left:380px;top:620px;width:260px"></div>
+      <div class="finger" style="left:640px;top:603px"></div>
+      <div class="tag" style="left:300px;top:660px">Swipe left/right on empty desktop to switch</div>`;
+  }
+  if (st === 'desk2') extra = `<div class="tag" style="left:330px;top:900px">Desktop 2: its own icons and windows</div>`;
+  document.getElementById('s').innerHTML = icons + wins + extra + bar;
+</script>
+</body>
+</html>
