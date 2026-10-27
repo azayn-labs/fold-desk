@@ -443,6 +443,9 @@ private fun MenuRow(item: MenuItem, onTap: () -> Unit, modifier: Modifier = Modi
                 style = TextStyle(color = if (item.enabled) Dex.text else Dex.subtle, fontSize = 14.sp),
                 modifier = Modifier.weight(1f),
             )
+            item.value?.let {
+                BasicText(it, style = TextStyle(color = Dex.subtle, fontSize = 13.sp), modifier = Modifier.padding(start = 10.dp, end = 6.dp))
+            }
             when {
                 item.submenu != null -> BasicText("›", style = TextStyle(color = Dex.text, fontSize = 16.sp))
                 item.checked == true -> BasicText("✓", style = TextStyle(color = Dex.accent, fontSize = 14.sp))

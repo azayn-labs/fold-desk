@@ -110,13 +110,13 @@ class DeskState(private val context: Context) {
         private set
     var windowSize by mutableStateOf(readEnum("windowSize", WindowSize.Medium))
         private set
-    var swipeUpForDrawer by mutableStateOf(sp.getBoolean("swipeUpForDrawer", true))
+    var swipeUp by mutableStateOf(readSwipe("swipeUp", "swipeUpForDrawer", SwipeAction.Drawer))
         private set
     var swipeDownClosesDrawer by mutableStateOf(sp.getBoolean("swipeDownClosesDrawer", true))
         private set
     var swipeSwitchesDesktops by mutableStateOf(sp.getBoolean("swipeSwitchesDesktops", true))
         private set
-    var swipeDownForNotifications by mutableStateOf(sp.getBoolean("swipeDownForNotifications", true))
+    var swipeDown by mutableStateOf(readSwipe("swipeDown", "swipeDownForNotifications", SwipeAction.Notifications))
         private set
 
     // System status for the taskbar tray.
@@ -590,9 +590,20 @@ class DeskState(private val context: Context) {
         saveEnum("windowSize", value)
     }
 
-    fun updateSwipeUpForDrawer(value: Boolean) {
-        swipeUpForDrawer = value
-        sp.edit().putBoolean("swipeUpForDrawer", value).apply()
+    /** Window size picked for [app] from its menu; null follows [windowSize]. */
+    fun appWindowSize(app: AppEntry): WindowSize? =
+        sp.getString("windowSize_${app.key}", null)?.let { name -> WindowSize.entries.firstOrNull { it.name == name } }
+
+    fun windowSizeFor(app: AppEntry): WindowSize = appWindowSize(app) ?: windowSize
+
+    fun updateAppWindowSize(app: AppEntry, value: WindowSize?) {
+        val key = "windowSize_${app.key}"
+        if (value == null) sp.edit().remove(key).apply() else saveEnum(key, value)
+    }
+
+    fun updateSwipeUp(value: SwipeAction) {
+        swipeUp = value
+        saveEnum("swipeUp", value)
     }
 
     fun updateSwipeDownClosesDrawer(value: Boolean) {
@@ -600,9 +611,9 @@ class DeskState(private val context: Context) {
         sp.edit().putBoolean("swipeDownClosesDrawer", value).apply()
     }
 
-    fun updateSwipeDownForNotifications(value: Boolean) {
-        swipeDownForNotifications = value
-        sp.edit().putBoolean("swipeDownForNotifications", value).apply()
+    fun updateSwipeDown(value: SwipeAction) {
+        swipeDown = value
+        saveEnum("swipeDown", value)
     }
 
     fun updateSwipeSwitchesDesktops(value: Boolean) {
@@ -614,6 +625,10 @@ class DeskState(private val context: Context) {
         sp.getString(key, null)?.let { name -> enumValues<E>().firstOrNull { it.name == name } } ?: default
 
     private fun saveEnum(key: String, value: Enum<*>) = sp.edit().putString(key, value.name).apply()
+
+    /** Swipe actions replaced on/off switches; a switch that was off carries over as None. */
+    private fun readSwipe(key: String, oldSwitch: String, default: SwipeAction) =
+        if (sp.contains(key) || sp.getBoolean(oldSwitch, true)) readEnum(key, default) else SwipeAction.None
 
     // --- Open apps (needs usage access) ---
 

@@ -9,6 +9,8 @@ import androidx.compose.ui.geometry.Offset
 /** A menu row; with [submenu] it opens a side list instead of running [action]. */
 data class MenuItem(
     val label: String,
+    /** Current choice, shown dimmed on the right. */
+    val value: String? = null,
     val checked: Boolean? = null,
     val enabled: Boolean = true,
     val submenu: List<MenuItem>? = null,
@@ -183,8 +185,8 @@ class ShellController(
         }
         desk.assignApp(app.pkg, desk.currentDesktopId)
         when (mode) {
-            OpenMode.Default -> Launcher.open(context, app, desk.openInWindow, desk.windowSize)
-            OpenMode.Window -> Launcher.open(context, app, true, desk.windowSize)
+            OpenMode.Default -> Launcher.open(context, app, desk.openInWindow, desk.windowSizeFor(app))
+            OpenMode.Window -> Launcher.open(context, app, true, desk.windowSizeFor(app))
             OpenMode.Fullscreen -> Launcher.open(context, app, false)
             OpenMode.Front -> Launcher.bringToFront(context, app)
         }
@@ -206,6 +208,11 @@ class ShellController(
                     listOf(
                         MenuItem("Open") { open(app, OpenMode.Window) },
                         MenuItem("Open in full screen") { open(app, OpenMode.Fullscreen) },
+                        MenuItem(
+                            "Window size",
+                            value = desk.appWindowSize(app)?.label ?: "Default",
+                            submenu = windowSizeItems(app),
+                        ),
                     ),
                     listOf(MenuItem("Move to desktop", submenu = moveToDesktopItems(app))),
                     placement,
@@ -216,6 +223,15 @@ class ShellController(
                 ),
             ),
         )
+    }
+
+    private fun windowSizeItems(app: AppEntry): List<MenuItem> {
+        val chosen = desk.appWindowSize(app)
+        return listOf(MenuItem("Default", value = desk.windowSize.label, checked = chosen == null) {
+            desk.updateAppWindowSize(app, null)
+        }) + WindowSize.entries.map { size ->
+            MenuItem(size.label, checked = chosen == size) { desk.updateAppWindowSize(app, size) }
+        }
     }
 
     private fun moveToDesktopItems(app: AppEntry): List<MenuItem> {
@@ -360,7 +376,19 @@ class ShellController(
 
     // --- Configurable shortcuts (FoldDesk settings → Taskbar shortcuts) ---
 
-    /** Swipe down on the desktop. */
+    /** Swipe up or down on the desktop. */
+    fun swipeAction(action: SwipeAction) {
+        when (action) {
+            SwipeAction.Drawer -> openDrawer()
+            SwipeAction.Notifications -> showNotifications()
+            SwipeAction.QuickSettings -> {
+                closePopups()
+                (keys ?: windowKeys())?.quickSettings() ?: Launcher.showQuickSettings(context)
+            }
+            SwipeAction.None -> Unit
+        }
+    }
+
     fun showNotifications() {
         closePopups()
         (keys ?: windowKeys())?.notifications() ?: Launcher.showNotifications(context)

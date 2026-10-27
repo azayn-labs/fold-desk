@@ -119,13 +119,13 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
             .deskGestures(
                 onTap = shell::closePopups,
                 onMenu = shell::desktopMenu,
-                // Left/right: next/previous desktop. Up: app drawer.
+                // Left/right: next/previous desktop. Up/down: whatever settings say.
                 onSwipe = { d ->
                     when {
                         kotlin.math.abs(d.x) > kotlin.math.abs(d.y) ->
                             if (shell.desk.swipeSwitchesDesktops) shell.swipeDesktop(if (d.x < 0) 1 else -1)
-                        d.y < 0 -> if (shell.desk.swipeUpForDrawer) shell.openDrawer()
-                        else -> if (shell.desk.swipeDownForNotifications) shell.showNotifications()
+                        d.y < 0 -> shell.swipeAction(shell.desk.swipeUp)
+                        else -> shell.swipeAction(shell.desk.swipeDown)
                     }
                 },
             ),

@@ -21,15 +21,17 @@ published on the [Releases page](../../releases).
 - **DeX taskbar** at the bottom, left or right: app drawer button, desktops
   button, pinned + open apps (drag to reorder), notification icons, Wi‑Fi,
   battery and clock. Back/Home/Recents keys appear only with 3‑button navigation.
-- **Apps in floating windows** (One UI pop‑up view), cascaded and sized by setting.
+- **Apps in floating windows** (One UI pop‑up view), cascaded and sized by
+  setting, with an optional size per app (long press → Window size).
 - **App drawer** centred on screen with search, styled with One UI's panel
   material (blurred, like the notification panel).
 - **Desktop** with draggable icons, multi‑select group drag (second finger),
   drag‑to‑remove, and **widgets** (add, move, resize, configure, remove).
 - **Multiple desktops** (up to 4): each with its own icons, widgets and windows.
   Switch from the taskbar, by swiping, or by dragging an app onto a desktop.
-- **Gestures** (each can be turned off): swipe up for the drawer, swipe down to
-  close it, swipe left/right to switch desktops, swipe down for notifications.
+- **Gestures**: choose what swiping up or down on the desktop does (app drawer,
+  notifications, quick settings or nothing); swipe left/right to switch
+  desktops and swipe down to close the drawer can each be turned off.
 - **Light and dark** themes following the phone.
 - **Settings** window: taskbar position/alignment, tap shortcuts for the tray
   and clock, window size, gestures, cover‑screen behaviour, service status.

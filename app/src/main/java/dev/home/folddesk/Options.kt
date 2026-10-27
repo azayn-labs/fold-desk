@@ -32,6 +32,14 @@ enum class WindowSize(val label: String, val width: Float, val height: Float) {
     Large("Large", 0.8f, 0.92f),
 }
 
+/** What a vertical swipe on the empty desktop does. */
+enum class SwipeAction(val label: String) {
+    Drawer("App drawer"),
+    Notifications("Notifications"),
+    QuickSettings("Quick settings"),
+    None("Nothing"),
+}
+
 /** Taskbar background material. */
 enum class TaskbarBackground(val label: String) { Solid("Solid"), Translucent("Translucent"), Blurred("Blurred") }
 

@@ -100,8 +100,10 @@ private fun SettingsScreen(desk: DeskState) {
     var sheet by remember { mutableStateOf<Sheet?>(null) }
 
     // Pick-one settings open an action sheet, like One UI's own choosers.
-    fun <E : Enum<E>> pick(title: String, values: Array<E>, label: (E) -> String, current: E, onPick: (E) -> Unit) {
-        sheet = Sheet(title, buttons = listOf("Cancel" to { sheet = null })) {
+    fun <E : Enum<E>> pick(
+        title: String, values: Array<E>, label: (E) -> String, current: E, onPick: (E) -> Unit, subtitle: String? = null,
+    ) {
+        sheet = Sheet(title, subtitle, buttons = listOf("Cancel" to { sheet = null })) {
             for (v in values) OptionRow(label(v), selected = v == current) { onPick(v); sheet = null }
         }
     }
@@ -199,17 +201,13 @@ private fun SettingsScreen(desk: DeskState) {
             }
 
             Group("Gestures") {
-                SettingRow(
-                    "Swipe up for app drawer",
-                    hint = "Swipe up on empty desktop to open it",
-                    onTapAt = { desk.updateSwipeUpForDrawer(!desk.swipeUpForDrawer) },
-                ) { Switch(desk.swipeUpForDrawer) }
+                SettingRow("Swipe up on desktop", value = desk.swipeUp.label, onTapAt = {
+                    pick("Swipe up on desktop", SwipeAction.entries.toTypedArray(), { e -> e.label }, desk.swipeUp, desk::updateSwipeUp, "On an empty part of the desktop")
+                })
                 Divider()
-                SettingRow(
-                    "Swipe down to close app drawer",
-                    hint = "When the app list is scrolled to the top",
-                    onTapAt = { desk.updateSwipeDownClosesDrawer(!desk.swipeDownClosesDrawer) },
-                ) { Switch(desk.swipeDownClosesDrawer) }
+                SettingRow("Swipe down on desktop", value = desk.swipeDown.label, onTapAt = {
+                    pick("Swipe down on desktop", SwipeAction.entries.toTypedArray(), { e -> e.label }, desk.swipeDown, desk::updateSwipeDown, "On an empty part of the desktop")
+                })
                 Divider()
                 SettingRow(
                     "Swipe to switch desktops",
@@ -218,10 +216,10 @@ private fun SettingsScreen(desk: DeskState) {
                 ) { Switch(desk.swipeSwitchesDesktops) }
                 Divider()
                 SettingRow(
-                    "Swipe down for notifications",
-                    hint = "Swipe down on empty desktop to open the notification panel",
-                    onTapAt = { desk.updateSwipeDownForNotifications(!desk.swipeDownForNotifications) },
-                ) { Switch(desk.swipeDownForNotifications) }
+                    "Swipe down to close app drawer",
+                    hint = "When the app list is scrolled to the top",
+                    onTapAt = { desk.updateSwipeDownClosesDrawer(!desk.swipeDownClosesDrawer) },
+                ) { Switch(desk.swipeDownClosesDrawer) }
             }
 
             Group("Cover screen") {

@@ -99,7 +99,7 @@ All in the SharedPreferences file `desk`, managed by `DeskState`:
 | `appDesktop` | Open app package → desktop id. |
 | `windows_<id>` | Windows visible when that desktop was left, bottom→top. |
 | `dismissed` | Apps removed from the taskbar's open section, with time. |
-| settings | `openInWindow`, `coverUsesOneUi`, `taskbarSide`, `taskbarAlignment`, `statusAction`, `clockAction`, `windowSize`, `swipeUpForDrawer`, `swipeDownClosesDrawer`, `swipeSwitchesDesktops`, `swipeDownForNotifications`. |
+| settings | `openInWindow`, `coverUsesOneUi`, `taskbarSide`, `taskbarAlignment`, `statusAction`, `clockAction`, `windowSize` (plus per app `windowSize_<app key>`), `swipeUp`, `swipeDown` (a `SwipeAction`; migrated from the old `swipeUpForDrawer` / `swipeDownForNotifications` switches), `swipeDownClosesDrawer`, `swipeSwitchesDesktops`. |
 
 `allowBackup` is off, so a fresh install starts clean; `adb install -r` keeps
 everything.
