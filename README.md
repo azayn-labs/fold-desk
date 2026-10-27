@@ -104,3 +104,7 @@ These come from Android/One UI, not bugs to fix:
   Fix: toggle **FoldDesk taskbar** off and on in Accessibility settings.
 
 See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for working on the code.
+
+## License
+
+Apache License 2.0, see [`LICENSE`](LICENSE).
