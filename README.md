@@ -139,6 +139,12 @@ These come from Android/One UI, not bugs to fix:
 
 See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for working on the code.
 
+## Support
+
+FoldDesk is free and always will be. If it makes your Fold nicer to use and
+you'd like to say thanks, you can [buy me a coffee](https://bunq.me/adarsmohan76).
+A star on GitHub helps too.
+
 ## License
 
 Apache License 2.0, see [`LICENSE`](LICENSE). © 2026 [azayn](https://azayn.com).
