@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -31,23 +32,26 @@ fun Panel(
     modifier: Modifier = Modifier,
     /** 0..1; the system draws the blur, so it has to be faded by hand during animations. */
     blurAmount: Float = 1f,
+    /** Tint over the blur; defaults to One UI's panel tint. */
+    tint: Color? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val colors = LocalDexColors.current
     val density = LocalDensity.current
     val shape = RoundedCornerShape(corner)
     if (!SemBlur.available) {
-        Box(modifier.clip(shape).background(colors.panelOpaque), content = content)
+        val fallback = tint?.copy(alpha = maxOf(tint.alpha, 0.92f)) ?: colors.panelOpaque
+        Box(modifier.clip(shape).background(fallback), content = content)
         return
     }
     val amount = blurAmount.coerceIn(0f, 1f)
     val radius = (BLUR_RADIUS_DP * density.density * amount).toInt()
     val cornerPx = with(density) { corner.toPx() }
-    val tint = colors.panelBlurTint.let { it.copy(alpha = it.alpha * amount) }.toArgb()
+    val tintArgb = (tint ?: colors.panelBlurTint).let { it.copy(alpha = it.alpha * amount) }.toArgb()
     Box(modifier.clip(shape)) {
         AndroidView(
             factory = { View(it) },
-            update = { SemBlur.apply(it, radius, tint, cornerPx) },
+            update = { SemBlur.apply(it, radius, tintArgb, cornerPx) },
             modifier = Modifier.matchParentSize(),
         )
         content()

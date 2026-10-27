@@ -1,5 +1,10 @@
 package dev.home.folddesk.ui
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxSize
+
+import dev.home.folddesk.TaskbarBackground
+import androidx.compose.runtime.CompositionLocalProvider
 import dev.home.folddesk.TaskbarSide
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
@@ -84,8 +89,7 @@ fun Taskbar(shell: ShellController, modifier: Modifier = Modifier) {
     val outline = Dex.outline
     Layout(
         modifier = modifier
-            .then(if (vertical) Modifier.fillMaxHeight().width(Dex.taskbarWidth) else Modifier.fillMaxWidth().height(Dex.taskbarHeight))
-            .background(Dex.bar)
+            .then(if (vertical) Modifier.fillMaxHeight().width(desk.taskbarSize.sideBar.dp) else Modifier.fillMaxWidth().height(desk.taskbarSize.bar.dp))
             // Hairline on the screen-facing edge; it separates the bar from light wallpapers.
             .drawBehind {
                 val w = 1.dp.toPx()
@@ -196,6 +200,31 @@ private fun AxisLine(vertical: Boolean, content: @Composable () -> Unit) {
     }
 }
 
+/**
+ * The taskbar with its background (Solid / Translucent / Blurred, in the
+ * chosen colour) filling [insets] too, e.g. under the gesture handle.
+ */
+@Composable
+fun TaskbarSurface(shell: ShellController, insets: PaddingValues, modifier: Modifier = Modifier) {
+    val desk = shell.desk
+    val theme = LocalDexColors.current
+    val base = desk.taskbarColour?.let { Color(it) } ?: theme.bar.copy(alpha = 1f)
+    val ink = taskbarInk(base, theme.accent)
+    val content: @Composable () -> Unit = {
+        CompositionLocalProvider(LocalDexColors provides ink) {
+            Box(Modifier.padding(insets)) { Taskbar(shell) }
+        }
+    }
+    when (desk.taskbarBackground) {
+        TaskbarBackground.Solid -> Box(modifier.background(base)) { content() }
+        TaskbarBackground.Translucent -> Box(modifier.background(base.copy(alpha = 0.55f))) { content() }
+        TaskbarBackground.Blurred -> Panel(
+            0.dp, modifier,
+            tint = if (desk.taskbarColour == null) theme.panelBlurTint else base.copy(alpha = 0.62f),
+        ) { content() }
+    }
+}
+
 @Composable
 private fun AppsKey(shell: ShellController) {
     Key(selected = shell.drawerOpen, onClick = shell::toggleDrawer) { Glyph(DexGlyph.Apps) }
@@ -207,7 +236,7 @@ private fun DesktopsKey(shell: ShellController) {
     val desk = shell.desk
     val number = desk.desktops.indexOfFirst { it.id == desk.currentDesktopId } + 1
     Key(selected = shell.switcherOpen, onClick = shell::toggleSwitcher) {
-        Box(Modifier.size(width = 30.dp, height = 26.dp)) {
+        Box(Modifier.size(width = (desk.taskbarSize.icon - 2).dp, height = (desk.taskbarSize.icon - 6).dp)) {
             Box(Modifier.align(Alignment.Center)) { Glyph(DexGlyph.Desktops) }
             Box(
                 Modifier
@@ -240,7 +269,9 @@ private fun TaskbarApp(
     val feedback = remember { PressFeedback() }
     val view = LocalView.current
     val density = LocalDensity.current
-    val slot = with(density) { TASKBAR_SLOT.toPx() }
+    val barSize = shell.desk.taskbarSize
+    // One icon plus its 2dp gap, along the bar.
+    val slot = with(density) { ((if (vertical) barSize.keyH else barSize.keyW) + 2).dp.toPx() }
     val leaveUp = with(density) { 48.dp.toPx() }
     // Where the long press landed, on screen; a drag carries on from there.
     var finger by remember { mutableStateOf(Offset.Zero) }
@@ -273,7 +304,7 @@ private fun TaskbarApp(
                 if (vertical) IntOffset(0, along) else IntOffset(along, 0)
             }
             .lifted(feedback.lifted || dragging, RoundedCornerShape(8.dp))
-            .size(width = 44.dp, height = 40.dp)
+            .size(width = barSize.keyW.dp, height = barSize.keyH.dp)
             .deskGestures(
                 onTap = { shell.open(app, if (running) OpenMode.Front else OpenMode.Default) },
                 onMenu = {
@@ -321,7 +352,7 @@ private fun TaskbarApp(
                 },
             ),
     ) {
-        Image(app.icon, contentDescription = app.label, modifier = Modifier.size(32.dp))
+        Image(app.icon, contentDescription = app.label, modifier = Modifier.size(barSize.icon.dp))
         if (running) {
             // On the edge facing the screen.
             val long = if (focused) 14.dp else 4.dp
@@ -343,7 +374,6 @@ private fun TaskbarApp(
     }
 }
 
-private val TASKBAR_SLOT = 46.dp // 44dp icon + 2dp spacing
 
 /** An icon being dragged along the taskbar to a new position. */
 private class TaskbarReorder {
@@ -510,10 +540,11 @@ private fun Clock(modifier: Modifier) {
 
 @Composable
 private fun Key(selected: Boolean = false, onClick: () -> Unit, content: @Composable () -> Unit) {
+    val size = (LocalContext.current.applicationContext as dev.home.folddesk.FoldDeskApp).desk.taskbarSize
     HoverBox(
         selected = selected,
         selectedColor = Dex.pressed,
-        modifier = Modifier.size(width = 44.dp, height = 40.dp).deskGestures(onTap = onClick),
+        modifier = Modifier.size(width = size.keyW.dp, height = size.keyH.dp).deskGestures(onTap = onClick),
     ) { content() }
 }
 
@@ -551,4 +582,21 @@ fun HoverBox(
         contentAlignment = Alignment.Center,
         content = content,
     )
+}
+
+/** The pill left at the edge when the taskbar auto-hides; tap or swipe it to bring the bar back. */
+@Composable
+fun EdgeHandle(vertical: Boolean, onReveal: () -> Unit) {
+    Box(
+        Modifier.fillMaxSize().deskGestures(onTap = onReveal, onSwipe = { onReveal() }),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(width = if (vertical) 6.dp else 120.dp, height = if (vertical) 120.dp else 6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color(0xB3FFFFFF))
+                .border(0.5.dp, Color(0x40000000), RoundedCornerShape(3.dp)),
+        )
+    }
 }

@@ -1,5 +1,6 @@
 package dev.home.folddesk.ui
 
+import androidx.compose.foundation.layout.PaddingValues
 import dev.home.folddesk.Widgets
 import dev.home.folddesk.WidgetActions
 import dev.home.folddesk.DeskWidgetView
@@ -94,9 +95,10 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     // Space the taskbar takes on each edge.
     val side = shell.desk.taskbarSide
-    val aboveTaskbar = if (side == TaskbarSide.Bottom) Dex.taskbarHeight + navBottom else navBottom
-    val barStart = if (side == TaskbarSide.Left) Dex.taskbarWidth else 0.dp
-    val barEnd = if (side == TaskbarSide.Right) Dex.taskbarWidth else 0.dp
+    val size = shell.desk.taskbarSize
+    val aboveTaskbar = if (side == TaskbarSide.Bottom) size.bar.dp + navBottom else navBottom
+    val barStart = if (side == TaskbarSide.Left) size.sideBar.dp else 0.dp
+    val barEnd = if (side == TaskbarSide.Right) size.sideBar.dp else 0.dp
     var rows by remember { mutableIntStateOf(6) }
     // Drag-to-remove: the pill shows while an icon is dragged.
     var dragging by remember { mutableStateOf(false) }
@@ -167,13 +169,15 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
         )
         }
         if (showTaskbar) {
-            Box(
+            TaskbarSurface(
+                shell,
+                if (side.vertical) PaddingValues(top = statusTop, bottom = navBottom) else PaddingValues(bottom = navBottom),
                 when (side) {
-                    TaskbarSide.Bottom -> Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Dex.bar).padding(bottom = navBottom)
-                    TaskbarSide.Left -> Modifier.align(Alignment.CenterStart).fillMaxHeight().background(Dex.bar).padding(top = statusTop, bottom = navBottom)
-                    TaskbarSide.Right -> Modifier.align(Alignment.CenterEnd).fillMaxHeight().background(Dex.bar).padding(top = statusTop, bottom = navBottom)
+                    TaskbarSide.Bottom -> Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    TaskbarSide.Left -> Modifier.align(Alignment.CenterStart).fillMaxHeight()
+                    TaskbarSide.Right -> Modifier.align(Alignment.CenterEnd).fillMaxHeight()
                 },
-            ) { Taskbar(shell) }
+            )
         }
         // With the taskbar overlay running, it shows the drag targets above app windows.
         PopupLayer(

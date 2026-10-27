@@ -20,6 +20,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
@@ -43,7 +44,9 @@ import dev.home.folddesk.ui.Dex
 import dev.home.folddesk.ui.DexTheme
 import dev.home.folddesk.ui.DRAWER_CLOSE_MS
 import dev.home.folddesk.ui.PopupLayer
-import dev.home.folddesk.ui.Taskbar
+import dev.home.folddesk.ui.TaskbarSurface
+import dev.home.folddesk.ui.EdgeHandle
+import androidx.compose.foundation.layout.PaddingValues
 
 /**
  * Draws the taskbar as an accessibility overlay so it floats above app windows
@@ -87,7 +90,14 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         updateVisibility()
         handler.post(refreshTick)
         scope.launch {
-            snapshotFlow { shell.desk.taskbarSide }.drop(1).collect { rebuildBar() }
+            // Side or size changes the bar window's shape: rebuild it.
+            snapshotFlow { shell.desk.taskbarSide to shell.desk.taskbarSize }.drop(1).collect { rebuildBar() }
+        }
+        scope.launch {
+            snapshotFlow { shell.desk.autoHideTaskbar }.drop(1).collect {
+                revealed = false
+                updateVisibility()
+            }
         }
     }
 
@@ -194,7 +204,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
     private var wasInner = true
 
     /**
-     * Unfolded onto One UI Home (which ran the cover screen): press Home so
+     * Unfolded onto the cover launcher (One UI Home by default): press Home so
      * Android opens the default home app, FoldDesk. The service is always
      * running, so this works even when the app process was killed while
      * folded, and needs no background-start or usage permission.
@@ -203,7 +213,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         if (!shell.desk.coverUsesOneUi) return
         val front = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
             .maxByOrNull { it.layer }?.root?.packageName?.toString()
-        if (front == Launcher.ONE_UI_HOME) performGlobalAction(GLOBAL_ACTION_HOME)
+        if (front == shell.desk.coverLauncher) performGlobalAction(GLOBAL_ACTION_HOME)
     }
 
     override fun onInterrupt() = Unit
@@ -237,17 +247,20 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         statusInset = insets.getInsets(WindowInsets.Type.statusBars()).top
         val side = shell.desk.taskbarSide
         barSide = side
-        val view = composeView {
+        // Auto hide: a touch anywhere outside the revealed bar hides it again.
+        val view = OutsideTouchFrame(this) { onTouchOutsideBar() }
+        view.addView(composeView {
             val density = LocalDensity.current
             val navPad = with(density) { navInset.toDp() }
             if (side.vertical) {
                 // Full height, clear of the status bar and gesture handle.
                 val topPad = with(density) { statusInset.toDp() }
-                Box(Modifier.fillMaxHeight().background(Dex.bar).padding(top = topPad, bottom = navPad)) { Taskbar(shell) }
+                TaskbarSurface(shell, PaddingValues(top = topPad, bottom = navPad), Modifier.fillMaxHeight())
             } else {
-                Box(Modifier.fillMaxWidth().background(Dex.bar).padding(bottom = navPad)) { Taskbar(shell) }
+                TaskbarSurface(shell, PaddingValues(bottom = navPad), Modifier.fillMaxWidth())
             }
-        }
+        })
+        owner.attach(view)
         val params = if (side.vertical) {
             overlayParams(barThickness(), WindowManager.LayoutParams.MATCH_PARENT, focusable = false).apply {
                 gravity = if (side == TaskbarSide.Left) Gravity.LEFT else Gravity.RIGHT
@@ -257,16 +270,65 @@ class TaskbarService : AccessibilityService(), SystemKeys {
                 gravity = Gravity.BOTTOM
             }
         }
+        params.flags = params.flags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
         wm.addView(view, params)
         bar = view
         barShown = true
     }
 
+    // --- Auto hide ---
+
+    /** The user brought the auto-hidden bar back with the handle. */
+    private var revealed = false
+    private var handleView: View? = null
+
+    private fun onTouchOutsideBar() {
+        if (revealed && shell.desk.autoHideTaskbar && popup == null) {
+            revealed = false
+            updateVisibility()
+        }
+    }
+
+    private fun reveal() {
+        revealed = true
+        setHandleShown(false)
+        handler.removeCallbacks(revealBar)
+        animateBar(true)
+    }
+
+    /** A slim pill at the bar's edge, just clear of the gesture area. */
+    private fun setHandleShown(show: Boolean) {
+        if (show == (handleView != null)) return
+        if (!show) {
+            handleView?.let { wm.removeView(it) }
+            handleView = null
+            return
+        }
+        val density = resources.displayMetrics.density
+        val side = barSide
+        val view = composeView { EdgeHandle(side.vertical, ::reveal) }
+        val long = (200 * density).toInt()
+        val thick = (24 * density).toInt()
+        val params = if (side.vertical) {
+            overlayParams(thick, long, focusable = false).apply {
+                gravity = (if (side == TaskbarSide.Left) Gravity.LEFT else Gravity.RIGHT) or Gravity.CENTER_VERTICAL
+            }
+        } else {
+            overlayParams(long, thick, focusable = false).apply {
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                y = navInset
+            }
+        }
+        wm.addView(view, params)
+        handleView = view
+    }
+
     /** Height of a bottom bar (with the gesture area), or width of a side bar. */
     private fun barThickness(): Int {
         val density = resources.displayMetrics.density
-        return if (barSide.vertical) (Dex.taskbarWidth.value * density).toInt()
-        else (Dex.taskbarHeight.value * density).toInt() + navInset
+        val size = shell.desk.taskbarSize
+        return if (barSide.vertical) (size.sideBar * density).toInt()
+        else (size.bar * density).toInt() + navInset
     }
 
     /** Taskbar moved to another edge: rebuild it there. */
@@ -280,6 +342,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
 
     private fun removeBar() {
         handler.removeCallbacks(revealBar)
+        setHandleShown(false)
         bar?.let {
             it.animate().cancel()
             wm.removeView(it)
@@ -395,8 +458,14 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
         val show = FoldDeskApp.isInnerScreen(resources.configuration) && !locked &&
             !coversTaskbar && !shadeCoversTaskbar && !keyboard
+        // Auto hide: step aside for apps, leaving a handle. The desktop and
+        // open popups always get the bar.
+        val appInFront = topPackage != null && topPackage != packageName
+        if (!appInFront) revealed = false
+        val tucked = show && shell.desk.autoHideTaskbar && appInFront && !revealed && popup == null
 
-        setBarShown(show)
+        setBarShown(show && !tucked)
+        setHandleShown(tucked)
         if (!show && popup == null) shell.closePopups()
     }
 
@@ -533,6 +602,18 @@ class TaskbarService : AccessibilityService(), SystemKeys {
     private fun findNode(viewId: String): AccessibilityNodeInfo? = windows
         .mapNotNull { it.root }
         .firstNotNullOfOrNull { it.findAccessibilityNodeInfosByViewId(viewId).firstOrNull() }
+
+    /** Reports touches outside the bar window (needs FLAG_WATCH_OUTSIDE_TOUCH). */
+    @SuppressLint("ViewConstructor")
+    private class OutsideTouchFrame(context: Context, private val onOutside: () -> Unit) : FrameLayout(context) {
+        override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+            if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
+                onOutside()
+                return false
+            }
+            return super.dispatchTouchEvent(event)
+        }
+    }
 
     /** Overlay windows get no OnBackPressedDispatcher; catch Back here instead. */
     @SuppressLint("ViewConstructor")

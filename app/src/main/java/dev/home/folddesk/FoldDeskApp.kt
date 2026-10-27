@@ -37,7 +37,7 @@ class FoldDeskApp : Application() {
         if (!desk.coverUsesOneUi) return
         // Give the activity manager a moment to settle after the display switch.
         Handler(Looper.getMainLooper()).postDelayed({
-            if (desk.foregroundPackage() == Launcher.ONE_UI_HOME) {
+            if (desk.foregroundPackage() == desk.coverLauncher) {
                 startActivity(
                     Intent(this, MainActivity::class.java)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION),

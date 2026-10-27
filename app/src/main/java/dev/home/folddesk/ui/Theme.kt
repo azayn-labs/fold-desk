@@ -8,6 +8,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
+import dev.home.folddesk.FoldDeskApp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -96,14 +99,20 @@ val LightDex = DexColors(
 
 val LocalDexColors = staticCompositionLocalOf { DarkDex }
 
-/** Follows the phone's light/dark setting, including scheduled dark mode. */
+/** Follows the phone's light/dark setting, with the user's accent colour if they picked one. */
 @Composable
 fun DexTheme(content: @Composable () -> Unit) {
+    val desk = (LocalContext.current.applicationContext as FoldDeskApp).desk
+    val base = if (isSystemInDarkTheme()) DarkDex else LightDex
     CompositionLocalProvider(
-        LocalDexColors provides if (isSystemInDarkTheme()) DarkDex else LightDex,
+        LocalDexColors provides (desk.accentColour?.let { base.copy(accent = Color(it)) } ?: base),
         content = content,
     )
 }
+
+/** Colours for content on a taskbar of colour [bar]: light ink on dark bars and vice versa. */
+fun taskbarInk(bar: Color, accent: Color): DexColors =
+    (if (bar.luminance() > 0.5f) LightDex else DarkDex).copy(accent = accent)
 
 /** Colours (from the current theme) and sizes modelled on Samsung DeX. */
 object Dex {
@@ -124,9 +133,6 @@ object Dex {
     /** Labels on the wallpaper stay white with a shadow in both themes, like One UI Home. */
     val onWallpaper = Color(0xFFFAFAFA)
 
-    val taskbarHeight = 48.dp
-    /** Width of the taskbar on the left or right edge. */
-    val taskbarWidth = 56.dp
     val desktopCellWidth = 84.dp
     val desktopCellHeight = 98.dp
 }

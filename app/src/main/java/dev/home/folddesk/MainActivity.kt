@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
     private fun handOffCoverScreen(): Boolean {
         if (inner || !shell.desk.coverUsesOneUi) return false
         shell.closePopups()
-        return Launcher.openOneUiHome(this)
+        return Launcher.openCoverLauncher(this, shell.desk.coverLauncher)
     }
 
     override fun onStart() {

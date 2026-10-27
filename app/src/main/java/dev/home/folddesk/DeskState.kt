@@ -78,7 +78,27 @@ class DeskState(private val context: Context) {
         private set
     var openInWindow by mutableStateOf(sp.getBoolean("openInWindow", true))
         private set
-    var coverUsesOneUi by mutableStateOf(sp.getBoolean("coverUsesOneUi", true))
+    /**
+     * Launcher package the cover screen hands over to; FoldDesk's own package
+     * means FoldDesk runs on both screens. Migrates the old on/off switch.
+     */
+    var coverLauncher by mutableStateOf(
+        sp.getString("coverLauncher", null)
+            ?: if (sp.getBoolean("coverUsesOneUi", true)) Launcher.ONE_UI_HOME else context.packageName,
+    )
+        private set
+    val coverUsesOneUi get() = coverLauncher != context.packageName
+
+    var autoHideTaskbar by mutableStateOf(sp.getBoolean("autoHideTaskbar", false))
+        private set
+    var taskbarBackground by mutableStateOf(readEnum("taskbarBackground", TaskbarBackground.Blurred))
+        private set
+    var taskbarSize by mutableStateOf(readEnum("taskbarSize", TaskbarSize.Default))
+        private set
+    /** Custom taskbar colour and accent (ARGB); null follows the light/dark theme. */
+    var taskbarColour by mutableStateOf(sp.getLong("taskbarColour", 0L).takeIf { it != 0L })
+        private set
+    var accentColour by mutableStateOf(sp.getLong("accentColour", 0L).takeIf { it != 0L })
         private set
     var taskbarAlignment by mutableStateOf(readEnum("taskbarAlignment", Placement.Left))
         private set
@@ -501,9 +521,48 @@ class DeskState(private val context: Context) {
         sp.edit().putBoolean("openInWindow", value).apply()
     }
 
-    fun updateCoverUsesOneUi(value: Boolean) {
-        coverUsesOneUi = value
-        sp.edit().putBoolean("coverUsesOneUi", value).apply()
+    fun updateCoverLauncher(pkg: String) {
+        coverLauncher = pkg
+        sp.edit().putString("coverLauncher", pkg).apply()
+    }
+
+    fun updateAutoHideTaskbar(value: Boolean) {
+        autoHideTaskbar = value
+        sp.edit().putBoolean("autoHideTaskbar", value).apply()
+    }
+
+    fun updateTaskbarBackground(value: TaskbarBackground) {
+        taskbarBackground = value
+        saveEnum("taskbarBackground", value)
+    }
+
+    fun updateTaskbarSize(value: TaskbarSize) {
+        taskbarSize = value
+        saveEnum("taskbarSize", value)
+    }
+
+    /** Colours apply at once (live preview); null resets to the theme default. */
+    fun updateColours(bar: Long?, accent: Long?) {
+        taskbarColour = bar
+        accentColour = accent
+        sp.edit().putLong("taskbarColour", bar ?: 0L).putLong("accentColour", accent ?: 0L).apply()
+    }
+
+    /** Name of the current colour combination, for the settings row. */
+    val coloursName: String
+        get() = when {
+            taskbarColour == null && accentColour == null -> "Default"
+            else -> ColourPresets.firstOrNull { it.bar == taskbarColour && it.accent == accentColour }?.name ?: "Custom"
+        }
+
+    /** Installed launchers for the cover screen, as (package, label). */
+    fun installedLaunchers(): List<Pair<String, String>> {
+        val pm = context.packageManager
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        return pm.queryIntentActivities(home, 0)
+            .map { it.activityInfo.packageName to it.loadLabel(pm).toString() }
+            .filter { it.first != context.packageName && it.first != "com.android.settings" }
+            .distinctBy { it.first }
     }
 
     fun updateTaskbarSide(value: TaskbarSide) {

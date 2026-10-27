@@ -68,7 +68,8 @@ object Launcher {
         val top = insets.top + (16 * density).toInt()
         // Keep clear of the taskbar, on whichever edge it is, plus a little air.
         val side = (context.applicationContext as FoldDeskApp).desk.taskbarSide
-        val bar = ((if (side.vertical) 56 else 48) * density).toInt()
+        val barSize = (context.applicationContext as FoldDeskApp).desk.taskbarSize
+        val bar = ((if (side.vertical) barSize.sideBar else barSize.bar) * density).toInt()
         val air = (16 * density).toInt()
         val bottom = screen.height() - insets.bottom - (if (side == TaskbarSide.Bottom) bar else 0) - air
         val minX = if (side == TaskbarSide.Left) bar + air else 0
@@ -162,17 +163,18 @@ object Launcher {
     fun openAccessibilitySettings(context: Context) =
         start(context, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
 
-    /** Hands the cover screen to Samsung's own launcher. */
-    fun openOneUiHome(context: Context): Boolean {
+    /** Hands the cover screen to the chosen launcher (One UI Home by default). */
+    fun openCoverLauncher(context: Context, pkg: String): Boolean {
         val intent = Intent(Intent.ACTION_MAIN)
             .addCategory(Intent.CATEGORY_HOME)
-            .setPackage(ONE_UI_HOME)
+            .setPackage(pkg)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
         return try {
             context.startActivity(intent)
             true
         } catch (e: ActivityNotFoundException) {
-            false
+            // Uninstalled since it was picked: fall back to Samsung's launcher.
+            pkg != ONE_UI_HOME && openCoverLauncher(context, ONE_UI_HOME)
         }
     }
 

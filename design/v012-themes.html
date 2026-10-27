@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Taskbar Styles</title><style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { width:1200px; height:560px; overflow:hidden; font-family:"SamsungOne",Roboto,system-ui,sans-serif; color:#fafafa;
+  background: radial-gradient(700px 520px at 78% 22%, rgba(255,120,90,.6), transparent 65%), radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.45), transparent 60%), linear-gradient(155deg,#2a1d4f,#0b1430); }
+.row { position:absolute; left:0; right:0; display:flex; align-items:center; }
+.lbl { width:200px; padding-left:24px; font-size:15px; font-weight:600; text-shadow:0 1px 3px #000; } .lbl small { display:block; font-weight:400; font-size:12px; color:#d8d8de; }
+.tb { flex:1; margin-right:24px; display:flex; align-items:center; gap:8px; padding:0 12px; border-radius:0; }
+.tb i { border-radius:9px; position:relative; }
+.solid { background:#141416; } .trans { background:rgba(12,12,14,.5); } .blur { background:rgba(28,28,30,.55); backdrop-filter:blur(26px); }
+.dot { position:absolute; left:50%; transform:translateX(-50%); bottom:-6px; height:4px; border-radius:2px; }
+.k { margin-left:auto; font-size:12px; }
+</style></head><body><div id="w"></div><script>
+const ic=['#1a73e8','#5f6672','#25d366','#d6249f','#1877f2','#ff0033'];
+const bar=(cls,h,s,acc)=>`<div class="tb ${cls}" style="height:${h}px">${ic.map((c,i)=>`<i style="width:${s}px;height:${s}px;background:${c}">${i==2?`<span class="dot" style="width:14px;background:${acc}"></span>`:i>2?`<span class="dot" style="width:4px;background:#a8a8ad"></span>`:''}</i>`).join('')}<span class="k">14:40</span></div>`;
+const rows=[['Solid','Default size','solid',48,32,'#3e91ff'],['Translucent','Default size','trans',48,32,'#3e91ff'],['Blurred','Default size','blur',48,32,'#3e91ff'],
+ ['Compact','Blurred, green accent','blur',40,24,'#34c759'],['Large','Blurred, purple accent','blur',58,40,'#af52de']];
+w.innerHTML=rows.map(([t,sub,c,h,s,a],i)=>`<div class="row" style="top:${30+i*105}px"><div class="lbl">${t}<small>${sub}</small></div>${bar(c,h,s,a)}</div>`).join('');
+</script></body></html>

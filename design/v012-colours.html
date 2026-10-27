@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Taskbar Colours</title><style>
+:root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { width:1760px; height:971px; overflow:hidden; display:flex; gap:10px; background:#000; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+.screen { position:relative; width:875px; height:971px; overflow:hidden; background: radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%), linear-gradient(155deg,#0f2c63,#07122a); }
+.cap { position:absolute; left:14px; top:10px; font-size:13px; color:#ffd76a; background:rgba(0,0,0,.6); padding:4px 9px; border-radius:6px; z-index:9; }
+.win { position:absolute; left:60px; top:50px; width:600px; height:860px; border-radius:14px; background:#0c0c0e; overflow:hidden; }
+.dim { position:absolute; inset:0; background:rgba(0,0,0,.45); }
+.sheet { position:absolute; left:12px; right:12px; bottom:12px; background:#2b2b2f; border-radius:26px 26px 22px 22px; padding:10px 0 12px; }
+.grab { width:40px; height:4px; border-radius:2px; background:#5a5a60; margin:0 auto 10px; }
+.st { font-size:17px; font-weight:600; padding:4px 24px 0; } .ss { font-size:12.5px; color:var(--subtle); padding:3px 24px 12px; }
+.grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:0 20px; }
+.p { border-radius:14px; padding:8px; background:rgba(255,255,255,.05); border:2px solid transparent; font-size:12px; text-align:center; }
+.p.on { border-color:var(--accent); }
+.mini { height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; gap:4px; margin-bottom:6px; }
+.mini i { width:12px; height:12px; border-radius:4px; background:rgba(255,255,255,.75); }
+.mini b { width:14px; height:4px; border-radius:2px; }
+.sec { font-size:13px; color:var(--accent); font-weight:600; padding:16px 24px 8px; }
+.pick { display:flex; align-items:center; gap:14px; padding:6px 24px; font-size:14px; }
+.pick span { width:120px; }
+.sw { display:flex; gap:6px; } .sw i { width:22px; height:22px; border-radius:11px; } .sw i.on { outline:2px solid #fff; outline-offset:2px; }
+.btns { display:flex; gap:10px; margin:14px 16px 0; } .btns div { flex:1; text-align:center; padding:12px; border-radius:20px; background:rgba(255,255,255,.08); font-size:15px; } .btns .ok { background:var(--accent); }
+.tb { position:absolute; left:0; right:0; bottom:0; height:48px; display:flex; align-items:center; justify-content:center; gap:8px; }
+.tb i { width:30px; height:30px; border-radius:9px; position:relative; }
+.dot { position:absolute; left:50%; transform:translateX(-50%); bottom:-6px; height:4px; border-radius:2px; }
+</style></head><body><div class="screen" id="a"></div><div class="screen" id="b"></div><script>
+const P=[['Midnight','#141a2e','#3e91ff'],['Graphite','#1c1c1e','#a8a8ad'],['Forest','#13261c','#34c759'],['Sunset','#2e1a17','#ff9f0a'],
+['Grape','#231633','#af52de'],['Rose','#2a1520','#ff375f'],['Ocean','#0f2a33','#32d2c8'],['Snow','#f2f2f6','#0a7cff']];
+const mini=(bg,ac)=>`<div class="mini" style="background:${bg}"><i></i><i></i><b style="background:${ac}"></b></div>`;
+const sw=(cols,on)=>`<div class="sw">${cols.map((c,i)=>`<i class="${i==on?'on':''}" style="background:${c}"></i>`).join('')}</div>`;
+const bars=['#0f0f12','#1c1c1e','#141a2e','#13261c','#2e1a17','#231633','#0f2a33','#f2f2f6'];
+const accents=['#3e91ff','#32d2c8','#34c759','#ffd60a','#ff9f0a','#ff375f','#af52de','#a8a8ad'];
+const tb=(bg,ac)=>`<div class="tb" style="background:${bg}">${['#1a73e8','#5f6672','#25d366','#d6249f','#1877f2','#ff0033'].map((c,i)=>`<i style="background:${c}">${i==2?`<span class="dot" style="width:14px;background:${ac}"></span>`:''}</i>`).join('')}</div>`;
+a.innerHTML=`<div class="win"><div class="dim"></div><div class="sheet"><div class="grab"></div><div class="st">Colours</div><div class="ss">Taskbar colour and accent</div>
+<div class="grid">${P.map(([n,b,c],i)=>`<div class="p ${i==0?'on':''}">${mini(b,c)}${n}</div>`).join('')}</div>
+<div class="sec">Custom</div>
+<div class="pick"><span>Taskbar</span>${sw(bars,2)}</div>
+<div class="pick"><span>Accent</span>${sw(accents,0)}</div>
+<div class="btns"><div>Cancel</div><div class="ok">Apply</div></div></div></div>${tb('#141a2e','#3e91ff')}
+<div class="cap">Colours sheet: 8 combinations, or mix your own</div>`;
+b.innerHTML=`<div class="cap">Live preview: the taskbar updates as you pick (Sunset)</div>${tb('#2e1a17','#ff9f0a')}
+<div class="win" style="height:auto;top:50px"><div style="padding:22px"><div style="font-size:13px;color:#3e91ff;font-weight:600;margin:0 0 8px 12px">Taskbar</div>
+<div style="background:#1c1c1f;border-radius:22px;display:flex;align-items:center;padding:14px 20px;font-size:15px">
+<div style="flex:1">Colours<small style="display:block;color:#3e91ff;font-size:12.5px;margin-top:3px">Sunset</small></div>
+<div style="display:flex;border-radius:8px;overflow:hidden"><i style="width:18px;height:22px;background:#2e1a17"></i><i style="width:18px;height:22px;background:#ff9f0a"></i></div></div>
+<div style="font-size:12px;color:#9a9aa0;margin:10px 12px">The row stays one line: a small two-colour chip shows the current combination</div></div></div>`;
+</script></body></html>

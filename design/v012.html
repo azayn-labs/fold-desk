@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk v0.1.2</title>
+<style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; --card:#1c1c1f; --div:rgba(255,255,255,.08); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1760px; height:971px; overflow:hidden; display:flex; gap:10px; background:#000; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .screen { position:relative; width:875px; height:971px; overflow:hidden;
+    background: radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%), radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.35), transparent 60%), linear-gradient(155deg,#0f2c63,#07122a); }
+  .cap { position:absolute; left:14px; top:10px; font-size:13px; color:#ffd76a; background:rgba(0,0,0,.6); padding:4px 9px; border-radius:6px; z-index:9; }
+  .page { position:absolute; left:60px; top:50px; width:600px; background:#0c0c0e; border-radius:14px; padding:14px 18px 20px; box-shadow:0 16px 48px rgba(0,0,0,.55); }
+  .gt { font-size:13px; color:var(--accent); font-weight:600; margin:14px 12px 8px; }
+  .card { background:var(--card); border-radius:22px; overflow:hidden; }
+  .row { display:flex; align-items:center; padding:13px 20px; min-height:60px; font-size:15px; gap:14px; } .row + .row { border-top:1px solid var(--div); }
+  .row .t { flex:1; } .row small { display:block; font-size:12.5px; margin-top:3px; color:var(--subtle); } .row small.v { color:var(--accent); }
+  .new { font-size:10px; font-weight:700; background:var(--accent); border-radius:6px; padding:1px 5px; margin-left:6px; vertical-align:2px; }
+  .seg { display:flex; background:#2a2a2e; border-radius:18px; padding:3px; } .seg i { font-style:normal; padding:6px 12px; border-radius:15px; font-size:12.5px; color:var(--subtle); } .seg i.on { background:var(--accent); color:#fff; }
+  .sw { width:44px; height:24px; border-radius:12px; background:var(--accent); position:relative; } .sw::after { content:""; position:absolute; right:3px; top:3px; width:18px; height:18px; border-radius:9px; background:#fff; }
+  .dots { display:flex; gap:8px; } .dots i { width:22px; height:22px; border-radius:11px; } .dots i.on { outline:2px solid #fff; outline-offset:2px; }
+  .choice { position:absolute; left:340px; top:612px; width:280px; background:#2b2b2f; border-radius:22px; padding:8px 0; box-shadow:0 10px 34px rgba(0,0,0,.6); }
+  .choice div { display:flex; align-items:center; gap:12px; padding:11px 20px; font-size:14px; }
+  .radio { width:18px; height:18px; border-radius:9px; border:2px solid #8a8a90; } .radio.on { border-color:var(--accent); background:radial-gradient(circle,var(--accent) 0 4px,transparent 5px); }
+  .ico { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; }
+  /* auto-hide demo */
+  .win { position:absolute; left:110px; top:60px; width:650px; height:820px; border-radius:14px; background:#f4f5f7; box-shadow:0 16px 48px rgba(0,0,0,.5); }
+  .win .bar { height:30px; display:flex; justify-content:center; align-items:center; } .win .bar i { width:40px; height:4px; border-radius:2px; background:#3e91ff; }
+  .kbd { position:absolute; left:250px; top:600px; width:440px; height:210px; border-radius:18px; background:#2b2c31; box-shadow:0 10px 30px rgba(0,0,0,.5); display:grid; grid-template-columns:repeat(10,1fr); gap:6px; padding:12px; }
+  .kbd i { background:#44464d; border-radius:6px; }
+  .handle { position:absolute; left:50%; transform:translateX(-50%); bottom:6px; width:120px; height:6px; border-radius:3px; background:rgba(255,255,255,.55); }
+  .ghostbar { position:absolute; left:0; right:0; bottom:-40px; height:48px; background:rgba(12,12,14,.86); opacity:.35; }
+  .note { position:absolute; font-size:12.5px; color:#cfe1ff; background:rgba(0,0,0,.6); padding:5px 9px; border-radius:6px; }
+  .tb { position:absolute; left:0; right:0; height:48px; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .tb.solid { background:#141416; } .tb.trans { background:rgba(12,12,14,.55); } .tb.blur { background:rgba(28,28,30,.6); backdrop-filter:blur(24px); }
+  .tb i { width:30px; height:30px; border-radius:9px; }
+  .tb.compact { height:40px; } .tb.compact i { width:24px; height:24px; } .tb.large { height:58px; } .tb.large i { width:38px; height:38px; border-radius:11px; }
+  .lbl { position:absolute; left:16px; font-size:12px; color:#fff; z-index:2; }
+  .dim { position:absolute; left:60px; top:50px; width:600px; height:437px; border-radius:14px; background:rgba(0,0,0,.45); }
+  .sheet { position:absolute; left:72px; top:205px; width:576px; background:#2b2b2f; border-radius:26px 26px 22px 22px; padding:10px 0 12px; box-shadow:0 -10px 30px rgba(0,0,0,.5); }
+  .grab { width:40px; height:4px; border-radius:2px; background:#5a5a60; margin:0 auto 10px; }
+  .st { font-size:17px; font-weight:600; padding:4px 24px 0; } .ss { font-size:12.5px; color:var(--subtle); padding:3px 24px 10px; }
+  .opt { display:flex; align-items:center; gap:14px; padding:12px 24px; font-size:15px; } .opt .radio { margin-left:auto; }
+  .cancel { margin:8px 16px 0; text-align:center; padding:12px; border-radius:20px; background:rgba(255,255,255,.08); font-size:15px; }
+</style></head><body>
+<div class="screen" id="a"></div><div class="screen" id="b"></div>
+<script>
+const ic=['#1a73e8','#5f6672','#25d366','#d6249f','#1877f2','#ff0033'];
+const icons=(n=6)=>ic.slice(0,n).map(c=>`<i style="background:${c}"></i>`).join('');
+a.innerHTML = `<div class="page">
+  <div class="gt">Taskbar</div><div class="card">
+    <div class="row"><div class="t">Auto hide taskbar <span class="new">NEW</span><small>Hides while an app is open. Tap or swipe the handle at the edge to show it</small></div><div class="sw"></div></div>
+    <div class="row"><div class="t">Background <span class="new">NEW</span></div><div class="seg"><i>Solid</i><i>Translucent</i><i class="on">Blurred</i></div></div>
+    <div class="row"><div class="t">Size <span class="new">NEW</span></div><div class="seg"><i>Compact</i><i class="on">Default</i><i>Large</i></div></div>
+    <div class="row"><div class="t">Colours <span class="new">NEW</span><small class="v">Midnight</small></div><div class="combo"><i style="background:#141a2e"></i><i style="background:#3e91ff"></i></div></div>
+  </div>
+  <div class="gt">Cover screen</div><div class="card">
+    <div class="row"><div class="t">Cover screen launcher <span class="new">NEW</span><small class="v">Niagara Launcher</small></div></div>
+  </div></div>
+  <div class="dim"></div>
+  <div class="sheet"><div class="grab"></div>
+    <div class="st">Cover screen launcher</div><div class="ss">Used when the phone is folded</div>
+    <div class="opt"><div class="ico" style="background:#3a7bd5">◎</div>One UI Home<span class="radio"></span></div>
+    <div class="opt"><div class="ico" style="background:#111;border:1px solid #444">N</div>Niagara Launcher<span class="radio on"></span></div>
+    <div class="opt"><div class="ico" style="background:#1f6feb">▤</div>FoldDesk (both screens)<span class="radio"></span></div>
+    <div class="cancel">Cancel</div></div>
+  <div class="cap">FoldDesk settings: new rows (tapping Cover screen launcher opens an action sheet)</div>`;
+b.innerHTML = `<div class="win"><div class="bar"><i></i></div></div>
+  <div class="kbd">${'<i></i>'.repeat(40)}</div>
+  <div class="ghostbar"></div><div class="handle"></div>
+  <div class="note" style="left:300px;top:900px">Auto hide on: only a handle is left. Tap or swipe up on it to bring the taskbar back</div>
+  <div class="note" style="left:470px;top:560px">Floating keyboard no longer blocked</div>
+  <div class="cap">Auto hide with a floating keyboard</div>`;
+</script></body></html>
