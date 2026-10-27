@@ -139,4 +139,4 @@ See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for working on the code.
 
 ## License
 
-Apache License 2.0, see [`LICENSE`](LICENSE).
+Apache License 2.0, see [`LICENSE`](LICENSE). © 2026 [azayn](https://azayn.com).
