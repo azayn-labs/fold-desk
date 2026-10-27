@@ -133,6 +133,14 @@ class DeskState(private val context: Context) {
         private set
     /** Package of the focused window; set by [TaskbarService] when it runs. */
     var focusedPackage by mutableStateOf<String?>(null)
+    /** Apps last seen filling the screen (or in split screen); set by [TaskbarService]. */
+    private val fullScreenApps = mutableSetOf<String>()
+
+    fun noteAppWindow(pkg: String, fullScreen: Boolean) {
+        if (fullScreen) fullScreenApps += pkg else fullScreenApps -= pkg
+    }
+
+    fun wasFullScreen(pkg: String) = pkg in fullScreenApps
 
     private val byKey get() = apps.associateBy { it.key }
     private var homePackages = emptySet<String>()

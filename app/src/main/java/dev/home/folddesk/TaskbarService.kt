@@ -438,6 +438,11 @@ class TaskbarService : AccessibilityService(), SystemKeys {
 
         val screen = wm.maximumWindowMetrics.bounds
         val bounds = Rect().also { top?.getBoundsInScreen(it) }
+        // Pop-up windows never span the screen's width; see Shell.open.
+        if (topPackage != null && topPackage != packageName) {
+            val split = windows.any { it.type == AccessibilityWindowInfo.TYPE_SPLIT_SCREEN_DIVIDER }
+            shell.desk.noteAppWindow(topPackage, fullScreen = split || bounds.width() >= screen.width())
+        }
         // Step aside for anything in front that reaches into the taskbar's strip:
         // full-screen apps, bottom-sheet dialogs, windows dragged over it.
         val thickness = barThickness()

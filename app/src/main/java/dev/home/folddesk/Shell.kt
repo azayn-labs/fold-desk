@@ -188,7 +188,16 @@ class ShellController(
             OpenMode.Default -> Launcher.open(context, app, desk.openInWindow, desk.windowSizeFor(app))
             OpenMode.Window -> Launcher.open(context, app, true, desk.windowSizeFor(app))
             OpenMode.Fullscreen -> Launcher.open(context, app, false)
-            OpenMode.Front -> Launcher.bringToFront(context, app)
+            // The taskbar can think an app is open after it was closed with Back
+            // (nothing reports that), so a windowed app gets what a fresh window
+            // needs; an open window keeps its place. Window options would turn a
+            // full-screen app into a window, so those are only raised.
+            OpenMode.Front ->
+                if (desk.openInWindow && !desk.wasFullScreen(app.pkg)) {
+                    Launcher.open(context, app, true, desk.windowSizeFor(app))
+                } else {
+                    Launcher.bringToFront(context, app)
+                }
         }
     }
 
