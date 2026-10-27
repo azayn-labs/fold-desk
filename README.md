@@ -142,7 +142,7 @@ See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for working on the code.
 ## Support
 
 FoldDesk is free and always will be. If it makes your Fold nicer to use and
-you'd like to say thanks, you can [buy me a coffee](https://bunq.me/adarsmohan76).
+you'd like to say thanks, you can [buy me a coffee on Ko-fi](https://ko-fi.com/adarsmohan76).
 A star on GitHub helps too.
 
 ## License
