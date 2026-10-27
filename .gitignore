@@ -13,3 +13,8 @@ design/qs-panel.png
 design/glass.*
 design/shade-material.png
 design/shade.html
+
+# Signing keys and their passwords never go into this public repo.
+*.jks
+*.keystore
+keystore.properties

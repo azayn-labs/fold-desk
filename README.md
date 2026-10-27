@@ -4,7 +4,17 @@ A Samsung DeX–style desktop launcher for the **inner screen of the Galaxy Z Fo
 (One UI 9 / Android 17). On the cover screen it hands over to One UI Home, so the
 folded phone behaves exactly as before.
 
-It's a personal, sideloaded app: not on the Play Store, signed with the debug key.
+It's a sideloaded, open-source app (not on the Play Store). Signed APKs are
+published on the [Releases page](../../releases).
+
+## Compatibility
+
+- **Built and tested on:** Galaxy Z Fold7, One UI 9 (Android 17).
+- **Needs:** Android 14+ (minSdk 34) and a device with freeform window support.
+- **Samsung-specific:** the panel blur, Recents sync and window minimising rely
+  on One UI internals. Other Samsung foldables/tablets on a recent One UI will
+  likely work; other brands will run with reduced features. Reports welcome
+  via Issues.
 
 ## What it does
 
@@ -27,6 +37,26 @@ It's a personal, sideloaded app: not on the Play Store, signed with the debug ke
 Mockups of every screen are in [`design/`](design/) (open the `.html` files in a
 browser; the `.png` files are renders of them).
 
+## Install from a release (no computer needed)
+
+1. Download `FoldDesk-vX.Y.Z.apk` from the [latest release](../../releases/latest)
+   on the phone and open it. Allow your browser/files app to install unknown apps
+   when asked.
+2. **Make it the home app:** Settings → Apps → Default apps → Home app → FoldDesk.
+3. **Turn on the taskbar:** Settings → Accessibility → Installed apps →
+   FoldDesk taskbar → On. If it's greyed out ("Restricted setting"): Settings →
+   Apps → FoldDesk → ⋮ → Allow restricted settings, then try again.
+4. **Open apps on the taskbar:** Settings → Apps → ⋮ → Special access → Usage
+   data access → FoldDesk → On.
+5. **Notification icons in the tray:** Settings → Notifications → Advanced
+   settings → Notification access → FoldDesk → On.
+6. If apps don't open in floating windows: Developer options → turn on
+   **Force activities to be resizable** (and **Enable freeform windows** if your
+   phone shows it).
+
+Updates install over the previous version (same signing key); your desktops,
+icons and settings are kept.
+
 ## Repository layout
 
 ```
@@ -35,6 +65,8 @@ app/src/main/res/                      themes, icon, accessibility-service confi
 design/                                HTML mockups + rendered PNGs
 docs/ARCHITECTURE.md                   how it works, file by file
 docs/DEVELOPMENT.md                    building, installing, testing on the phone
+docs/RELEASING.md                      publishing a new release
+.github/workflows/                     CI build + tag-triggered signed releases
 CLAUDE.md                              notes for AI-assisted sessions
 ```
 

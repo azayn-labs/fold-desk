@@ -1,0 +1,67 @@
+name: Release
+
+# Push a tag like v0.2.0 to build a signed APK and publish a GitHub Release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-37 build-tools;36.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The signing key lives only in the repository's Actions secrets.
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FOLDDESK_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Secret FOLDDESK_KEYSTORE_BASE64 is not set (see docs/RELEASING.md)"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+
+      - name: Build signed release APK
+        env:
+          FOLDDESK_KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          FOLDDESK_KEYSTORE_PASSWORD: ${{ secrets.FOLDDESK_KEYSTORE_PASSWORD }}
+          FOLDDESK_KEY_ALIAS: ${{ secrets.FOLDDESK_KEY_ALIAS }}
+          FOLDDESK_KEY_PASSWORD: ${{ secrets.FOLDDESK_KEY_PASSWORD }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # versionCode from the version: 1.2.3 -> 10203 (always increasing).
+          IFS=. read -r MAJOR MINOR PATCH <<< "${VERSION%%-*}"
+          export FOLDDESK_VERSION_NAME="$VERSION"
+          export FOLDDESK_VERSION_CODE=$(( ${MAJOR:-0} * 10000 + ${MINOR:-0} * 100 + ${PATCH:-0} ))
+          ./gradlew assembleRelease
+          mv app/build/outputs/apk/release/app-release.apk "FoldDesk-$GITHUB_REF_NAME.apk"
+          sha256sum "FoldDesk-$GITHUB_REF_NAME.apk" > "FoldDesk-$GITHUB_REF_NAME.apk.sha256"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "FoldDesk-$GITHUB_REF_NAME.apk" "FoldDesk-$GITHUB_REF_NAME.apk.sha256" \
+            --title "FoldDesk $GITHUB_REF_NAME" \
+            --generate-notes \
+            $([[ "$GITHUB_REF_NAME" == *-* ]] && echo --prerelease)
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
