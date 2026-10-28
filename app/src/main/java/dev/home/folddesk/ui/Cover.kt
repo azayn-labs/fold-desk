@@ -57,6 +57,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import kotlin.math.min
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -282,10 +286,14 @@ private fun NotificationsSection(desk: DeskState, visits: Int) {
     // One app's group open at a time; it closes again when you come back to the page.
     var expanded by remember(visits) { mutableStateOf<String?>(null) }
     val state = rememberLazyListState()
-    // The open group starts at the top of the list, so it doesn't run off the bottom.
+    // Once open, scroll only if the group runs off the bottom, and no further than its top.
     LaunchedEffect(expanded) {
-        val index = list.indexOfFirst { it.pkg == expanded }
-        if (index >= 0) state.animateScrollToItem(index + 1)
+        val key = expanded ?: return@LaunchedEffect
+        delay(GROUP_ANIMATION_MS.toLong())
+        val info = state.layoutInfo
+        val item = info.visibleItemsInfo.firstOrNull { it.key == key } ?: return@LaunchedEffect
+        val overflow = item.offset + item.size - info.viewportEndOffset
+        if (overflow > 0) state.animateScrollBy(min(overflow, item.offset - info.viewportStartOffset).toFloat())
     }
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -304,17 +312,22 @@ private fun NotificationsSection(desk: DeskState, visits: Int) {
             }
             list.isEmpty() -> item { NoticeRow("No new notifications") }
             else -> items(list, key = { it.pkg }) { n ->
-                if (n.pkg == expanded && n.count > 1) {
-                    NotificationGroup(desk, n, onCollapse = { expanded = null })
-                } else {
-                    SwipeAway(n.keys, onDismiss = { NotificationWatcher.dismiss(n.keys) }) {
-                        NotificationRow(desk, n, onExpand = { expanded = n.pkg })
+                // Grows and shrinks smoothly; the rows below follow its size.
+                Box(Modifier.animateContentSize(tween(GROUP_ANIMATION_MS))) {
+                    if (n.pkg == expanded && n.count > 1) {
+                        NotificationGroup(desk, n, onCollapse = { expanded = null })
+                    } else {
+                        SwipeAway(n.keys, onDismiss = { NotificationWatcher.dismiss(n.keys) }) {
+                            NotificationRow(desk, n, onExpand = { expanded = n.pkg })
+                        }
                     }
                 }
             }
         }
     }
 }
+
+private const val GROUP_ANIMATION_MS = 220
 
 /** The app's name and icon, asking the system when it isn't in the app list (a system app, say). */
 @Composable
