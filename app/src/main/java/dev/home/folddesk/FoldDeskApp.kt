@@ -59,7 +59,11 @@ class FoldDeskApp : Application() {
             return short > 0 && long < short * MAX_INNER_ASPECT
         }
 
-        /** Cover screens are about 2.3:1; inner screens about 1.1:1. */
-        private const val MAX_INNER_ASPECT = 1.8f
+        /**
+         * Cover screens are about 2.3:1 and inner screens about 1.1:1. One UI
+         * can show apps on the cover screen letterboxed to 16:9 (1.78:1), so
+         * the line sits well below that.
+         */
+        private const val MAX_INNER_ASPECT = 1.4f
     }
 }
