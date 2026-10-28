@@ -274,21 +274,23 @@ private fun NotificationRow(desk: DeskState, n: CoverNotification) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f).padding(vertical = 9.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    BasicText(
-                        n.title.ifEmpty { app?.label ?: n.pkg },
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        style = TextStyle(color = Dex.text, fontSize = 14.sp),
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (n.count > 1) {
+                    // Title and badge take what's left; the app name stays flush right.
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                         BasicText(
-                            n.count.toString(),
-                            style = TextStyle(color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.padding(start = 6.dp).clip(CircleShape).background(stripe)
-                                .padding(horizontal = 6.dp),
+                            n.title.ifEmpty { app?.label ?: n.pkg },
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = TextStyle(color = Dex.text, fontSize = 14.sp),
+                            modifier = Modifier.weight(1f, fill = false),
                         )
+                        if (n.count > 1) {
+                            BasicText(
+                                n.count.toString(),
+                                style = TextStyle(color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+                                modifier = Modifier.padding(start = 6.dp).clip(CircleShape).background(stripe)
+                                    .padding(horizontal = 6.dp),
+                            )
+                        }
                     }
-                    Spacer(Modifier.weight(1f))
                     BasicText(
                         app?.label.orEmpty(), maxLines = 1,
                         style = TextStyle(color = Dex.subtle, fontSize = 12.sp),
