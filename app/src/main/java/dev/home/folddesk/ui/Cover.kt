@@ -132,6 +132,10 @@ fun CoverScreen(shell: ShellController, homePresses: Int, widgetActions: WidgetA
     LaunchedEffect(pager.settledPage) { if (pager.settledPage == MAIN_PAGE) visits++ }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { visits++ }
     BackHandler(enabled = pager.currentPage != MAIN_PAGE) { scope.launch { pager.animateScrollToPage(MAIN_PAGE) } }
+    // Declared after, so it goes first: Back closes an open menu before leaving the page.
+    BackHandler(enabled = shell.hasPopup) { shell.closePopups() }
+    // A menu belongs to the page it was opened on.
+    LaunchedEffect(pager.currentPage) { shell.closePopups() }
     // Editing widgets: sideways drags are for resizing, not for changing page.
     var widgetsEditing by remember { mutableStateOf(false) }
 
