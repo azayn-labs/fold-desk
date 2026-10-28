@@ -9,6 +9,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.zIndex
@@ -815,25 +819,36 @@ private fun FavouriteApps(shell: ShellController) {
     }
     if (favourites.isEmpty()) return
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        AppIconRow(shell, "Favourites", favourites, (maxWidth / RECENT_SLOT).toInt().coerceAtLeast(1), scrolls = true)
+        AppIconRow(shell, null, favourites, (maxWidth / RECENT_SLOT).toInt().coerceAtLeast(1), scrolls = true)
     }
+}
+
+/** Takes whatever sideways scroll a row leaves over, so it doesn't reach the pager. */
+private object KeepSideways : NestedScrollConnection {
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource) = available.copy(y = 0f)
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity) = available.copy(y = 0f)
 }
 
 /** A labelled row of app icons, [perRow] to the width. */
 @Composable
-private fun AppIconRow(shell: ShellController, title: String, apps: List<AppEntry>, perRow: Int, scrolls: Boolean) {
+private fun AppIconRow(shell: ShellController, title: String?, apps: List<AppEntry>, perRow: Int, scrolls: Boolean) {
     val context = LocalContext.current
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val slot = (maxWidth - 24.dp) / perRow
         Column(Modifier.fillMaxWidth()) {
-            BasicText(
-                title,
-                style = TextStyle(color = Dex.accent, fontSize = 12.sp),
-                modifier = Modifier.padding(start = 26.dp, top = 10.dp, bottom = 6.dp),
-            )
+            if (title != null) {
+                BasicText(
+                    title,
+                    style = TextStyle(color = Dex.accent, fontSize = 12.sp),
+                    modifier = Modifier.padding(start = 26.dp, top = 10.dp, bottom = 6.dp),
+                )
+            } else {
+                Spacer(Modifier.height(6.dp))
+            }
             Row(
                 Modifier.fillMaxWidth()
-                    .then(if (scrolls) Modifier.horizontalScroll(rememberScrollState()) else Modifier)
+                    // Sideways swipes here are for the row, never for changing page.
+                    .then(if (scrolls) Modifier.nestedScroll(KeepSideways).horizontalScroll(rememberScrollState()) else Modifier)
                     .padding(horizontal = 12.dp),
             ) {
                 for (app in if (scrolls) apps else apps.take(perRow)) {
