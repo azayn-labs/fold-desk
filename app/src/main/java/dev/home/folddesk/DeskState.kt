@@ -3,6 +3,7 @@ package dev.home.folddesk
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.ComponentName
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
@@ -113,6 +114,10 @@ enum class Network { None, Wifi, Cellular, Other }
 
 /** Process-wide launcher state; Compose reads it directly. */
 class DeskState(private val context: Context) {
+    /** Widgets the system no longer knows (their app was removed, or FoldDesk reinstalled) are skipped. */
+    private val widgetManager = AppWidgetManager.getInstance(context)
+    private fun widgetExists(id: Int) = widgetManager.getAppWidgetInfo(id) != null
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val sp = context.getSharedPreferences("desk", Context.MODE_PRIVATE)
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
@@ -209,7 +214,7 @@ class DeskState(private val context: Context) {
                 2 -> CoverWidget(p[0], Widgets.COVER_COLUMNS, Widgets.coverRows(p[1]))
                 else -> null
             }
-        }.let { list ->
+        }.filter { widgetExists(it.id) }.let { list ->
             // Saved before widgets had a row: stack them as they used to show.
             list.fold(emptyList<CoverWidget>()) { placed, w ->
                 if (w.row >= 0) placed + w
@@ -961,7 +966,7 @@ class DeskState(private val context: Context) {
     private fun readWidgets(id: Int): List<DeskWidget> = readList(widgetsKey(id)).mapNotNull { line ->
         val p = line.split('|').mapNotNull { it.toIntOrNull() }
         if (p.size == 5) DeskWidget(p[0], Cell(p[1], p[2]), p[3], p[4]) else null
-    }
+    }.filter { widgetExists(it.id) }
 
     private fun saveWidgets(list: List<DeskWidget>, id: Int = currentDesktopId) {
         if (id == currentDesktopId) widgets = list
