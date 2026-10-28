@@ -23,6 +23,7 @@ import dev.home.folddesk.Widgets
 import dev.home.folddesk.WidgetActions
 import dev.home.folddesk.DeskWidgetView
 import dev.home.folddesk.CoverWidget
+import dev.home.folddesk.dropCoverWidget
 import dev.home.folddesk.freeCoverSpot
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.style.TextAlign
@@ -536,8 +537,9 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditi
     BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInWindow() }) {
         // The grid fills the screen, so widgets can go anywhere on it, gaps and all.
         val pageHeight = maxHeight
+        // The grid fits the screen exactly, so this only scrolls once widgets go further down.
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp)) {
-            Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+            Row(Modifier.fillMaxWidth().height(HEADER_HEIGHT).padding(start = 8.dp, end = 8.dp)) {
                 SectionTitle("Widgets", Modifier.weight(1f))
                 if (desk.coverWidgets.isNotEmpty()) {
                     SectionTitle(
@@ -552,7 +554,7 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditi
                 val cols = Widgets.COVER_COLUMNS
                 val gap = 8.dp
                 val cell = (maxWidth + gap) / cols
-                val screenRows = ((pageHeight - 40.dp) / cell).toInt().coerceAtLeast(1)
+                val screenRows = ((pageHeight - HEADER_HEIGHT + gap) / cell).toInt().coerceAtLeast(1)
                 val usedRows = shown.maxOfOrNull { it.row + it.h } ?: 0
                 val addAt = if (editing || shown.isEmpty()) {
                     freeCoverSpot(shown, if (shown.isEmpty()) cols else 1, 1, cols).let { (c, r) -> IntOffset(c, r) }
@@ -584,11 +586,8 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditi
                                     val cellPx = with(density) { cell.toPx() }
                                     val col = Math.round(at.x + d.x / cellPx).coerceIn(0, cols - widget.w)
                                     val row = Math.round(at.y + d.y / cellPx).coerceAtLeast(0)
-                                    val moved = widget.copy(col = col, row = row)
-                                    // Only onto free cells; otherwise it goes back where it was.
-                                    if (desk.coverWidgets.none { it.id != widget.id && it.overlaps(moved) }) {
-                                        desk.updateCoverWidgets(desk.coverWidgets.map { if (it.id == widget.id) moved else it })
-                                    }
+                                    // Whatever it lands on makes way for it.
+                                    desk.updateCoverWidgets(dropCoverWidget(desk.coverWidgets, widget.copy(col = col, row = row), cols))
                                 },
                                 // A resize stops short of other widgets.
                                 onResizing = { resized ->
@@ -618,7 +617,6 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditi
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
         }
         PopupLayer(shell, Modifier.fillMaxSize(), dragTargets = false)
         if (picking) {
@@ -636,6 +634,8 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditi
         }
     }
 }
+
+private val HEADER_HEIGHT = 28.dp
 
 /** Faint cell outlines while editing. */
 @Composable

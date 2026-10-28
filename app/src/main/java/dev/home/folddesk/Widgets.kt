@@ -112,12 +112,22 @@ class DeskWidgetView(context: Context) : AppWidgetHostView(context) {
     private val longPress = Runnable {
         longPressed = true
         parent?.requestDisallowInterceptTouchEvent(true)
+        // The widget's own press (a button held down) ends here.
+        val now = android.os.SystemClock.uptimeMillis()
+        MotionEvent.obtain(now, now, MotionEvent.ACTION_CANCEL, downX, downY, 0).let {
+            super.dispatchTouchEvent(it)
+            it.recycle()
+        }
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         val loc = IntArray(2).also { getLocationInWindow(it) }
         onLongPress?.invoke(loc[0] + downX, loc[1] + downY)
     }
 
-    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+    /**
+     * Watches every touch before the widget gets it: some widgets' buttons stop
+     * their parent from intercepting, which would hide the drag after a long press.
+     */
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = ev.x; downY = ev.y; lastX = ev.rawX; lastY = ev.rawY
@@ -127,18 +137,11 @@ class DeskWidgetView(context: Context) : AppWidgetHostView(context) {
             }
             MotionEvent.ACTION_MOVE -> {
                 if (!longPressed && (abs(ev.x - downX) > slop || abs(ev.y - downY) > slop)) removeCallbacks(longPress)
-                if (longPressed) return true
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                removeCallbacks(longPress)
-                if (longPressed) return true
-            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> removeCallbacks(longPress)
         }
-        return false
-    }
-
-    override fun onTouchEvent(ev: MotionEvent): Boolean {
-        if (!longPressed) return super.onTouchEvent(ev)
+        if (!longPressed) return super.dispatchTouchEvent(ev)
+        // Long pressed: the gesture is FoldDesk's now (menu, then drag to move).
         when (ev.actionMasked) {
             MotionEvent.ACTION_MOVE -> {
                 val dx = ev.rawX - lastX

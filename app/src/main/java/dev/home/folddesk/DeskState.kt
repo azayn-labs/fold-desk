@@ -46,6 +46,40 @@ data class CoverWidget(val id: Int, val w: Int, val h: Int, val col: Int = 0, va
 }
 
 /**
+ * Puts [moved] where it was dropped and moves whatever it lands on out of
+ * the way: into the spot [moved] came from if it fits there (a swap), else
+ * the nearest free spot.
+ */
+fun dropCoverWidget(widgets: List<CoverWidget>, moved: CoverWidget, cols: Int): List<CoverWidget> {
+    val old = widgets.firstOrNull { it.id == moved.id } ?: return widgets
+    val (inTheWay, clear) = widgets.filter { it.id != moved.id }.partition { it.overlaps(moved) }
+    val placed = (clear + moved).toMutableList()
+    for (w in inTheWay) {
+        // Anywhere in the space the moved widget left, then the nearest free spot.
+        val vacated = (old.row until old.row + old.h).flatMap { row ->
+            (old.col until old.col + old.w).map { col -> w.copy(col = col.coerceIn(0, cols - w.w), row = row) }
+        }
+        placed += vacated.firstOrNull { spot -> placed.none { it.overlaps(spot) } } ?: nearestCoverSpot(placed, w, cols)
+    }
+    // Keep the original order, so nothing else shuffles.
+    return widgets.map { w -> placed.first { it.id == w.id } }
+}
+
+/** The free spot closest to where [w] is now. */
+private fun nearestCoverSpot(others: List<CoverWidget>, w: CoverWidget, cols: Int): CoverWidget {
+    val lastRow = (others.maxOfOrNull { it.row + it.h } ?: 0) + w.h
+    var best: CoverWidget? = null
+    var bestDistance = Int.MAX_VALUE
+    for (row in 0..lastRow) for (col in 0..cols - w.w) {
+        val probe = w.copy(col = col, row = row)
+        if (others.any { it.overlaps(probe) }) continue
+        val distance = (row - w.row) * (row - w.row) + (col - w.col) * (col - w.col)
+        if (distance < bestDistance) { best = probe; bestDistance = distance }
+    }
+    return best ?: w.copy(row = lastRow)
+}
+
+/**
  * First spot from the top where a [w]×[h] widget fits among [others], from
  * [fromRow] down.
  */
