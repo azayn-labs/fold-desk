@@ -921,6 +921,15 @@ private fun CoverApps(shell: ShellController) {
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            if (query.isNotEmpty()) {
+                Box(
+                    Modifier.padding(start = 8.dp).size(28.dp).clip(CircleShape)
+                        .deskGestures(onTap = { query = "" }),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BasicText("✕", style = TextStyle(color = Dex.subtle, fontSize = 15.sp))
+                }
+            }
         }
         if (query.isEmpty()) RecentApps(shell)
     }
