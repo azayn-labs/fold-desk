@@ -50,6 +50,8 @@ data class DexColors(
     /** One UI panel material: tint over blur, and the no-blur fallback. */
     val panelBlurTint: Color,
     val panelOpaque: Color,
+    /** Something needs the user's attention, e.g. the taskbar service is off. */
+    val warning: Color,
 )
 
 val DarkDex = DexColors(
@@ -73,6 +75,7 @@ val DarkDex = DexColors(
     // Measured on the Fold7's quick settings: ~78% #1C1C1E over the blur.
     panelBlurTint = Color(0xC71C1C1E),
     panelOpaque = Color(0xF21C1C1E),
+    warning = Color(0xFFFF9F0A),
 )
 
 val LightDex = DexColors(
@@ -95,6 +98,7 @@ val LightDex = DexColors(
     switchOff = Color(0xFFC7C7CC),
     panelBlurTint = Color(0xC7F4F4F6),
     panelOpaque = Color(0xF7F7F7F9),
+    warning = Color(0xFFE08600),
 )
 
 val LocalDexColors = staticCompositionLocalOf { DarkDex }
@@ -124,6 +128,7 @@ object Dex {
     val accent: Color @Composable @ReadOnlyComposable get() = LocalDexColors.current.accent
     val text: Color @Composable @ReadOnlyComposable get() = LocalDexColors.current.text
     val subtle: Color @Composable @ReadOnlyComposable get() = LocalDexColors.current.subtle
+    val warning: Color @Composable @ReadOnlyComposable get() = LocalDexColors.current.warning
     val divider: Color @Composable @ReadOnlyComposable get() = LocalDexColors.current.divider
     val separator: Color @Composable @ReadOnlyComposable get() = LocalDexColors.current.separator
     val field: Color @Composable @ReadOnlyComposable get() = LocalDexColors.current.field

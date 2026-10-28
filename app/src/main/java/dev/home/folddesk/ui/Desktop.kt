@@ -16,6 +16,8 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.SideEffect
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.Image
+import dev.home.folddesk.Launcher
+import androidx.compose.foundation.layout.Column
 import android.appwidget.AppWidgetProviderInfo
 import androidx.compose.foundation.layout.fillMaxHeight
 import dev.home.folddesk.TaskbarSide
@@ -186,7 +188,55 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
             dragTargets = showTaskbar,
         )
         DesktopPill(shell, Modifier.align(Alignment.TopCenter).padding(top = statusTop + 18.dp))
+        // The fallback taskbar is showing, so the service is off: say so.
+        val context = LocalContext.current
+        var noticeDismissed by remember { mutableStateOf(false) }
+        LaunchedEffect(showTaskbar) { if (!showTaskbar) noticeDismissed = false }
+        if (showTaskbar && !noticeDismissed) {
+            ServiceOffNotice(
+                onTurnOn = { Launcher.openAccessibilitySettings(context) },
+                onDismiss = { noticeDismissed = true },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = aboveTaskbar + 16.dp, start = barStart, end = barEnd),
+            )
+        }
         if (widgetActions != null) WidgetPickerLayer(shell, widgetActions, Modifier.padding(top = statusTop, bottom = aboveTaskbar, start = barStart, end = barEnd))
+    }
+}
+
+/** Warns that the taskbar accessibility service is off, with a way to turn it on. */
+@Composable
+private fun ServiceOffNotice(onTurnOn: () -> Unit, onDismiss: () -> Unit, modifier: Modifier) {
+    Panel(22.dp, modifier.widthIn(max = 560.dp)) {
+        Row(
+            Modifier.deskGestures().padding(start = 18.dp, end = 10.dp, top = 14.dp, bottom = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).background(Dex.warning.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                BasicText("!", style = TextStyle(color = Dex.warning, fontSize = 18.sp, fontWeight = FontWeight.Bold))
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                BasicText("The FoldDesk taskbar is turned off", style = TextStyle(color = Dex.text, fontSize = 14.sp))
+                BasicText(
+                    "Without it the app drawer opens behind apps and unfolding won't bring you back here",
+                    style = TextStyle(color = Dex.subtle, fontSize = 12.5.sp),
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Box(
+                Modifier.clip(RoundedCornerShape(18.dp)).background(Dex.accent)
+                    .deskGestures(onTap = { onTurnOn() }).padding(horizontal = 16.dp, vertical = 9.dp),
+            ) {
+                BasicText("Turn on", style = TextStyle(color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold))
+            }
+            Box(Modifier.clip(CircleShape).deskGestures(onTap = { onDismiss() }).padding(10.dp)) {
+                BasicText("✕", style = TextStyle(color = Dex.subtle, fontSize = 16.sp))
+            }
+        }
     }
 }
 

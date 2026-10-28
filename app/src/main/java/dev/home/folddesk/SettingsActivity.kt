@@ -83,7 +83,7 @@ private object Ui {
     val segment: Color @Composable get() = LocalDexColors.current.segment
     val switchOff: Color @Composable get() = LocalDexColors.current.switchOff
     val running = Color(0xFF4CD964)
-    val stopped = Color(0xFFFF6B5E)
+    val stopped: Color @Composable get() = LocalDexColors.current.warning
 }
 
 /** An open action sheet: title, body, and the text buttons along its foot. */
