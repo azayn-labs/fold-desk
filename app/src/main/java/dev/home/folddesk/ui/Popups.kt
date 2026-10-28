@@ -320,14 +320,15 @@ private fun ContextMenu(state: MenuState, onDismiss: () -> Unit) {
     // An item with a submenu opens a side list next to it.
     var openSub by remember(state) { mutableStateOf<MenuItem?>(null) }
     var subTop by remember(state) { mutableStateOf(0f) }
-    var layerTop by remember { mutableStateOf(0f) }
+    // Unknown until the layer is laid out; the menu waits for it so it doesn't jump.
+    var layerPos by remember { mutableStateOf<Float?>(null) }
     val view = LocalView.current
 
     Layout(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(10f)
-            .onGloballyPositioned { layerTop = it.positionInRoot().y },
+            .onGloballyPositioned { layerPos = it.positionInRoot().y },
         content = {
             MenuPanel(width = 230.dp) {
                 state.header?.let { app ->
@@ -379,6 +380,7 @@ private fun ContextMenu(state: MenuState, onDismiss: () -> Unit) {
         val menu = measurables[0].measure(Constraints())
         val sub = measurables.getOrNull(1)?.measure(Constraints())
         layout(constraints.maxWidth, constraints.maxHeight) {
+            val layerTop = layerPos ?: return@layout
             // Taskbar menus give a screen position; bring it into this window.
             val at = if (state.taskbarEdge != null) {
                 val loc = IntArray(2).also { view.getLocationOnScreen(it) }
