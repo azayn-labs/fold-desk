@@ -234,15 +234,6 @@ private fun Glance(shell: ShellController, visits: Int) {
             Box(Modifier.fillMaxWidth().weight(1f - split)) { CalendarSection(now, resumes) }
             Dock(shell, Modifier.height(dockHeight))
         }
-        // Hints that widgets and the app list are a swipe away.
-        Box(
-            Modifier.align(Alignment.CenterEnd).size(width = 4.dp, height = 80.dp)
-                .clip(RoundedCornerShape(topStart = 2.dp, bottomStart = 2.dp)).background(Dex.subtle.copy(alpha = 0.5f)),
-        )
-        Box(
-            Modifier.align(Alignment.CenterStart).size(width = 4.dp, height = 80.dp)
-                .clip(RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp)).background(Dex.subtle.copy(alpha = 0.5f)),
-        )
     }
 }
 
