@@ -26,10 +26,24 @@ data class CoverNotification(
     val autoCancel: Boolean,
 ) {
     companion object {
+        /**
+         * Media controls, including One UI's own "MediaOngoingActivity" from
+         * System UI, which isn't flagged as ongoing.
+         */
+        private fun isMedia(sbn: StatusBarNotification): Boolean {
+            val n = sbn.notification
+            return n.category == Notification.CATEGORY_TRANSPORT ||
+                n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION) ||
+                n.extras.getString(Notification.EXTRA_TEMPLATE)?.contains("MediaStyle") == true ||
+                (sbn.packageName == "com.android.systemui" &&
+                    n.extras.getCharSequence(Notification.EXTRA_TITLE)?.contains("Media") == true)
+        }
+
         /** Newest first, one entry per app; group summaries only count when they're all there is. */
         fun from(active: List<StatusBarNotification>): List<CoverNotification> = active
             // Music players and other ongoing notifications aren't news.
             .filter { it.isClearable && !it.isOngoing && it.notification.flags and Notification.FLAG_FOREGROUND_SERVICE == 0 }
+            .filter { !isMedia(it) }
             .groupBy { it.packageName }
             .mapNotNull { (pkg, list) ->
                 val shown = list.filter { it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }.ifEmpty { list }

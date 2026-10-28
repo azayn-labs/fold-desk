@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -405,7 +406,11 @@ private fun EventRow(event: CoverEvent, now: Long) {
     ) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(if (event.color != 0) Color(event.color).copy(alpha = 1f) else Dex.accent))
         Spacer(Modifier.width(10.dp))
-        BasicText(label, maxLines = 1, style = TextStyle(color = Dex.accent, fontSize = 13.sp), modifier = Modifier.width(78.dp))
+        // At least a column's width so titles line up, but never cut short with big text.
+        BasicText(
+            label, maxLines = 1, style = TextStyle(color = Dex.accent, fontSize = 13.sp),
+            modifier = Modifier.widthIn(min = 72.dp).padding(end = 10.dp),
+        )
         Column(Modifier.weight(1f)) {
             BasicText(
                 event.title.ifEmpty { "(No title)" }, maxLines = 1, overflow = TextOverflow.Ellipsis,
