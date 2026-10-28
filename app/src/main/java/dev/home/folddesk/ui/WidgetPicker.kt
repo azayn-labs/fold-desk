@@ -49,6 +49,14 @@ import dev.home.folddesk.ShellController
 import dev.home.folddesk.Widgets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.widget.RemoteViews
+import android.widget.FrameLayout
+import android.os.Build
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
+import androidx.compose.ui.layout.ContentScale
 
 /** One app's widgets in the picker. */
 private class WidgetApp(val pkg: String, val label: String, val icon: ImageBitmap?, val widgets: List<AppWidgetProviderInfo>)
@@ -188,6 +196,12 @@ private fun WidgetPreview(
             }.getOrNull()
         }
     }
+    // Drawn on the main thread (inflating views), only for widgets without a picture.
+    val live by produceState<ImageBitmap?>(null, info) {
+        if (info.previewImage != 0) return@produceState
+        val views = livePreview(context, info) ?: return@produceState
+        value = runCatching { renderPreview(context, views, info) }.getOrNull()
+    }
     var placement by remember { mutableStateOf<WidgetPlacement?>(null) }
     Column(
         Modifier
@@ -209,10 +223,15 @@ private fun WidgetPreview(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            Modifier.fillMaxWidth().heightIn(min = 72.dp, max = 110.dp).clip(RoundedCornerShape(14.dp)),
+            Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            preview?.let { Image(it, contentDescription = info.loadLabel(context.packageManager), modifier = Modifier.fillMaxWidth()) }
+            // The widget's own picture when it has one. Many newer widgets only
+            // describe their preview as a layout; draw that, like One UI does,
+            // and only then fall back to the app icon.
+            (live ?: preview)?.let {
+                Image(it, contentDescription = info.loadLabel(context.packageManager), modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            }
         }
         Spacer(Modifier.height(6.dp))
         BasicText(
@@ -221,4 +240,42 @@ private fun WidgetPreview(
         )
         BasicText("$w × $h", style = TextStyle(color = Dex.subtle, fontSize = 11.5.sp))
     }
+}
+
+/**
+ * The widget's own preview as views: Android 15's generated preview if the
+ * app published one, else its preview layout. Null when it only has a picture.
+ */
+private fun livePreview(context: Context, info: AppWidgetProviderInfo): RemoteViews? = runCatching {
+    if (Build.VERSION.SDK_INT >= 35) {
+        Widgets.manager.getWidgetPreview(info.provider, info.profile, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN)
+            ?.let { return@runCatching it }
+    }
+    info.previewLayout.takeIf { it != 0 }?.let { RemoteViews(info.provider.packageName, it) }
+}.getOrNull()
+
+/**
+ * Draws [views] off screen at the widget's own size. Null if nothing shows up:
+ * some previews only fill in once a real widget is running.
+ */
+private fun renderPreview(context: Context, views: RemoteViews, info: AppWidgetProviderInfo): ImageBitmap? {
+    val w = info.minWidth.coerceIn(48, 1200)
+    val h = info.minHeight.coerceIn(48, 1200)
+    val frame = FrameLayout(context)
+    frame.addView(views.apply(context, frame))
+    frame.measure(
+        View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+        View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY),
+    )
+    frame.layout(0, 0, w, h)
+    val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    frame.draw(Canvas(bitmap))
+    // Sample a grid of pixels; a blank preview is (almost) all transparent.
+    var drawn = 0
+    val steps = 24
+    for (i in 0 until steps) for (j in 0 until steps) {
+        val px = bitmap.getPixel(i * (w - 1) / (steps - 1), j * (h - 1) / (steps - 1))
+        if ((px ushr 24) > 24) drawn++
+    }
+    return if (drawn > steps * steps / 50) bitmap.asImageBitmap() else null
 }

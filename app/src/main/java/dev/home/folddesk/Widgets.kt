@@ -51,24 +51,33 @@ object Widgets {
         return ceil(mw / cellWidthDp).toInt().coerceIn(1, dw) to ceil(mh / cellHeightDp).toInt().coerceIn(1, dh)
     }
 
-    /** Starting height on the cover screen's widget page, from what the widget asks for. */
-    fun coverHeightDp(info: AppWidgetProviderInfo, context: Context): Int {
+    // --- Cover screen widget grid: COVER_COLUMNS square cells across ---
+
+    const val COVER_COLUMNS = 3
+    /** Roughly a cell on the Fold7's cover screen; only used to pick starting sizes. */
+    private const val COVER_CELL_DP = 150f
+
+    fun coverRows(heightDp: Int) = Math.round(heightDp / COVER_CELL_DP).coerceAtLeast(1)
+
+    /** Starting span on the cover screen grid, from what the widget asks for. */
+    fun coverSpan(info: AppWidgetProviderInfo, context: Context): Pair<Int, Int> {
         val density = context.resources.displayMetrics.density
-        val asked = if (info.targetCellHeight > 0) info.targetCellHeight * COVER_ROW_DP else (info.minHeight / density).toInt()
-        return asked.coerceIn(COVER_MIN_DP, COVER_MAX_DP)
+        val w = ceil(info.minWidth / density / COVER_CELL_DP).toInt()
+        val h = ceil(info.minHeight / density / COVER_CELL_DP).toInt()
+        return w.coerceIn(1, COVER_COLUMNS) to h.coerceIn(1, COVER_MAX_ROWS)
     }
 
-    /** Smallest height the widget can be resized to on the cover screen. */
-    fun coverMinHeightDp(info: AppWidgetProviderInfo?, context: Context): Int {
-        info ?: return COVER_MIN_DP
+    /** Smallest span it can be resized to there. */
+    fun coverMinSpan(info: AppWidgetProviderInfo?, context: Context): Pair<Int, Int> {
+        info ?: return 1 to 1
         val density = context.resources.displayMetrics.density
-        val min = (info.minResizeHeight.takeIf { it > 0 } ?: info.minHeight) / density
-        return min.toInt().coerceIn(COVER_MIN_DP, COVER_MAX_DP)
+        val mw = (info.minResizeWidth.takeIf { it > 0 } ?: info.minWidth) / density
+        val mh = (info.minResizeHeight.takeIf { it > 0 } ?: info.minHeight) / density
+        val (dw, dh) = coverSpan(info, context)
+        return ceil(mw / COVER_CELL_DP).toInt().coerceIn(1, dw) to ceil(mh / COVER_CELL_DP).toInt().coerceIn(1, dh)
     }
 
-    const val COVER_ROW_DP = 90
-    const val COVER_MIN_DP = 60
-    const val COVER_MAX_DP = 560
+    const val COVER_MAX_ROWS = 4
 
     fun canResize(info: AppWidgetProviderInfo) = info.resizeMode != AppWidgetProviderInfo.RESIZE_NONE
 

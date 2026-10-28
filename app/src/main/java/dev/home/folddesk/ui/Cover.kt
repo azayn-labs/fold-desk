@@ -9,6 +9,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.gestures.detectDragGestures
 import dev.home.folddesk.Widgets
 import dev.home.folddesk.WidgetActions
 import dev.home.folddesk.DeskWidgetView
@@ -58,6 +62,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -120,20 +125,25 @@ fun CoverScreen(shell: ShellController, homePresses: Int, widgetActions: WidgetA
     LaunchedEffect(pager.settledPage) { if (pager.settledPage == MAIN_PAGE) visits++ }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { visits++ }
     BackHandler(enabled = pager.currentPage != MAIN_PAGE) { scope.launch { pager.animateScrollToPage(MAIN_PAGE) } }
+    // Editing widgets: sideways drags are for resizing, not for changing page.
+    var widgetsEditing by remember { mutableStateOf(false) }
 
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     Box(Modifier.fillMaxSize()) {
-        HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
+        HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = !widgetsEditing) { page ->
             Box(Modifier.fillMaxSize().padding(top = top + 18.dp, bottom = bottom)) {
                 when (page) {
                     MAIN_PAGE -> {
                         Glance(shell)
                         PopupLayer(shell, Modifier.fillMaxSize(), dragTargets = false)
                     }
-                    WIDGETS_PAGE -> key(visits) { CoverWidgets(shell, widgetActions) }
+                    WIDGETS_PAGE -> key(visits) { CoverWidgets(shell, widgetActions, onEditing = { widgetsEditing = it }) }
                     // Keyed on visits, so the search starts empty each time.
-                    else -> key(visits) { CoverApps(shell) }
+                    else -> {
+                        key(visits) { CoverApps(shell) }
+                        PopupLayer(shell, Modifier.fillMaxSize(), dragTargets = false)
+                    }
                 }
             }
         }
@@ -495,13 +505,66 @@ private fun Dock(desk: DeskState, modifier: Modifier) {
 
 // --- Widget page ---
 
+/** Where each widget goes: in order, in its own column, in the first row where it fits. */
+private fun packCoverWidgets(widgets: List<CoverWidget>, cols: Int): Map<Int, IntOffset> {
+    val taken = mutableSetOf<Pair<Int, Int>>()
+    val placed = mutableMapOf<Int, IntOffset>()
+    for (w in widgets) {
+        val width = w.w.coerceIn(1, cols)
+        val col = w.col.coerceIn(0, cols - width)
+        var row = 0
+        while (true) {
+            val cells = (col until col + width).flatMap { c -> (row until row + w.h).map { r -> c to r } }
+            if (cells.none { it in taken }) {
+                taken += cells
+                placed[w.id] = IntOffset(col, row)
+                break
+            }
+            row++
+        }
+    }
+    return placed
+}
+
+/**
+ * Drops widget [id] at [col], [row]: it takes that column and moves in the
+ * order to just before the first widget at or below that row, so the packing
+ * puts it there and the rest move out of the way.
+ */
+private fun moveCoverWidget(widgets: List<CoverWidget>, id: Int, col: Int, row: Int, places: Map<Int, IntOffset>): List<CoverWidget> {
+    val moved = widgets.firstOrNull { it.id == id }?.copy(col = col) ?: return widgets
+    val rest = widgets.filter { it.id != id }
+    val index = rest.indexOfFirst { (places[it.id]?.y ?: 0) >= row }.let { if (it < 0) rest.size else it }
+    return rest.toMutableList().apply { add(index, moved) }
+}
+
+/** First column where a 1-wide tile fits in the last row, for "+ Add widget". */
+private fun addTileSpot(widgets: List<CoverWidget>, places: Map<Int, IntOffset>, cols: Int): IntOffset {
+    val taken = widgets.flatMap { w ->
+        val at = places[w.id] ?: return@flatMap emptyList()
+        (at.x until at.x + w.w).flatMap { c -> (at.y until at.y + w.h).map { r -> c to r } }
+    }.toSet()
+    var row = 0
+    while (true) {
+        for (c in 0 until cols) if ((c to row) !in taken) return IntOffset(c, row)
+        row++
+    }
+}
+
 @Composable
-private fun CoverWidgets(shell: ShellController, actions: WidgetActions) {
+private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditing: (Boolean) -> Unit) {
     val desk = shell.desk
     var editing by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Int?>(null) }
     var picking by remember { mutableStateOf(false) }
+    val latestOnEditing by rememberUpdatedState(onEditing)
+    LaunchedEffect(editing, picking) { latestOnEditing(editing || picking) }
+    DisposableEffect(Unit) { onDispose { latestOnEditing(false) } }
     var origin by remember { mutableStateOf(Offset.Zero) }
+    // A resize in progress, shown before it's saved: widget id to its span.
+    var preview by remember { mutableStateOf<CoverWidget?>(null) }
+    // A widget being dragged: its id and how far it has moved, in px.
+    var moving by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
     BackHandler(enabled = editing || picking) { if (picking) picking = false else { editing = false; selected = null } }
     // Widget long presses come in window coordinates; the menu layer is placed in this box.
     Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInWindow() }) {
@@ -515,28 +578,66 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions) {
                     )
                 }
             }
-            for (widget in desk.coverWidgets) {
-                key(widget.id) {
-                    CoverWidgetView(
-                        widget,
-                        selected = selected == widget.id,
-                        onLongPress = { at ->
-                            editing = true
-                            shell.coverWidgetMenu(widget.id, at - origin, actions, onResize = { selected = widget.id })
-                        },
-                        onResized = { h -> desk.updateCoverWidgets(desk.coverWidgets.map { if (it.id == widget.id) it.copy(heightDp = h) else it }) },
-                    )
+            val shown = desk.coverWidgets.map { w -> preview?.takeIf { it.id == w.id } ?: w }
+            val density = LocalDensity.current
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val cols = Widgets.COVER_COLUMNS
+                val gap = 8.dp
+                val cell = (maxWidth + gap) / cols
+                val places = packCoverWidgets(shown, cols)
+                val rows = shown.maxOfOrNull { (places[it.id]?.y ?: 0) + it.h } ?: 0
+                // Room for one more row in edit mode, for the add tile.
+                val addAt = if (editing || shown.isEmpty()) addTileSpot(shown, places, cols) else null
+                val totalRows = maxOf(rows, (addAt?.y ?: -1) + 1)
+                Box(Modifier.fillMaxWidth().height(cell * totalRows)) {
+                    if (editing) GridLines(cols, totalRows, cell)
+                    for (widget in shown) {
+                        val at = places[widget.id] ?: continue
+                        key(widget.id) {
+                            CoverWidgetView(
+                                widget,
+                                cell = cell,
+                                gap = gap,
+                                at = at,
+                                selected = selected == widget.id,
+                                onLongPress = { pos ->
+                                    editing = true
+                                    shell.coverWidgetMenu(widget.id, pos - origin, actions, onResize = { selected = widget.id })
+                                },
+                                dragOffset = moving?.takeIf { it.first == widget.id }?.second,
+                                onMoveStart = { shell.closeMenu(); selected = null; moving = widget.id to Offset.Zero },
+                                onMove = { dx, dy -> moving = moving?.let { it.first to it.second + Offset(dx, dy) } },
+                                onMoveEnd = {
+                                    val d = moving?.second ?: Offset.Zero
+                                    moving = null
+                                    val cellPx = with(density) { cell.toPx() }
+                                    val col = Math.round(at.x + d.x / cellPx).coerceIn(0, cols - widget.w)
+                                    val row = Math.round(at.y + d.y / cellPx).coerceAtLeast(0)
+                                    desk.updateCoverWidgets(moveCoverWidget(desk.coverWidgets, widget.id, col, row, places))
+                                },
+                                onResizing = { resized -> preview = resized },
+                                onResized = { resized ->
+                                    preview = null
+                                    desk.updateCoverWidgets(desk.coverWidgets.map { if (it.id == widget.id) resized else it })
+                                },
+                            )
+                        }
+                    }
+                    addAt?.let { at ->
+                        val span = if (shown.isEmpty()) cols else 1
+                        BasicText(
+                            if (shown.isEmpty()) "+ Add a widget" else "+ Add widget",
+                            style = TextStyle(color = Dex.text.copy(alpha = 0.8f), fontSize = 14.sp, textAlign = TextAlign.Center),
+                            modifier = Modifier
+                                .offset(cell * at.x, cell * at.y)
+                                .size(cell * span - gap, cell - gap)
+                                .clip(RoundedCornerShape(22.dp))
+                                .border(2.dp, Dex.text.copy(alpha = 0.25f), RoundedCornerShape(22.dp))
+                                .deskGestures(onTap = { picking = true })
+                                .wrapContentHeight(Alignment.CenterVertically),
+                        )
+                    }
                 }
-                Spacer(Modifier.height(10.dp))
-            }
-            if (editing || desk.coverWidgets.isEmpty()) {
-                BasicText(
-                    if (desk.coverWidgets.isEmpty()) "+ Add a widget" else "+ Add widget",
-                    style = TextStyle(color = Dex.text.copy(alpha = 0.8f), fontSize = 14.sp, textAlign = TextAlign.Center),
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
-                        .border(2.dp, Dex.text.copy(alpha = 0.25f), RoundedCornerShape(22.dp))
-                        .deskGestures(onTap = { picking = true }).padding(vertical = 18.dp),
-                )
             }
             Spacer(Modifier.height(16.dp))
         }
@@ -557,6 +658,18 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions) {
     }
 }
 
+/** Faint cell outlines while editing. */
+@Composable
+private fun GridLines(cols: Int, rows: Int, cell: Dp) {
+    val color = Dex.text.copy(alpha = 0.07f)
+    for (r in 0 until rows) for (c in 0 until cols) {
+        Box(
+            Modifier.offset(cell * c, cell * r).size(cell - 8.dp)
+                .border(1.dp, color, RoundedCornerShape(22.dp)),
+        )
+    }
+}
+
 @Composable
 private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
     BasicText(
@@ -570,52 +683,110 @@ private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CoverWidgetView(widget: CoverWidget, selected: Boolean, onLongPress: (Offset) -> Unit, onResized: (Int) -> Unit) {
+private fun CoverWidgetView(
+    widget: CoverWidget,
+    cell: Dp,
+    gap: Dp,
+    at: IntOffset,
+    selected: Boolean,
+    onLongPress: (Offset) -> Unit,
+    dragOffset: Offset?,
+    onMoveStart: () -> Unit,
+    onMove: (Float, Float) -> Unit,
+    onMoveEnd: () -> Unit,
+    onResizing: (CoverWidget) -> Unit,
+    onResized: (CoverWidget) -> Unit,
+) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val info = remember(widget.id) { Widgets.info(widget.id) }
-    var height by remember(widget.id) { mutableFloatStateOf(widget.heightDp.toFloat()) }
-    val minHeight = remember(widget.id) { Widgets.coverMinHeightDp(info, context).toFloat() }
+    val (minW, minH) = remember(widget.id) { Widgets.coverMinSpan(info, context) }
     val latestLongPress by rememberUpdatedState(onLongPress)
+    val latestMoveStart by rememberUpdatedState(onMoveStart)
+    val latestMove by rememberUpdatedState(onMove)
+    val latestMoveEnd by rememberUpdatedState(onMoveEnd)
     val shape = RoundedCornerShape(22.dp)
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val width = maxWidth
-        Box(
-            Modifier.fillMaxWidth().height(height.dp)
-                .then(if (selected) Modifier.border(2.dp, Dex.accent, shape) else Modifier),
-        ) {
-            if (info == null) {
-                // The widget's app was removed or the widget can't load.
+    val width = cell * widget.w - gap
+    val height = cell * widget.h - gap
+    // Corner drag in progress, in px, and the widget as it was when it started.
+    var drag by remember(widget.id) { mutableStateOf<Offset?>(null) }
+    var start by remember(widget.id) { mutableStateOf(widget.copy(col = at.x)) }
+    val cols = Widgets.COVER_COLUMNS
+    Box(
+        Modifier.offset(cell * at.x, cell * at.y)
+            .offset { dragOffset?.let { IntOffset(it.x.roundToInt(), it.y.roundToInt()) } ?: IntOffset.Zero }
+            .zIndex(if (dragOffset != null) 1f else 0f)
+            .lifted(dragOffset != null, shape)
+            .size(width, height)
+            .then(if (selected) Modifier.border(2.dp, Dex.accent, shape) else Modifier),
+    ) {
+        if (info == null) {
+            // The widget's app was removed or the widget can't load.
+            BasicText(
+                "Widget unavailable",
+                style = TextStyle(color = Dex.subtle, fontSize = 13.sp),
+                modifier = Modifier.align(Alignment.Center),
+            )
+        } else {
+            AndroidView(
+                factory = { ctx -> Widgets.host.createView(ctx, widget.id, info) },
+                update = { view ->
+                    (view as? DeskWidgetView)?.let { v ->
+                        v.onLongPress = { x, y -> latestLongPress(Offset(x, y)) }
+                        // Keep holding after the long press and drag to move it.
+                        v.onDragStart = { latestMoveStart() }
+                        v.onDrag = { dx, dy -> latestMove(dx, dy) }
+                        v.onDragEnd = { latestMoveEnd() }
+                    }
+                    Widgets.reportSize(view as android.appwidget.AppWidgetHostView, width.value, height.value)
+                },
+                modifier = Modifier.fillMaxSize().clip(shape),
+            )
+        }
+        if (selected) {
+            if (drag != null) {
                 BasicText(
-                    "Widget unavailable",
-                    style = TextStyle(color = Dex.subtle, fontSize = 13.sp),
-                    modifier = Modifier.align(Alignment.Center),
-                )
-            } else {
-                AndroidView(
-                    factory = { ctx -> Widgets.host.createView(ctx, widget.id, info) },
-                    update = { view ->
-                        (view as? DeskWidgetView)?.onLongPress = { x, y -> latestLongPress(Offset(x, y)) }
-                        Widgets.reportSize(view as android.appwidget.AppWidgetHostView, width.value, height)
-                    },
-                    modifier = Modifier.fillMaxSize().clip(shape),
+                    "${widget.w} × ${widget.h}",
+                    style = TextStyle(color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(10.dp)).background(Dex.accent)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                 )
             }
-            if (selected) {
-                // Drag to change the height.
+            // Drag a bottom corner to resize, snapping to whole cells. The right one
+            // moves the right edge; the left one the left edge, so a widget can
+            // sit on either side of the screen.
+            for (leftEdge in listOf(false, true)) {
                 Box(
-                    Modifier.align(Alignment.BottomCenter).offset(y = 9.dp).size(width = 48.dp, height = 18.dp)
-                        .clip(RoundedCornerShape(9.dp)).background(Dex.accent)
-                        .draggable(
-                            orientation = Orientation.Vertical,
-                            state = rememberDraggableState { delta ->
-                                height = (height + with(density) { delta.toDp().value }).coerceIn(minHeight, Widgets.COVER_MAX_DP.toFloat())
-                            },
-                            onDragStopped = { onResized(height.roundToInt()) },
-                        ),
+                    Modifier.align(if (leftEdge) Alignment.BottomStart else Alignment.BottomEnd)
+                        .offset(if (leftEdge) (-10).dp else 10.dp, 10.dp).size(28.dp).clip(CircleShape).background(Dex.accent)
+                        .pointerInput(widget.id, cell, leftEdge) {
+                            val cellPx = cell.toPx()
+                            fun resized(d: Offset): CoverWidget {
+                                val h = Math.round(start.h + d.y / cellPx).coerceIn(minH, Widgets.COVER_MAX_ROWS)
+                                return if (leftEdge) {
+                                    val right = start.col + start.w
+                                    val col = Math.round(start.col + d.x / cellPx).coerceIn(0, right - minW)
+                                    start.copy(w = right - col, h = h, col = col)
+                                } else {
+                                    val w = Math.round(start.w + d.x / cellPx).coerceIn(minW, cols - start.col)
+                                    start.copy(w = w, h = h)
+                                }
+                            }
+                            detectDragGestures(
+                                onDragStart = { start = widget.copy(col = at.x); drag = Offset.Zero },
+                                onDrag = { change, amount ->
+                                    change.consume()
+                                    val d = (drag ?: Offset.Zero) + amount
+                                    drag = d
+                                    onResizing(resized(d))
+                                },
+                                onDragEnd = { onResized(resized(drag ?: Offset.Zero)); drag = null },
+                                onDragCancel = { onResized(resized(drag ?: Offset.Zero)); drag = null },
+                            )
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
-                    BasicText("⇕", style = TextStyle(color = Color.White, fontSize = 11.sp))
+                    BasicText(if (leftEdge) "⤢" else "⤡", style = TextStyle(color = Color.White, fontSize = 13.sp))
                 }
             }
         }
@@ -624,17 +795,24 @@ private fun CoverWidgetView(widget: CoverWidget, selected: Boolean, onLongPress:
 
 // --- Last page: all apps ---
 
+/** Section key for favourites in the cover app list, shown as a star. */
+private const val FAVOURITES = '★'
+
 @Composable
 private fun CoverApps(shell: ShellController) {
     val desk = shell.desk
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
-    val groups = remember(desk.apps, desk.hiddenApps, query) {
+    val groups = remember(desk.apps, desk.hiddenApps, desk.coverFavourites, query) {
         val q = query.trim().lowercase()
-        desk.apps.filter { !desk.isHidden(it) && (q.isEmpty() || q in it.label.lowercase()) }
-            .sortedBy { it.label.lowercase() }
+        val matching = desk.apps.filter { !desk.isHidden(it) && (q.isEmpty() || q in it.label.lowercase()) }
+        // Favourites first, in the order they were added, under a star; they also
+        // stay in their letter below.
+        val favourites = desk.coverFavourites.mapNotNull { key -> matching.firstOrNull { it.key == key } }
+        val byLetter = matching.sortedBy { it.label.lowercase() }
             .groupBy { app -> app.label.firstOrNull()?.uppercaseChar()?.takeIf { it.isLetter() } ?: '#' }
+        (if (favourites.isEmpty()) emptyMap() else mapOf(FAVOURITES to favourites)) + byLetter
     }
     // Where each letter's header sits in the list, for the scroller.
     val headerIndex = remember(groups) {
@@ -642,6 +820,8 @@ private fun CoverApps(shell: ShellController) {
         groups.mapValues { (_, apps) -> i.also { i += apps.size + 1 } }
     }
     val list = rememberLazyListState()
+    // Show the favourites right away when one is added or removed.
+    LaunchedEffect(desk.coverFavourites) { list.scrollToItem(0) }
 
     // A light tint behind the whole list, like the app drawer's panel.
     Column(Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Dex.bar.copy(alpha = 0.6f))) {
@@ -667,12 +847,15 @@ private fun CoverApps(shell: ShellController) {
                 groups.forEach { (letter, apps) ->
                     item(key = "header-$letter") {
                         BasicText(
-                            letter.toString(),
+                            if (letter == FAVOURITES) "★ Favourites" else letter.toString(),
                             style = TextStyle(color = Dex.accent, fontSize = 12.sp),
                             modifier = Modifier.padding(start = 26.dp, top = 10.dp, bottom = 2.dp),
                         )
                     }
-                    items(apps, key = { it.key }) { CoverAppRow(it) { Launcher.open(context, it, windowed = false) } }
+                    // A favourite is listed twice (top and under its letter), so key by section too.
+                    items(apps, key = { "$letter-${it.key}" }) { app ->
+                        CoverAppRow(app, onOpen = { Launcher.open(context, app, windowed = false) }, onMenu = { shell.coverAppMenu(app, it) })
+                    }
                 }
             }
             Column(
@@ -695,9 +878,11 @@ private fun CoverApps(shell: ShellController) {
 }
 
 @Composable
-private fun CoverAppRow(app: AppEntry, onOpen: () -> Unit) {
+private fun CoverAppRow(app: AppEntry, onOpen: () -> Unit, onMenu: (Offset) -> Unit) {
+    val feedback = remember { PressFeedback() }
     Row(
-        Modifier.fillMaxWidth().deskGestures(onTap = onOpen).padding(horizontal = 24.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().deskGestures(onTap = onOpen, onMenu = onMenu, feedback = feedback)
+            .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(app.icon, contentDescription = null, modifier = Modifier.size(36.dp))

@@ -37,8 +37,11 @@ data class AppEntry(
 /** Desktop cell, counted from the top-left corner. */
 data class Cell(val col: Int, val row: Int)
 
-/** A widget on the cover screen: full width, [heightDp] tall. */
-data class CoverWidget(val id: Int, val heightDp: Int)
+/**
+ * A widget on the cover screen's 3-column grid: [w]×[h] cells from column
+ * [col]. Its row follows from the order: the first one where it fits.
+ */
+data class CoverWidget(val id: Int, val w: Int, val h: Int, val col: Int = 0)
 
 /** A widget on a desktop: [cell] is its top-left, [w]×[h] its span in cells. */
 data class DeskWidget(val id: Int, val cell: Cell, val w: Int, val h: Int) {
@@ -90,6 +93,17 @@ class DeskState(private val context: Context) {
         private set
     var hideStatusBar by mutableStateOf(sp.getBoolean("hideStatusBar", false))
         private set
+    /** Apps pinned to the top of the cover screen's app list, by key, in the order added. */
+    var coverFavourites by mutableStateOf(readList("coverFavourites"))
+        private set
+
+    fun isCoverFavourite(app: AppEntry) = app.key in coverFavourites
+
+    fun toggleCoverFavourite(app: AppEntry) {
+        coverFavourites = if (isCoverFavourite(app)) coverFavourites - app.key else coverFavourites + app.key
+        sp.edit().putString("coverFavourites", coverFavourites.joinToString("\n")).apply()
+    }
+
     /** Apps left out of the app drawer, by key. */
     var hiddenApps by mutableStateOf(readList("hiddenApps").toSet())
         private set
@@ -112,7 +126,13 @@ class DeskState(private val context: Context) {
     var coverWidgets by mutableStateOf(
         readList("coverWidgets").mapNotNull { line ->
             val p = line.split('|').mapNotNull { it.toIntOrNull() }
-            if (p.size == 2) CoverWidget(p[0], p[1]) else null
+            when (p.size) {
+                4 -> CoverWidget(p[0], p[1], p[2], p[3])
+                3 -> CoverWidget(p[0], p[1], p[2])
+                // Before the grid: full width and a height in dp.
+                2 -> CoverWidget(p[0], Widgets.COVER_COLUMNS, Widgets.coverRows(p[1]))
+                else -> null
+            }
         },
     )
         private set
@@ -583,7 +603,7 @@ class DeskState(private val context: Context) {
 
     fun updateCoverWidgets(list: List<CoverWidget>) {
         coverWidgets = list
-        sp.edit().putString("coverWidgets", list.joinToString("\n") { "${it.id}|${it.heightDp}" }).apply()
+        sp.edit().putString("coverWidgets", list.joinToString("\n") { "${it.id}|${it.w}|${it.h}|${it.col}" }).apply()
     }
 
     fun updateCoverSplit(value: Float) {
