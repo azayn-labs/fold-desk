@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk about and updates</title>
+<style>
+  :root { --bg:#0c0c0e; --card:#1c1c1f; --accent:#3e91ff; --text:#fafafa; --subtle:#9a9aa0; --divider:rgba(255,255,255,.08); --run:#4cd964; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1560px; height:1180px; overflow:hidden; display:flex; gap:24px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; width:480px; height:1000px; overflow:hidden; border-radius:30px; background:var(--bg); padding:30px 18px; }
+  h1 { font-size:30px; font-weight:600; padding:20px 8px 18px; }
+  .g { font-size:13px; color:var(--accent); padding:16px 10px 8px; }
+  .card { border-radius:22px; background:var(--card); }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; font-size:16px; gap:12px; }
+  .row + .row { border-top:1px solid var(--divider); }
+  .row small { display:block; color:var(--subtle); font-size:13px; margin-top:3px; }
+  .row .v { color:var(--accent); font-size:14px; white-space:nowrap; }
+  .row .chev { color:var(--subtle); font-size:18px; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:4px; background:var(--run); margin-right:8px; }
+  .faded { opacity:.35; }
+  .new { outline:2px dashed rgba(255,215,106,.7); outline-offset:6px; border-radius:22px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:480px; }
+  .sheet { position:absolute; left:10px; right:10px; bottom:10px; border-radius:26px; background:#2b2b2f; padding:22px 22px 12px; box-shadow:0 -10px 40px rgba(0,0,0,.5); }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.5); }
+  .sheet h2 { font-size:19px; font-weight:600; } .sheet p { font-size:14px; color:#d6d6da; line-height:1.5; margin-top:8px; }
+  .opt { display:flex; align-items:center; gap:14px; padding:14px 4px; font-size:15px; border-top:1px solid var(--divider); }
+  .opt:first-of-type { margin-top:12px; }
+  .opt i { width:30px; height:30px; border-radius:9px; flex:none; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:14px; color:#fff; }
+  .opt span small { display:block; color:var(--subtle); font-size:12.5px; margin-top:2px; }
+  .btns { display:flex; justify-content:flex-end; margin-top:10px; } .btn { color:var(--accent); font-size:15px; font-weight:600; padding:8px 12px; }
+</style></head><body>
+<script>
+const header = `<h1>FoldDesk settings</h1>`;
+const faded = `<div class="faded"><div class="g">Cover screen</div><div class="card"><div class="row"><div>Cover screen launcher</div><span class="v">FoldDesk cover screen</span></div></div>
+  <div class="g">Status</div><div class="card"><div class="row"><div>Taskbar service</div><span><span class="dot"></span><span style="color:var(--run);font-size:13px">Running</span></span></div></div></div>`;
+const about = (play) => `<div class="new"><div class="g">About</div><div class="card">
+  <div class="row"><div>Version<small>${play ? 'Updates come from Google Play' : 'Free version from GitHub'}</small></div><span class="v">0.1.15</span></div>
+  ${play ? '' : '<div class="row"><div>Check for updates<small>Opens the latest release on GitHub</small></div><span class="chev">›</span></div>'}
+  <div class="row"><div>What\'s new<small>Release notes for every version</small></div><span class="chev">›</span></div>
+  <div class="row"><div>Feedback and bug reports<small>GitHub issues or the Reddit thread</small></div><span class="chev">›</span></div>
+  ${play ? '' : '<div class="row"><div>Support FoldDesk<small>ko-fi.com/azayn</small></div><span class="chev">›</span></div>'}
+</div></div>`;
+const s1 = header + faded + about(false);
+const s2 = header + faded + about(true);
+const s3 = header + faded + about(false) + `<div class="dim"></div><div class="sheet"><h2>Feedback and bug reports</h2><p>Tell me what's broken or what you'd like to see.</p>
+  <div class="opt"><i style="background:#24292f">GH</i><span>Report on GitHub<small>Best for bugs, with steps and screenshots</small></span></div>
+  <div class="opt"><i style="background:#ff4500">r/</i><span>Reddit thread<small>r/GalaxyFold, ask anything</small></span></div>
+  <div class="opt"><i style="background:#3e91ff">@</i><span>Email<small>info@azayn.com</small></span></div>
+  <div class="btns"><span class="btn">Close</span></div></div>`;
+const cols = [
+  ['1 · GitHub version: new "About" group at the end of settings', s1, 'Version shows what\'s installed. "Check for updates" opens the latest release page in the browser, where the newest APK is; FoldDesk has no internet permission, so it can\'t check by itself, the browser does it. "What\'s new" opens the releases list. "Support FoldDesk" is the Ko-fi link from the README.'],
+  ['2 · Play version', s2, 'Play updates the app itself, so no "Check for updates", and no Ko-fi link (Play doesn\'t allow pointing to outside payments in a paid app). Version, What\'s new and Feedback stay.'],
+  ['3 · Tap "Feedback and bug reports"', s3, 'A small sheet with the three places to reach you: GitHub issues, the Reddit thread, and info@azayn.com. Each opens in its app or the browser. On phones without a fold (phone mode) the same About group shows under Hidden apps.'],
+];
+document.body.innerHTML = cols.map(([t,s,n])=>`<div class="col"><div class="cap">${t}</div><div class="screen">${s}</div><div class="note">${n}</div></div>`).join('');
+</script></body></html>

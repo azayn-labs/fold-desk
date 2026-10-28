@@ -115,6 +115,23 @@ private fun SettingsScreen(desk: DeskState) {
         }
     }
 
+    fun showFeedback() {
+        sheet = Sheet(
+            "Feedback and bug reports", "Tell me what's broken or what you'd like to see",
+            buttons = listOf("Close" to { sheet = null }),
+        ) {
+            OptionRow("Report on GitHub", selected = null, hint = "Best for bugs, with steps and screenshots") {
+                Launcher.openLink(context, "$REPO/issues"); sheet = null
+            }
+            OptionRow("Reddit thread", selected = null, hint = "r/GalaxyFold, ask anything") {
+                Launcher.openLink(context, REDDIT_THREAD); sheet = null
+            }
+            OptionRow("Email", selected = null, hint = FEEDBACK_EMAIL) {
+                Launcher.openLink(context, "mailto:$FEEDBACK_EMAIL"); sheet = null
+            }
+        }
+    }
+
     fun pickCoverLauncher() {
         val options = desk.installedLaunchers() + listOf(
             COVER_SCREEN to "FoldDesk cover screen",
@@ -326,10 +343,49 @@ private fun SettingsScreen(desk: DeskState) {
                     }
                 }
             }
+            AboutGroup(context, onFeedback = ::showFeedback)
             Spacer(Modifier.height(24.dp))
         }
 
         SheetHost(sheet, onDismiss = { sheet?.buttons?.first()?.second?.invoke() })
+    }
+}
+
+private const val REPO = "https://github.com/azayn-labs/fold-desk"
+private const val REDDIT_THREAD = "https://www.reddit.com/r/GalaxyFold/comments/1xgvkgb/"
+private const val FEEDBACK_EMAIL = "info@azayn.com"
+private const val KOFI = "https://ko-fi.com/azayn"
+
+/**
+ * Version and where to get updates, notes and help. FoldDesk has no internet
+ * permission, so "Check for updates" just opens the latest release in the browser.
+ * The Play version updates itself, and Play doesn't allow outside payment links.
+ */
+@Composable
+private fun AboutGroup(context: android.content.Context, onFeedback: () -> Unit) {
+    val play = BuildConfig.PLAY_STORE
+    // Hints under the titles; the version and the arrows sit on the right.
+    val arrow: @Composable () -> Unit = { BasicText("›", style = TextStyle(color = Dex.subtle, fontSize = 20.sp)) }
+    Group("About") {
+        SettingRow("Version", hint = if (play) "Updates come from Google Play" else "Free version from GitHub") {
+            BasicText(BuildConfig.VERSION_NAME, style = TextStyle(color = Dex.accent, fontSize = 14.sp))
+        }
+        if (!play) {
+            Divider()
+            SettingRow("Check for updates", hint = "Opens the latest release on GitHub",
+                onTapAt = { Launcher.openLink(context, "$REPO/releases/latest") }, trailing = arrow)
+        }
+        Divider()
+        SettingRow("What's new", hint = "Release notes for every version",
+            onTapAt = { Launcher.openLink(context, "$REPO/releases") }, trailing = arrow)
+        Divider()
+        SettingRow("Feedback and bug reports", hint = "GitHub issues, the Reddit thread or email",
+            onTapAt = { onFeedback() }, trailing = arrow)
+        if (!play) {
+            Divider()
+            SettingRow("Support FoldDesk", hint = "ko-fi.com/azayn",
+                onTapAt = { Launcher.openLink(context, KOFI) }, trailing = arrow)
+        }
     }
 }
 
@@ -598,7 +654,8 @@ private fun Checkbox(on: Boolean) {
 @Composable
 private fun OptionRow(
     label: String,
-    selected: Boolean,
+    /** Null for rows that open something rather than pick a value: no radio button. */
+    selected: Boolean?,
     icon: ImageBitmap? = null,
     hint: String? = null,
     tag: String? = null,
@@ -627,7 +684,7 @@ private fun OptionRow(
                 }
                 hint?.let { BasicText(it, style = TextStyle(color = Dex.subtle, fontSize = 12.5.sp), modifier = Modifier.padding(top = 2.dp)) }
             }
-            Radio(selected)
+            if (selected != null) Radio(selected)
         }
     }
 }

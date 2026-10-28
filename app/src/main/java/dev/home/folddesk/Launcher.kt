@@ -180,6 +180,9 @@ object Launcher {
         }
     }
 
+    /** Opens a web page or mail address in whichever app handles it. */
+    fun openLink(context: Context, url: String) = start(context, Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+
     private fun start(context: Context, intent: Intent) {
         try {
             context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
