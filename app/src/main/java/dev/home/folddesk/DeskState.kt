@@ -5,6 +5,7 @@ import android.app.usage.UsageStatsManager
 import android.content.ComponentName
 import android.appwidget.AppWidgetManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.os.Process
@@ -197,8 +198,15 @@ class DeskState(private val context: Context) {
             ?: if (sp.getBoolean("coverUsesOneUi", true)) Launcher.ONE_UI_HOME else context.packageName,
     )
         private set
-    val coverUsesOneUi get() = coverLauncher != context.packageName && coverLauncher != COVER_SCREEN
-    val ownCoverScreen get() = coverLauncher == COVER_SCREEN
+    /**
+     * A phone without a fold (or a tablet): its phone-sized screen always gets the
+     * cover screen layout as its home screen, and there's no One UI to hand over to.
+     * The "phoneMode" pref fakes this on a Fold for testing (set it over adb).
+     */
+    val noFold = !context.packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_HINGE_ANGLE) ||
+        sp.getBoolean("phoneMode", false)
+    val coverUsesOneUi get() = !noFold && coverLauncher != context.packageName && coverLauncher != COVER_SCREEN
+    val ownCoverScreen get() = noFold || coverLauncher == COVER_SCREEN
     /** Share of the cover screen's free height given to notifications; the rest is the calendar. */
     var coverSplit by mutableStateOf(sp.getFloat("coverSplit", 0.5f))
         private set

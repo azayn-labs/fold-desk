@@ -24,6 +24,7 @@ import dev.home.folddesk.ui.Dex
 import dev.home.folddesk.ui.DesktopGrid
 import dev.home.folddesk.ui.DexTheme
 import dev.home.folddesk.ui.CoverWelcome
+import dev.home.folddesk.ui.PhoneWelcome
 
 /** The home screen. On the cover screen it hands over to One UI Home. */
 class MainActivity : ComponentActivity(), WidgetActions {
@@ -56,6 +57,17 @@ class MainActivity : ComponentActivity(), WidgetActions {
             LaunchedEffect(desk.hideStatusBar, inner) { showStatusBar(!(desk.hideStatusBar && inner)) }
             DexTheme {
                 when {
+                    !inner && welcoming && desk.noFold -> PhoneWelcome(
+                        onSetHome = {
+                            desk.markCoverWelcomeSeen()
+                            welcoming = false
+                            Launcher.openHomeSettings(this@MainActivity)
+                        },
+                        onNotNow = {
+                            desk.markCoverWelcomeSeen()
+                            welcoming = false
+                        },
+                    )
                     !inner && welcoming -> CoverWelcome { useFoldDesk ->
                         desk.markCoverWelcomeSeen()
                         welcoming = false
@@ -101,7 +113,8 @@ class MainActivity : ComponentActivity(), WidgetActions {
     /** Only when opened as an app (its icon, Play's Open button), not as the home screen. */
     private fun checkWelcome(intent: Intent?) {
         val desk = shell.desk
-        welcoming = !desk.coverWelcomeSeen && desk.coverUsesOneUi && intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
+        welcoming = !desk.coverWelcomeSeen && (desk.noFold || desk.coverUsesOneUi) &&
+            intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
     }
 
     private fun handOffCoverScreen(): Boolean {

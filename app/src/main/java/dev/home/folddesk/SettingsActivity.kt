@@ -23,6 +23,8 @@ import androidx.compose.animation.AnimatedVisibility
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -173,129 +175,154 @@ private fun SettingsScreen(desk: DeskState) {
                 modifier = Modifier.padding(start = 8.dp, top = 20.dp, bottom = 18.dp),
             )
 
-            Group("Layout") {
-                SettingRow("Taskbar position", wide = true) {
-                    Segmented(TaskbarSide.entries, desk.taskbarSide, { it.label }, desk::updateTaskbarSide)
+            // A phone without a fold only has FoldDesk's phone layout; the rest is for the desktop.
+            val phoneOnly = desk.noFold && !FoldDeskApp.isInnerScreen(LocalConfiguration.current)
+            if (phoneOnly) {
+                Group("Home screen") {
+                    var isHome by remember { mutableStateOf(holdsHomeRole(context)) }
+                    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { isHome = holdsHomeRole(context) }
+                    SettingRow(
+                        "Default home app",
+                        hint = "Tap to choose",
+                        value = if (isHome) "FoldDesk" else "Another app",
+                        onTapAt = { Launcher.openHomeSettings(context) },
+                    )
+                    Divider()
+                    SettingRow("Wallpaper", onTapAt = { Launcher.openWallpaperPicker(context) })
                 }
-                Divider()
-                SettingRow("Taskbar icons", hint = "Start or centre of the taskbar", wide = true) {
-                    Segmented(Placement.entries, desk.taskbarAlignment, { it.label }, desk::updateTaskbarAlignment)
+                Group("App list") {
+                    val count = desk.hiddenApps.count { key -> desk.apps.any { it.key == key } }
+                    SettingRow(
+                        "Hidden apps",
+                        value = when (count) { 0 -> "None"; 1 -> "1 app"; else -> "$count apps" },
+                        onTapAt = { pickHiddenApps() },
+                    )
                 }
-            }
-
-            Group("Taskbar") {
-                SettingRow(
-                    "Auto hide taskbar",
-                    hint = "Hides while an app is open. Tap or swipe the handle at the edge to show it",
-                    onTapAt = { desk.updateAutoHideTaskbar(!desk.autoHideTaskbar) },
-                ) { Switch(desk.autoHideTaskbar) }
-                Divider()
-                SettingRow(
-                    "Keep over full-screen apps",
-                    hint = "Stays visible over videos and games too. It covers the bottom of the app, so some controls may be hidden under it",
-                    onTapAt = { desk.updateKeepOverFullScreen(!desk.keepOverFullScreen) },
-                ) { Switch(desk.keepOverFullScreen) }
-                Divider()
-                SettingRow("Background", wide = true) {
-                    Segmented(TaskbarBackground.entries, desk.taskbarBackground, { it.label }, desk::updateTaskbarBackground)
+            } else {
+                Group("Layout") {
+                    SettingRow("Taskbar position", wide = true) {
+                        Segmented(TaskbarSide.entries, desk.taskbarSide, { it.label }, desk::updateTaskbarSide)
+                    }
+                    Divider()
+                    SettingRow("Taskbar icons", hint = "Start or centre of the taskbar", wide = true) {
+                        Segmented(Placement.entries, desk.taskbarAlignment, { it.label }, desk::updateTaskbarAlignment)
+                    }
                 }
-                Divider()
-                SettingRow("Size", wide = true) {
-                    Segmented(TaskbarSize.entries, desk.taskbarSize, { it.label }, desk::updateTaskbarSize)
+
+                Group("Taskbar") {
+                    SettingRow(
+                        "Auto hide taskbar",
+                        hint = "Hides while an app is open. Tap or swipe the handle at the edge to show it",
+                        onTapAt = { desk.updateAutoHideTaskbar(!desk.autoHideTaskbar) },
+                    ) { Switch(desk.autoHideTaskbar) }
+                    Divider()
+                    SettingRow(
+                        "Keep over full-screen apps",
+                        hint = "Stays visible over videos and games too. It covers the bottom of the app, so some controls may be hidden under it",
+                        onTapAt = { desk.updateKeepOverFullScreen(!desk.keepOverFullScreen) },
+                    ) { Switch(desk.keepOverFullScreen) }
+                    Divider()
+                    SettingRow("Background", wide = true) {
+                        Segmented(TaskbarBackground.entries, desk.taskbarBackground, { it.label }, desk::updateTaskbarBackground)
+                    }
+                    Divider()
+                    SettingRow("Size", wide = true) {
+                        Segmented(TaskbarSize.entries, desk.taskbarSize, { it.label }, desk::updateTaskbarSize)
+                    }
+                    Divider()
+                    SettingRow("Colours", value = desk.coloursName, onTapAt = { pickColours() }) {
+                        ColourChip(desk)
+                    }
                 }
-                Divider()
-                SettingRow("Colours", value = desk.coloursName, onTapAt = { pickColours() }) {
-                    ColourChip(desk)
+
+                Group("Desktop") {
+                    SettingRow(
+                        "Hide status bar on desktop",
+                        hint = "Clock and icons at the top are hidden while you're on the FoldDesk desktop. Apps still show it",
+                        onTapAt = { desk.updateHideStatusBar(!desk.hideStatusBar) },
+                    ) { Switch(desk.hideStatusBar) }
                 }
-            }
 
-            Group("Desktop") {
-                SettingRow(
-                    "Hide status bar on desktop",
-                    hint = "Clock and icons at the top are hidden while you're on the FoldDesk desktop. Apps still show it",
-                    onTapAt = { desk.updateHideStatusBar(!desk.hideStatusBar) },
-                ) { Switch(desk.hideStatusBar) }
-            }
+                Group("App drawer") {
+                    val count = desk.hiddenApps.count { key -> desk.apps.any { it.key == key } }
+                    SettingRow(
+                        "Hidden apps",
+                        value = when (count) { 0 -> "None"; 1 -> "1 app"; else -> "$count apps" },
+                        onTapAt = { pickHiddenApps() },
+                    )
+                }
 
-            Group("App drawer") {
-                val count = desk.hiddenApps.count { key -> desk.apps.any { it.key == key } }
-                SettingRow(
-                    "Hidden apps",
-                    value = when (count) { 0 -> "None"; 1 -> "1 app"; else -> "$count apps" },
-                    onTapAt = { pickHiddenApps() },
-                )
-            }
+                Group("Taskbar shortcuts") {
+                    SettingRow("Tap Wi-Fi and battery", value = desk.statusAction.label, onTapAt = {
+                        pick("Tap Wi-Fi and battery", StatusAction.entries.toTypedArray(), { e -> e.label }, desk.statusAction, desk::updateStatusAction)
+                    })
+                    Divider()
+                    SettingRow("Tap the date and time", value = desk.clockAction.label, onTapAt = {
+                        pick("Tap the date and time", ClockAction.entries.toTypedArray(), { e -> e.label }, desk.clockAction, desk::updateClockAction)
+                    })
+                }
 
-            Group("Taskbar shortcuts") {
-                SettingRow("Tap Wi-Fi and battery", value = desk.statusAction.label, onTapAt = {
-                    pick("Tap Wi-Fi and battery", StatusAction.entries.toTypedArray(), { e -> e.label }, desk.statusAction, desk::updateStatusAction)
-                })
-                Divider()
-                SettingRow("Tap the date and time", value = desk.clockAction.label, onTapAt = {
-                    pick("Tap the date and time", ClockAction.entries.toTypedArray(), { e -> e.label }, desk.clockAction, desk::updateClockAction)
-                })
-            }
+                Group("Windows") {
+                    SettingRow(
+                        "Open apps in windows",
+                        hint = "Tap an app to open it as a pop-up window",
+                        onTapAt = { desk.updateOpenInWindow(!desk.openInWindow) },
+                    ) { Switch(desk.openInWindow) }
+                    Divider()
+                    SettingRow(
+                        "Open notifications in windows",
+                        hint = "Apps opened from a notification switch to a pop-up window",
+                        onTapAt = { desk.updateNotificationsInWindows(!desk.notificationsInWindows) },
+                    ) { Switch(desk.notificationsInWindows) }
+                    Divider()
+                    SettingRow("New window size", value = desk.windowSize.label, onTapAt = {
+                        pick("New window size", WindowSize.entries.toTypedArray(), { e -> e.label }, desk.windowSize, desk::updateWindowSize)
+                    })
+                }
 
-            Group("Windows") {
-                SettingRow(
-                    "Open apps in windows",
-                    hint = "Tap an app to open it as a pop-up window",
-                    onTapAt = { desk.updateOpenInWindow(!desk.openInWindow) },
-                ) { Switch(desk.openInWindow) }
-                Divider()
-                SettingRow(
-                    "Open notifications in windows",
-                    hint = "Apps opened from a notification switch to a pop-up window",
-                    onTapAt = { desk.updateNotificationsInWindows(!desk.notificationsInWindows) },
-                ) { Switch(desk.notificationsInWindows) }
-                Divider()
-                SettingRow("New window size", value = desk.windowSize.label, onTapAt = {
-                    pick("New window size", WindowSize.entries.toTypedArray(), { e -> e.label }, desk.windowSize, desk::updateWindowSize)
-                })
-            }
+                Group("Gestures") {
+                    SettingRow("Swipe up on desktop", value = desk.swipeUp.label, onTapAt = {
+                        pick("Swipe up on desktop", SwipeAction.entries.toTypedArray(), { e -> e.label }, desk.swipeUp, desk::updateSwipeUp, "On an empty part of the desktop")
+                    })
+                    Divider()
+                    SettingRow("Swipe down on desktop", value = desk.swipeDown.label, onTapAt = {
+                        pick("Swipe down on desktop", SwipeAction.entries.toTypedArray(), { e -> e.label }, desk.swipeDown, desk::updateSwipeDown, "On an empty part of the desktop")
+                    })
+                    Divider()
+                    SettingRow(
+                        "Swipe to switch desktops",
+                        hint = "Swipe left or right on empty desktop",
+                        onTapAt = { desk.updateSwipeSwitchesDesktops(!desk.swipeSwitchesDesktops) },
+                    ) { Switch(desk.swipeSwitchesDesktops) }
+                    Divider()
+                    SettingRow(
+                        "Swipe down to close app drawer",
+                        hint = "When the app list is scrolled to the top",
+                        onTapAt = { desk.updateSwipeDownClosesDrawer(!desk.swipeDownClosesDrawer) },
+                    ) { Switch(desk.swipeDownClosesDrawer) }
+                }
 
-            Group("Gestures") {
-                SettingRow("Swipe up on desktop", value = desk.swipeUp.label, onTapAt = {
-                    pick("Swipe up on desktop", SwipeAction.entries.toTypedArray(), { e -> e.label }, desk.swipeUp, desk::updateSwipeUp, "On an empty part of the desktop")
-                })
-                Divider()
-                SettingRow("Swipe down on desktop", value = desk.swipeDown.label, onTapAt = {
-                    pick("Swipe down on desktop", SwipeAction.entries.toTypedArray(), { e -> e.label }, desk.swipeDown, desk::updateSwipeDown, "On an empty part of the desktop")
-                })
-                Divider()
-                SettingRow(
-                    "Swipe to switch desktops",
-                    hint = "Swipe left or right on empty desktop",
-                    onTapAt = { desk.updateSwipeSwitchesDesktops(!desk.swipeSwitchesDesktops) },
-                ) { Switch(desk.swipeSwitchesDesktops) }
-                Divider()
-                SettingRow(
-                    "Swipe down to close app drawer",
-                    hint = "When the app list is scrolled to the top",
-                    onTapAt = { desk.updateSwipeDownClosesDrawer(!desk.swipeDownClosesDrawer) },
-                ) { Switch(desk.swipeDownClosesDrawer) }
-            }
+                Group("Cover screen") {
+                    val label = if (desk.ownCoverScreen) "FoldDesk cover screen"
+                    else if (!desk.coverUsesOneUi) "FoldDesk desktop (both screens)"
+                    else desk.installedLaunchers().firstOrNull { it.first == desk.coverLauncher }?.second ?: "One UI Home"
+                    SettingRow("Cover screen launcher", value = label, onTapAt = { pickCoverLauncher() })
+                }
 
-            Group("Cover screen") {
-                val label = if (desk.ownCoverScreen) "FoldDesk cover screen"
-                else if (!desk.coverUsesOneUi) "FoldDesk desktop (both screens)"
-                else desk.installedLaunchers().firstOrNull { it.first == desk.coverLauncher }?.second ?: "One UI Home"
-                SettingRow("Cover screen launcher", value = label, onTapAt = { pickCoverLauncher() })
-            }
-
-            Group("Status") {
-                val running = TaskbarService.running
-                val turnOnTaskbar = rememberTurnOnTaskbar()
-                SettingRow(
-                    "Taskbar service",
-                    hint = if (running) null else "Tap to turn it on in Accessibility settings",
-                    onTapAt = if (running) null else { _ -> turnOnTaskbar() },
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val color = if (running) Ui.running else Ui.stopped
-                        Box(Modifier.size(8.dp).clip(CircleShape).background(color))
-                        Spacer(Modifier.width(8.dp))
-                        BasicText(if (running) "Running" else "Off", style = TextStyle(color = color, fontSize = 13.sp))
+                Group("Status") {
+                    val running = TaskbarService.running
+                    val turnOnTaskbar = rememberTurnOnTaskbar()
+                    SettingRow(
+                        "Taskbar service",
+                        hint = if (running) null else "Tap to turn it on in Accessibility settings",
+                        onTapAt = if (running) null else { _ -> turnOnTaskbar() },
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val color = if (running) Ui.running else Ui.stopped
+                            Box(Modifier.size(8.dp).clip(CircleShape).background(color))
+                            Spacer(Modifier.width(8.dp))
+                            BasicText(if (running) "Running" else "Off", style = TextStyle(color = color, fontSize = 13.sp))
+                        }
                     }
                 }
             }
@@ -305,6 +332,9 @@ private fun SettingsScreen(desk: DeskState) {
         SheetHost(sheet, onDismiss = { sheet?.buttons?.first()?.second?.invoke() })
     }
 }
+
+private fun holdsHomeRole(context: android.content.Context) =
+    context.getSystemService(android.app.role.RoleManager::class.java).isRoleHeld(android.app.role.RoleManager.ROLE_HOME)
 
 @Composable
 private fun Group(title: String, content: @Composable () -> Unit) {

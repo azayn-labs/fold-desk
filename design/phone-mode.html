@@ -1,0 +1,66 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk on a normal phone</title>
+<style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; --row:rgba(28,28,30,.55); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1560px; height:1220px; overflow:hidden; display:flex; gap:20px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; width:480px; height:1060px; overflow:hidden; border-radius:34px;
+    background: radial-gradient(500px 420px at 80% 10%, rgba(97,150,255,.30), transparent 65%), radial-gradient(500px 500px at 10% 95%, rgba(54,196,214,.22), transparent 60%), linear-gradient(170deg,#0d1730,#05080f); }
+  .status { height:30px; display:flex; justify-content:space-between; padding:7px 22px; font-size:12.5px; color:#d8d8dc; }
+  .wrap { position:absolute; left:22px; right:22px; top:0; bottom:40px; display:flex; flex-direction:column; justify-content:center; }
+  .logo { width:84px; height:84px; border-radius:24px; background:linear-gradient(140deg,#3e91ff,#36c4d6); margin-bottom:22px; position:relative; }
+  .logo::after { content:""; position:absolute; left:18px; right:18px; bottom:18px; height:10px; border-radius:5px; background:rgba(255,255,255,.85); }
+  h1 { font-size:30px; font-weight:600; }
+  .lead { font-size:15.5px; color:#d6d6da; line-height:1.5; margin-top:10px; }
+  .feat { margin-top:24px; display:flex; flex-direction:column; gap:8px; }
+  .feat > div { border-radius:18px; background:rgba(38,38,42,.78); padding:14px 16px; display:flex; gap:12px; align-items:center; font-size:14.5px; }
+  .feat i { width:30px; height:30px; border-radius:10px; background:rgba(62,145,255,.25); flex:none; }
+  .feat span { display:block; font-size:12.5px; color:var(--subtle); margin-top:2px; }
+  .btn { margin-top:22px; height:48px; border-radius:24px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+  .ghost { margin-top:6px; height:42px; display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:14.5px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:480px; }
+  .dots { display:flex; justify-content:center; gap:6px; margin:4px 0 8px; }
+  .dots i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,.35); } .dots i.on { background:#fff; width:16px; }
+  .lbl { font-size:12px; color:rgba(250,250,250,.85); padding:8px 22px 8px; font-weight:500; display:flex; justify-content:space-between; }
+  .nrow { margin:0 14px 6px; height:58px; border-radius:16px; background:var(--row); display:flex; align-items:center; gap:12px; padding:0 14px; }
+  .nrow i { width:30px; height:30px; border-radius:15px; background:#5f6672; flex:none; } .nrow span { height:10px; border-radius:5px; background:rgba(255,255,255,.18); }
+  .clock { margin:10px 14px; height:112px; border-radius:22px; background:rgba(38,38,42,.78); padding:12px 20px; font-size:52px; font-weight:300; }
+  .clock small { display:block; font-size:13px; color:#ccc; margin-top:2px; }
+  .ev { margin:0 14px; height:44px; border-radius:14px; background:var(--row); padding:12px 16px; font-size:13px; }
+  .dock { position:absolute; left:14px; right:14px; bottom:22px; height:64px; border-radius:24px; background:rgba(28,28,30,.6); display:flex; justify-content:space-evenly; align-items:center; }
+  .dock i { width:44px; height:44px; border-radius:14px; display:block; }
+  .page { position:absolute; inset:0; background:#0e0e10; padding:40px 18px; }
+  .page h2 { font-size:28px; font-weight:600; padding:0 8px 18px; }
+  .g { font-size:13px; color:var(--accent); padding:14px 10px 8px; }
+  .card { border-radius:20px; background:#1d1d20; }
+  .rowx { display:flex; justify-content:space-between; align-items:center; padding:16px 18px; font-size:15px; }
+  .rowx + .rowx { border-top:1px solid rgba(255,255,255,.06); }
+  .rowx span { color:var(--subtle); font-size:13.5px; } .rowx small { display:block; color:var(--subtle); font-size:12.5px; margin-top:3px; }
+  .gone { margin-top:22px; padding:14px 16px; border:1px dashed rgba(255,255,255,.2); border-radius:16px; font-size:12.5px; color:var(--subtle); line-height:1.5; }
+</style></head><body>
+<script>
+const c = ['#e53935','#1a73e8','#25d366','#f4b400','#7e57c2','#26a69a'];
+const status = `<div class="status"><span>12:00</span><span>80%</span></div>`;
+const welcome = `${status}<div class="wrap"><div class="logo"></div><h1>Welcome to FoldDesk</h1>
+  <div class="lead">A clean home screen that puts what matters first.</div>
+  <div class="feat"><div><i></i><div>Notifications at a glance<span>Grouped by app, with the time and your next events</span></div></div>
+  <div><i></i><div>A page of widgets<span>Swipe right, place them anywhere on the grid</span></div></div>
+  <div><i></i><div>Your apps, your dock<span>Recent apps, favourites, search and your own dock</span></div></div></div>
+  <div class="btn">Set as home screen</div><div class="ghost">Not now</div></div>`;
+const home = `${status}<div class="dots"><i></i><i class="on"></i><i></i></div><div class="lbl"><span>Notifications</span><span>3</span></div>
+  ${'<div class="nrow"><i></i><span style="width:55%"></span></div>'.repeat(3)}<div class="clock">12:00<small>Wed, Oct 28</small></div>
+  <div class="lbl"><span>Today</span><span>Calendar</span></div><div class="ev">Team meeting · 15:00</div>
+  <div class="dock">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</div>`;
+const settings = `<div class="page"><h2>FoldDesk settings</h2>
+  <div class="g">Home screen</div><div class="card"><div class="rowx"><div>Default home app<small>Tap to choose</small></div><span>FoldDesk</span></div><div class="rowx"><div>Wallpaper</div><span>›</span></div></div>
+  <div class="g">App list</div><div class="card"><div class="rowx"><div>Hidden apps</div><span>None</span></div></div>
+  <div class="gone">Not shown on phones without a fold: Layout, Taskbar, Desktop, Windows, Taskbar shortcuts, Gestures, Cover screen and the taskbar service status. The accessibility service is never asked for.</div></div>`;
+const cols = [
+  ['1 · First open on a phone without a fold', welcome, 'FoldDesk checks for a hinge. Without one it is a phone launcher: no "unfold", no cover screen choice. "Set as home screen" opens Android\'s home app picker; "Not now" shows the home page anyway. Shown once.'],
+  ['2 · The home page', home, 'The same layout as the Fold\'s cover screen, unchanged: notifications, clock, calendar and dock, the widget page to the left and the app list to the right. It never hands over to One UI.'],
+  ['3 · Settings', settings, 'Only what applies to a phone. Tablets and Folds keep everything as it is now. A hidden developer switch makes the Fold act like a normal phone so this can be tested here.'],
+];
+document.body.innerHTML = cols.map(([t,s,n])=>`<div class="col"><div class="cap">${t}</div><div class="screen">${s}</div><div class="note">${n}</div></div>`).join('');
+</script></body></html>

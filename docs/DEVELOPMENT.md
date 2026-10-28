@@ -56,6 +56,11 @@ Gotchas learned the hard way:
   accessibility settings.
 - Two-finger gestures (group drag, holding a window while switching desktops)
   can't be simulated with `input`; test those by hand.
+- **Testing on a phone without a fold:** FoldDesk checks for a hinge sensor. To
+  make a Fold act like a normal phone, add `<boolean name="phoneMode"
+  value="true" />` to `shared_prefs/desk.xml` (force-stop first, debug builds)
+  and remove it again afterwards. Force-stopping turns the taskbar service off;
+  turn it back on when done.
 - One UI's view IDs used by the service (Recents cards, window caption
   handle/minimise/close buttons) can change with One UI updates. If desktop
   switching or the Recents sync stops working after an update, check them with

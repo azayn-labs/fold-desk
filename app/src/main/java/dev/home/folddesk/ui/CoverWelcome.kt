@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 
 /**
- * Shown when FoldDesk is opened on the cover screen while that screen belongs to
+ * Shown when FoldDesk is opened on a Fold's cover screen while that screen belongs to
  * One UI, e.g. right after installing it. Without it, FoldDesk would hand straight
  * back to One UI Home and look broken. [onDone] gets whether to use FoldDesk here.
  */
@@ -97,6 +97,61 @@ fun CoverWelcome(onDone: (useFoldDesk: Boolean) -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 BasicText("Done", style = TextStyle(color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
+            }
+        }
+    }
+}
+
+/** The same first open on a phone without a fold, where FoldDesk is simply a home screen. */
+@Composable
+fun PhoneWelcome(onSetHome: () -> Unit, onNotNow: () -> Unit) {
+    val context = LocalContext.current
+    val icon = remember { context.packageManager.getApplicationIcon(context.packageName).toBitmap(192, 192).asImageBitmap() }
+    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), contentAlignment = Alignment.Center) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 24.dp)) {
+            Image(icon, contentDescription = null, modifier = Modifier.size(84.dp))
+            BasicText(
+                "Welcome to FoldDesk",
+                style = TextStyle(color = Dex.text, fontSize = 30.sp, fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.padding(top = 22.dp),
+            )
+            BasicText(
+                "A clean home screen that puts what matters first.",
+                style = TextStyle(color = Dex.text.copy(alpha = 0.85f), fontSize = 15.5.sp, lineHeight = 23.sp),
+                modifier = Modifier.padding(top = 10.dp, bottom = 16.dp),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Feature("Notifications at a glance", "Grouped by app, with the time and your next events")
+                Feature("A page of widgets", "Swipe right, place them anywhere on the grid")
+                Feature("Your apps, your dock", "Recent apps, favourites, search and your own dock")
+            }
+            Box(
+                Modifier.padding(top = 22.dp).fillMaxWidth().height(48.dp).clip(RoundedCornerShape(24.dp))
+                    .background(Dex.accent).deskGestures(onTap = onSetHome),
+                contentAlignment = Alignment.Center,
+            ) {
+                BasicText("Set as home screen", style = TextStyle(color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
+            }
+            Box(
+                Modifier.padding(top = 6.dp).fillMaxWidth().height(42.dp).clip(RoundedCornerShape(21.dp))
+                    .deskGestures(onTap = onNotNow),
+                contentAlignment = Alignment.Center,
+            ) {
+                BasicText("Not now", style = TextStyle(color = Dex.accent, fontSize = 14.5.sp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun Feature(title: String, hint: String) {
+    Panel(18.dp, Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(30.dp).clip(RoundedCornerShape(10.dp)).background(Dex.accent.copy(alpha = 0.25f)))
+            Spacer(Modifier.width(12.dp))
+            Column {
+                BasicText(title, style = TextStyle(color = Dex.text, fontSize = 14.5.sp))
+                BasicText(hint, style = TextStyle(color = Dex.subtle, fontSize = 12.5.sp), modifier = Modifier.padding(top = 2.dp))
             }
         }
     }
