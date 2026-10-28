@@ -87,7 +87,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -384,10 +383,9 @@ private fun CalendarSection(now: Long, resumes: Int) {
 @Composable
 private fun EventRow(event: CoverEvent, now: Long) {
     val context = LocalContext.current
-    val today = remember(now) { dayIndex(now, utc = false) }
-    // All-day events are stored at UTC midnight.
-    val day = dayIndex(event.begin, utc = event.allDay)
-    val tomorrow = day > today && !(event.allDay && event.end > now && day <= today)
+    val today = remember(now) { java.time.LocalDate.now() }
+    // Starts tomorrow; anything already running counts as today.
+    val tomorrow = event.day > today
     val timeText = DateFormat.getTimeFormat(context).format(event.begin)
     val label = when {
         tomorrow -> "Tomorrow"
@@ -421,12 +419,6 @@ private fun EventRow(event: CoverEvent, now: Long) {
             }
         }
     }
-}
-
-private fun dayIndex(millis: Long, utc: Boolean): Int {
-    val cal = if (utc) Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")) else Calendar.getInstance()
-    cal.timeInMillis = millis
-    return cal.get(Calendar.YEAR) * 400 + cal.get(Calendar.DAY_OF_YEAR)
 }
 
 /** The taskbar's pinned apps, for the cover screen. */

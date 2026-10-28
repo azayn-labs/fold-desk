@@ -77,7 +77,20 @@ data class CoverEvent(
     val title: String,
     val location: String,
     val color: Int,
-)
+) {
+    /** The calendar day it falls on. All-day events are stored at UTC midnight, so read them in UTC. */
+    val day: java.time.LocalDate
+        get() = java.time.Instant.ofEpochMilli(begin)
+            .atZone(if (allDay) java.time.ZoneOffset.UTC else java.time.ZoneId.systemDefault()).toLocalDate()
+
+    /** Last day it covers (an all-day event's end is the next UTC midnight). */
+    val lastDay: java.time.LocalDate
+        get() = if (allDay) {
+            java.time.Instant.ofEpochMilli(end - 1).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+        } else {
+            java.time.Instant.ofEpochMilli(end).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        }
+}
 
 /** Today's and tomorrow's events, read from the phone's calendars. */
 object CoverCalendar {
@@ -114,8 +127,11 @@ object CoverCalendar {
                             id = c.getLong(0), begin = c.getLong(1), end = c.getLong(2), allDay = c.getInt(3) == 1,
                             title = c.getString(4).orEmpty(), location = c.getString(5).orEmpty(), color = c.getInt(6),
                         )
-                        // Already over: leave it out (all-day events last the whole day).
-                        if (event.allDay || event.end > now) add(event)
+                        // Only today and tomorrow; the query window is in local time, which
+                        // can catch all-day events of the day after in time zones west of UTC.
+                        val today = java.time.LocalDate.now()
+                        val overlaps = event.day <= today.plusDays(1) && event.lastDay >= today
+                        if (overlaps && (event.allDay || event.end > now)) add(event)
                     }
                 }
             } ?: emptyList()
