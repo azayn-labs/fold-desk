@@ -38,8 +38,8 @@ data class AppEntry(
 data class Cell(val col: Int, val row: Int)
 
 /** A widget on the cover screen's 3-column grid: [w]×[h] cells, top-left at [col], [row]. */
-/** Apps that fit in the cover screen's dock. */
-const val COVER_DOCK_MAX = 5
+/** Apps that fit in the cover screen's dock: one per 72 dp, like the recent row, after its margins. */
+fun coverDockMax(context: Context) = ((context.resources.configuration.screenWidthDp - 48) / 72).coerceAtLeast(4)
 
 data class CoverWidget(val id: Int, val w: Int, val h: Int, val col: Int = 0, val row: Int = -1) {
     val cells get() = (col until col + w).flatMap { c -> (row until row + h).map { r -> c to r } }
@@ -159,13 +159,14 @@ class DeskState(private val context: Context) {
     }
 
     /** The cover screen's dock, by key; starts as a copy of the first taskbar apps. */
-    var coverDock by mutableStateOf(if (sp.contains("coverDock")) readList("coverDock") else pinned.take(COVER_DOCK_MAX))
+    var coverDock by mutableStateOf(if (sp.contains("coverDock")) readList("coverDock") else pinned.take(5))
         private set
 
     fun isInCoverDock(app: AppEntry) = app.key in coverDock
 
+    /** The menu checks there's room before adding. */
     fun toggleCoverDock(app: AppEntry) =
-        saveCoverDock(if (isInCoverDock(app)) coverDock - app.key else (coverDock + app.key).take(COVER_DOCK_MAX))
+        saveCoverDock(if (isInCoverDock(app)) coverDock - app.key else coverDock + app.key)
 
     fun moveCoverDock(key: String, index: Int) {
         val list = (coverDock - key).toMutableList()

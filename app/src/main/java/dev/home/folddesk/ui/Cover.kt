@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.gestures.detectDragGestures
 import dev.home.folddesk.Widgets
+import dev.home.folddesk.coverDockMax
 import dev.home.folddesk.WidgetActions
 import dev.home.folddesk.DeskWidgetView
 import dev.home.folddesk.CoverWidget
@@ -497,7 +498,7 @@ private fun Dock(shell: ShellController, modifier: Modifier) {
     val context = LocalContext.current
     val apps = remember(desk.coverDock, desk.apps) {
         desk.coverDock.mapNotNull { key -> desk.apps.firstOrNull { it.key == key } }
-    }
+    }.take(coverDockMax(context))
     // An icon being dragged sideways to a new place: its key and how far it has moved.
     var moving by remember { mutableStateOf<Pair<String, Float>?>(null) }
     var rowWidth by remember { mutableFloatStateOf(1f) }
