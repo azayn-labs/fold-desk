@@ -47,7 +47,19 @@ class FoldDeskApp : Application() {
     }
 
     companion object {
-        /** The Fold's inner display is sw875dp; the cover screen is sw480dp. */
-        fun isInnerScreen(config: Configuration) = config.smallestScreenWidthDp >= 600
+        /**
+         * The Fold's inner display is sw875dp and nearly square; the cover screen
+         * is sw480dp and tall. Go by shape too: a large display size or a changed
+         * "Smallest width" can push the inner screen under 600dp.
+         */
+        fun isInnerScreen(config: Configuration): Boolean {
+            if (config.smallestScreenWidthDp >= 600) return true
+            val long = maxOf(config.screenWidthDp, config.screenHeightDp)
+            val short = minOf(config.screenWidthDp, config.screenHeightDp)
+            return short > 0 && long < short * MAX_INNER_ASPECT
+        }
+
+        /** Cover screens are about 2.3:1; inner screens about 1.1:1. */
+        private const val MAX_INNER_ASPECT = 1.8f
     }
 }
