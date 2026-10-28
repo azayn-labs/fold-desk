@@ -1,8 +1,9 @@
 # FoldDesk
 
 A Samsung DeX–style desktop launcher for the **inner screen of the Galaxy Z Fold7**
-(One UI 9 / Android 17). On the cover screen it hands over to One UI Home, so the
-folded phone behaves exactly as before.
+(One UI 9 / Android 17). On the cover screen it hands over to One UI Home (or
+any launcher you pick), so the folded phone behaves exactly as before. Or try
+its own cover screen, an at-a-glance view of your notifications and your day.
 
 It's a sideloaded, open-source app (not on the Play Store). Signed APKs are
 published on the [Releases page](../../releases).
@@ -32,6 +33,11 @@ published on the [Releases page](../../releases).
 - **Gestures**: choose what swiping up or down on the desktop does (app drawer,
   notifications, quick settings or nothing); swipe left/right to switch
   desktops and swipe down to close the drawer can each be turned off.
+- **Cover screen (preview)**: pick "FoldDesk cover screen" as the cover screen
+  launcher for notifications (one row per app, swipe right to dismiss), a clock
+  bar you can drag to share the space, today's and tomorrow's calendar, your
+  pinned apps, and the app list one swipe away. Calendar access is asked for
+  the first time it's shown.
 - **Light and dark** themes following the phone.
 - **Settings** window: taskbar position/alignment, tap shortcuts for the tray
   and clock, window size, gestures, cover‑screen behaviour, service status.
