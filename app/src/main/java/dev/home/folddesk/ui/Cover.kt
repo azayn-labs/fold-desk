@@ -9,6 +9,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.Dp
@@ -797,53 +798,72 @@ private fun CoverWidgetView(
 
 // --- Last page: all apps ---
 
-/** One row of the most recently used apps, as many as fit the width. */
+/** Apps used most recently, as many as fit the width; at the top of the list. */
 @Composable
-private fun RecentApps(shell: ShellController) {
+private fun RecentApps(shell: ShellController, recent: List<AppEntry>) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        AppIconRow(shell, "Recent", recent, (maxWidth / RECENT_SLOT).toInt().coerceAtLeast(1), scrolls = false)
+    }
+}
+
+/** Favourites at the bottom, in the order added; scrolls sideways when there are more than fit. */
+@Composable
+private fun FavouriteApps(shell: ShellController) {
     val desk = shell.desk
+    val favourites = remember(desk.coverFavourites, desk.apps, desk.hiddenApps) {
+        desk.coverFavourites.mapNotNull { key -> desk.apps.firstOrNull { it.key == key } }.filter { !desk.isHidden(it) }
+    }
+    if (favourites.isEmpty()) return
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        AppIconRow(shell, "Favourites", favourites, (maxWidth / RECENT_SLOT).toInt().coerceAtLeast(1), scrolls = true)
+    }
+}
+
+/** A labelled row of app icons, [perRow] to the width. */
+@Composable
+private fun AppIconRow(shell: ShellController, title: String, apps: List<AppEntry>, perRow: Int, scrolls: Boolean) {
     val context = LocalContext.current
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val count = (maxWidth / RECENT_SLOT).toInt().coerceAtLeast(1)
-        val recent by produceState(emptyList<AppEntry>(), count, desk.apps, desk.hiddenApps) {
-            value = withContext(Dispatchers.IO) { desk.recentlyUsed(count) }
-        }
-        if (recent.isEmpty()) return@BoxWithConstraints
+        val slot = (maxWidth - 24.dp) / perRow
         Column(Modifier.fillMaxWidth()) {
             BasicText(
-                "Recent",
+                title,
                 style = TextStyle(color = Dex.accent, fontSize = 12.sp),
-                modifier = Modifier.padding(start = 26.dp, top = 12.dp, bottom = 6.dp),
+                modifier = Modifier.padding(start = 26.dp, top = 10.dp, bottom = 6.dp),
             )
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
-                for (app in recent) {
-                    val feedback = remember { PressFeedback() }
-                    Column(
-                        Modifier.weight(1f).deskGestures(
-                            onTap = { Launcher.open(context, app, windowed = false) },
-                            onMenu = { shell.coverAppMenu(app, it) },
-                            feedback = feedback,
-                        ),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Image(app.icon, contentDescription = null, modifier = Modifier.size(46.dp))
-                        BasicText(
-                            app.label, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = TextStyle(color = Dex.text, fontSize = 11.sp, textAlign = TextAlign.Center),
-                            modifier = Modifier.padding(top = 5.dp, start = 2.dp, end = 2.dp),
-                        )
+            Row(
+                Modifier.fillMaxWidth()
+                    .then(if (scrolls) Modifier.horizontalScroll(rememberScrollState()) else Modifier)
+                    .padding(horizontal = 12.dp),
+            ) {
+                for (app in if (scrolls) apps else apps.take(perRow)) {
+                    key(app.key) {
+                        val feedback = remember { PressFeedback() }
+                        Column(
+                            Modifier.width(slot).deskGestures(
+                                onTap = { Launcher.open(context, app, windowed = false) },
+                                onMenu = { shell.coverAppMenu(app, it) },
+                                feedback = feedback,
+                            ),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Image(app.icon, contentDescription = null, modifier = Modifier.size(46.dp))
+                            BasicText(
+                                app.label, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                style = TextStyle(color = Dex.text, fontSize = 11.sp, textAlign = TextAlign.Center),
+                                modifier = Modifier.padding(top = 5.dp, start = 2.dp, end = 2.dp, bottom = 4.dp),
+                            )
+                        }
                     }
                 }
-                // Fewer recent apps than slots: keep the others where they'd be.
-                repeat(count - recent.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
 }
 
 private val RECENT_SLOT = 72.dp
-
-/** Section key for favourites in the cover app list, shown as a star. */
-private const val FAVOURITES = '★'
+/** More than any cover screen fits in a row; the row takes what fits. */
+private const val RECENT_MAX = 8
 
 @Composable
 private fun CoverApps(shell: ShellController) {
@@ -851,40 +871,41 @@ private fun CoverApps(shell: ShellController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
-    val groups = remember(desk.apps, desk.hiddenApps, desk.coverFavourites, query) {
+    val groups = remember(desk.apps, desk.hiddenApps, query) {
         val q = query.trim().lowercase()
-        val matching = desk.apps.filter { !desk.isHidden(it) && (q.isEmpty() || q in it.label.lowercase()) }
-        // Favourites first, in the order they were added, under a star; they also
-        // stay in their letter below.
-        val favourites = desk.coverFavourites.mapNotNull { key -> matching.firstOrNull { it.key == key } }
-        val byLetter = matching.sortedBy { it.label.lowercase() }
+        desk.apps.filter { !desk.isHidden(it) && (q.isEmpty() || q in it.label.lowercase()) }
+            .sortedBy { it.label.lowercase() }
             .groupBy { app -> app.label.firstOrNull()?.uppercaseChar()?.takeIf { it.isLetter() } ?: '#' }
-        (if (favourites.isEmpty()) emptyMap() else mapOf(FAVOURITES to favourites)) + byLetter
     }
+    // The recent apps sit above the letters while not searching. They load a
+    // moment after the list, which then jumps back up to show them.
+    val recent by produceState<List<AppEntry>?>(null, desk.apps, desk.hiddenApps) {
+        value = withContext(Dispatchers.IO) { desk.recentlyUsed(RECENT_MAX) }
+    }
+    val showRecent = query.isEmpty() && !recent.isNullOrEmpty()
+    val list = rememberLazyListState()
+    LaunchedEffect(recent != null) { if (recent != null) list.scrollToItem(0) }
     // Where each letter's header sits in the list, for the scroller.
-    val headerIndex = remember(groups) {
-        var i = 0
+    val headerIndex = remember(groups, showRecent) {
+        var i = if (showRecent) 1 else 0
         groups.mapValues { (_, apps) -> i.also { i += apps.size + 1 } }
     }
-    val list = rememberLazyListState()
-    // Show the favourites right away when one is added or removed.
-    LaunchedEffect(desk.coverFavourites) { list.scrollToItem(0) }
 
     // A light tint behind the whole list, like the app drawer's panel.
     Column(Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Dex.bar.copy(alpha = 0.6f)).imePadding()) {
         // The list on top; search and recent apps at the bottom, within thumb reach.
         Row(Modifier.fillMaxWidth().weight(1f)) {
             LazyColumn(Modifier.weight(1f).fillMaxHeight(), state = list) {
+                if (showRecent) item(key = "recent") { RecentApps(shell, recent.orEmpty()) }
                 groups.forEach { (letter, apps) ->
                     item(key = "header-$letter") {
                         BasicText(
-                            if (letter == FAVOURITES) "★ Favourites" else letter.toString(),
+                            letter.toString(),
                             style = TextStyle(color = Dex.accent, fontSize = 12.sp),
                             modifier = Modifier.padding(start = 26.dp, top = 10.dp, bottom = 2.dp),
                         )
                     }
-                    // A favourite is listed twice (top and under its letter), so key by section too.
-                    items(apps, key = { "$letter-${it.key}" }) { app ->
+                    items(apps, key = { it.key }) { app ->
                         CoverAppRow(app, onOpen = { Launcher.open(context, app, windowed = false) }, onMenu = { shell.coverAppMenu(app, it) })
                     }
                 }
@@ -931,7 +952,7 @@ private fun CoverApps(shell: ShellController) {
                 }
             }
         }
-        if (query.isEmpty()) RecentApps(shell)
+        if (query.isEmpty()) FavouriteApps(shell)
     }
 }
 
