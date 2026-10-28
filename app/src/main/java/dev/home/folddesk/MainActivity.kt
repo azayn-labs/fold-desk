@@ -3,6 +3,7 @@ package dev.home.folddesk
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.os.SystemClock
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.view.WindowInsets
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
     private var inner by mutableStateOf(true)
     /** Home pressed while already home; the cover screen goes back to its first page. */
     private var homePresses by mutableIntStateOf(0)
+    private var lastHandOff = 0L
 
     /** A widget on its way to the desktop: bound, maybe set up, then placed. */
     private class Pending(val id: Int, val info: AppWidgetProviderInfo, val at: Cell?)
@@ -89,6 +91,12 @@ class MainActivity : ComponentActivity(), WidgetActions {
     private fun handOffCoverScreen(): Boolean {
         if (inner || !shell.desk.coverUsesOneUi) return false
         shell.closePopups()
+        // Folding brings both a configuration change and a resume. A second home
+        // intent right after the first counts as Home pressed again in One UI
+        // Home, which then opens Finder.
+        val now = SystemClock.uptimeMillis()
+        if (now - lastHandOff < HAND_OFF_GAP_MS) return true
+        lastHandOff = now
         return Launcher.openCoverLauncher(this, shell.desk.coverLauncher)
     }
 
@@ -179,6 +187,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
     }
 
     private companion object {
+        const val HAND_OFF_GAP_MS = 1500L
         const val REQUEST_BIND = 41
         const val REQUEST_CONFIGURE = 42
         const val REQUEST_RECONFIGURE = 43

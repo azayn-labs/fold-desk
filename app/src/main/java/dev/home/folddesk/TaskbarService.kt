@@ -229,6 +229,33 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         if (front == shell.desk.coverLauncher) performGlobalAction(GLOBAL_ACTION_HOME)
     }
 
+    /**
+     * Folded with an app open in a pop-up window: the window comes along to the
+     * cover screen, where it's just in the way. Launching the app again with
+     * full-screen options turns its task back into a normal full-screen one.
+     */
+    /** Last app made full screen on the cover screen, and when; keeps it from looping. */
+    private var coverFix = "" to 0L
+
+    /**
+     * Pop-up windows are for the inner screen. One that came along when the
+     * phone was folded, or that an app reopened in on the cover screen, is
+     * just in the way there, so press its Maximize button, the same way as
+     * Minimize for desktop switching. Launching the app again with full-screen
+     * options isn't enough on the cover screen; Android keeps the window.
+     */
+    private fun fullScreenOnCover() {
+        val handle = windows.mapNotNull { it.root }
+            .flatMap { it.findAccessibilityNodeInfosByViewId(CAPTION_HANDLE) }
+            .firstOrNull() ?: return
+        val label = handle.contentDescription?.toString() ?: return
+        val now = SystemClock.uptimeMillis()
+        if (coverFix.first == label && now - coverFix.second < COVER_FIX_GAP_MS) return
+        coverFix = label to now
+        handle.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        handler.postDelayed({ findNode(MAXIMIZE_WINDOW)?.performAction(AccessibilityNodeInfo.ACTION_CLICK) }, 300)
+    }
+
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
@@ -436,6 +463,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
      * keyboard is up; also tells the taskbar which app has focus.
      */
     private fun updateVisibility() {
+        if (!FoldDeskApp.isInnerScreen(resources.configuration)) fullScreenOnCover()
         val view = bar ?: return
         val windows = try {
             windows
@@ -669,9 +697,11 @@ class TaskbarService : AccessibilityService(), SystemKeys {
     companion object {
         private const val REVEAL_DELAY_MS = 80L
         private const val UNFOLD_SETTLE_MS = 400L
+        private const val COVER_FIX_GAP_MS = 3_000L
         private const val CAPTION_HANDLE = "com.android.systemui:id/caption_handle"
         private const val MINIMIZE_WINDOW = "com.android.systemui:id/minimize_window"
         private const val CLOSE_WINDOW = "com.android.systemui:id/close_window"
+        private const val MAXIMIZE_WINDOW = "com.android.systemui:id/maximize_window"
         private const val NOTIFICATION_ROW = "com.android.systemui:id/expandableNotificationRow"
         /** How long after a notification tap its app may take to come up. */
         private const val NOTIFICATION_OPEN_MS = 4000L

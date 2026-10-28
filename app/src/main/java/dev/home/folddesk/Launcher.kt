@@ -24,8 +24,9 @@ object Launcher {
 
     private var cascade = 0
 
+    /** Pop-up windows are an inner-screen thing; on the cover screen apps always open full screen. */
     fun open(context: Context, app: AppEntry, windowed: Boolean, size: WindowSize = WindowSize.Medium) =
-        start(context, app, windowOptions(context, windowed, size))
+        start(context, app, windowOptions(context, windowed && FoldDeskApp.isInnerScreen(context.resources.configuration), size))
 
     private fun windowOptions(context: Context, windowed: Boolean, size: WindowSize): ActivityOptions {
         val options = ActivityOptions.makeBasic()
