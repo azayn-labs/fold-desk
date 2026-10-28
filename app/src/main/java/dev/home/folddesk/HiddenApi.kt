@@ -1,8 +1,9 @@
 package dev.home.folddesk
 
 /**
- * Plain reflection: Google Play doesn't allow lifting Android's hidden API
- * restriction, so calls Android blocks throw and their callers fall back.
+ * Methods Android hides from apps, called by plain reflection. Calls Android
+ * blocks throw and their callers fall back: One UI still opens apps in windows
+ * from the launch bounds alone, and Samsung's blur isn't on the blocked list.
  */
 object HiddenApi {
     fun invoke(clazz: Class<*>, target: Any?, name: String, vararg args: Any?): Any? {

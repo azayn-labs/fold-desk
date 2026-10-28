@@ -42,10 +42,12 @@ which can only sit behind floating windows.
 ## How the tricky parts work
 
 ### Floating windows
-`ActivityOptions.setLaunchWindowingMode(5 /* FREEFORM */)` is a hidden API,
-called through `org.lsposed.hiddenapibypass`. The Fold7 declares
-`android.software.freeform_window_management`, so apps open as One UI pop-up
-windows.
+Apps open with `ActivityOptions.setLaunchBounds`. The Fold7 declares
+`android.software.freeform_window_management`, and One UI turns a launch with
+bounds into a pop-up window on its own. `setLaunchWindowingMode` is a hidden
+API; `HiddenApi` tries it by plain reflection and carries on when Android
+blocks it. (A hidden-API bypass library used to lift the block, but Google Play
+rejects apps that ship one.)
 
 ### Why an accessibility service
 - Its `TYPE_ACCESSIBILITY_OVERLAY` windows sit above app windows without taking

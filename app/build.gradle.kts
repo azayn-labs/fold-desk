@@ -93,7 +93,4 @@ dependencies {
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
-    // ActivityOptions.setLaunchWindowingMode is a hidden API; this lifts the restriction.
-    // GitHub build only: Google Play rejects it (see src/play/.../HiddenApi.kt).
-    "githubImplementation"("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
 }
