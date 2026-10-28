@@ -174,6 +174,12 @@ class ShellController(
                 header = app,
                 groups = listOf(
                     listOf(
+                        if (desk.isInCoverDock(app)) {
+                            MenuItem("Remove from dock") { desk.toggleCoverDock(app) }
+                        } else {
+                            val full = desk.coverDock.size >= COVER_DOCK_MAX
+                            MenuItem("Add to dock", value = if (full) "Dock is full" else null, enabled = !full) { desk.toggleCoverDock(app) }
+                        },
                         MenuItem(if (desk.isCoverFavourite(app)) "Remove from favourites" else "Add to favourites") {
                             desk.toggleCoverFavourite(app)
                         },

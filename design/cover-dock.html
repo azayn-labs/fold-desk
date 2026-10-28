@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk cover dock</title>
+<style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; --row:rgba(28,28,30,.55); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1560px; height:1220px; overflow:hidden; display:flex; gap:20px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; width:480px; height:1120px; overflow:hidden; border-radius:28px;
+    background: radial-gradient(500px 420px at 80% 10%, rgba(97,150,255,.30), transparent 65%), radial-gradient(500px 500px at 10% 95%, rgba(54,196,214,.22), transparent 60%), linear-gradient(170deg,#0d1730,#05080f); }
+  .status { height:30px; display:flex; justify-content:space-between; padding:7px 22px; font-size:12.5px; color:#d8d8dc; }
+  .dots { display:flex; justify-content:center; gap:6px; margin:4px 0 8px; }
+  .dots i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,.35); } .dots i.on { background:#fff; width:16px; }
+  .lbl { font-size:12px; color:rgba(250,250,250,.85); padding:8px 22px 6px; font-weight:500; display:flex; justify-content:space-between; }
+  .nrow { margin:0 14px 6px; height:58px; border-radius:16px; background:var(--row); display:flex; align-items:center; gap:12px; padding:0 14px; }
+  .nrow i { width:30px; height:30px; border-radius:15px; background:#5f6672; flex:none; }
+  .nrow span { height:10px; border-radius:5px; background:rgba(255,255,255,.18); }
+  .clock { margin:10px 14px; height:112px; border-radius:22px; background:rgba(38,38,42,.78); padding:12px 20px; font-size:52px; font-weight:300; }
+  .clock small { display:block; font-size:13px; color:#ccc; margin-top:2px; }
+  .ev { margin:0 14px; height:44px; border-radius:14px; background:var(--row); padding:12px 16px; font-size:13px; }
+  .dock { position:absolute; left:14px; right:14px; bottom:22px; height:64px; border-radius:24px; background:rgba(28,28,30,.6); display:flex; justify-content:space-evenly; align-items:center; }
+  .dock i, .ic { width:44px; height:44px; border-radius:14px; display:block; }
+  .dock i.lift { transform:translate(70px,-10px) scale(1.12); box-shadow:0 8px 20px rgba(0,0,0,.6); }
+  .dock i.slot { background:transparent !important; border:2px dashed rgba(62,145,255,.7); }
+  .ctx { position:absolute; width:230px; background:#2b2b2f; border-radius:20px; padding:6px 0; box-shadow:0 10px 34px rgba(0,0,0,.55); font-size:14px; z-index:3; }
+  .ctx .h { display:flex; gap:10px; align-items:center; padding:10px 18px; font-weight:600; } .ctx .h i { width:22px; height:22px; border-radius:7px; }
+  .ctx div.it { padding:11px 20px; } .ctx hr { border:0; border-top:1px solid rgba(255,255,255,.1); margin:4px 0; }
+  .ctx .new { color:var(--accent); }
+  .ctx .off { color:#6d6d72; } .ctx .off small { display:block; font-size:11px; margin-top:2px; }
+  .panel { position:absolute; left:0; right:0; top:52px; bottom:0; background:rgba(28,28,30,.6); border-radius:24px 24px 0 0; }
+  .letter { font-size:12px; color:var(--accent); padding:12px 26px 2px; }
+  .app { display:flex; gap:14px; align-items:center; padding:8px 24px; font-size:15px; } .app i { width:36px; height:36px; border-radius:11px; flex:none; }
+  .app.sel { background:rgba(255,255,255,.08); }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:480px; }
+</style></head><body>
+<script>
+const c = ['#e53935','#1a73e8','#25d366','#f4b400','#7e57c2','#26a69a','#ff7043'];
+const status = `<div class="status"><span>12:00</span><span>80%</span></div>`;
+const glance = (n) => `${status}<div class="dots"><i></i><i class="on"></i><i></i></div><div class="lbl"><span>Notifications</span><span>3</span></div>
+  ${'<div class="nrow"><i></i><span style="width:55%"></span></div>'.repeat(n)}<div class="clock">12:00<small>Wed, Oct 28</small></div>
+  <div class="lbl"><span>Today</span><span>Calendar</span></div><div class="ev">Team meeting · 15:00</div>`;
+const dock = (items) => `<div class="dock">${items}</div>`;
+const icons = (n, extra='') => c.slice(0,n).map((x,i)=>`<i style="background:${x}" ${i===2?extra:''}></i>`).join('');
+const menu = (name, color, items, pos) => `<div class="ctx" style="${pos}"><div class="h"><i style="background:${color}"></i>${name}</div><hr>${items}</div>`;
+const s1 = glance(4) + dock(icons(4)) + menu('Browser', c[1],
+  `<div class="it new">Remove from dock</div><div class="it">Add to favourites</div><div class="it">Hide from app list</div><hr><div class="it">App info</div><div class="it">Uninstall</div>`,
+  'right:16px;bottom:96px');
+const list = ['Calculator','Camera','Clock','Contacts','Files','Gallery','Maps','Messages','Music','Notes'];
+const s2 = `${status}<div class="dots"><i></i><i></i><i class="on"></i></div><div class="panel"><div class="letter">C</div>
+  ${list.map((x,i)=>`<div class="app${i===5?' sel':''}"><i style="background:${c[i%7]}"></i>${x}</div>`).join('')}</div>`
+  + menu('Gallery', c[5], `<div class="it new">Add to dock</div><div class="it">Add to favourites</div><div class="it">Hide from app list</div><hr><div class="it">App info</div><div class="it">Uninstall</div>`, 'left:150px;top:520px')
+  + menu('Music', c[1], `<div class="it off">Add to dock<small>Dock is full (5 apps)</small></div><div class="it">Add to favourites</div><hr><div class="it">Uninstall</div>`, 'left:150px;top:860px;opacity:.95');
+const s3 = glance(4) + dock(`<i style="background:${c[0]}"></i><i class="slot"></i><i style="background:${c[2]}"></i><i style="background:${c[3]}"></i><i style="background:${c[4]}"></i>`)
+  + `<i class="ic" style="position:absolute;left:150px;bottom:44px;background:${c[1]};transform:scale(1.12);box-shadow:0 8px 20px rgba(0,0,0,.6)"></i>`;
+const cols = [
+  ['1 · Long press an app in the dock', s1, 'The menu gets "Remove from dock" at the top. The dock closes the gap.'],
+  ['2 · Long press an app in the app list', s2, '"Add to dock" puts it at the end of the dock. With 5 apps already there it\'s greyed out with "Dock is full", so remove one first. Apps already in the dock show "Remove from dock" instead.'],
+  ['3 · Reorder', s3, 'Long press an icon in the dock and drag it sideways; the others move out of the way. Let go to drop it. The dashed slot shows where it lands.'],
+];
+document.body.innerHTML = cols.map(([t,s,n])=>`<div class="col"><div class="cap">${t}</div><div class="screen">${s}</div><div class="note">${n}</div></div>`).join('')
+  + '';
+</script></body></html>

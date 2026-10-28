@@ -38,6 +38,9 @@ data class AppEntry(
 data class Cell(val col: Int, val row: Int)
 
 /** A widget on the cover screen's 3-column grid: [w]×[h] cells, top-left at [col], [row]. */
+/** Apps that fit in the cover screen's dock. */
+const val COVER_DOCK_MAX = 5
+
 data class CoverWidget(val id: Int, val w: Int, val h: Int, val col: Int = 0, val row: Int = -1) {
     val cells get() = (col until col + w).flatMap { c -> (row until row + h).map { r -> c to r } }
 
@@ -153,6 +156,26 @@ class DeskState(private val context: Context) {
     fun toggleCoverFavourite(app: AppEntry) {
         coverFavourites = if (isCoverFavourite(app)) coverFavourites - app.key else coverFavourites + app.key
         sp.edit().putString("coverFavourites", coverFavourites.joinToString("\n")).apply()
+    }
+
+    /** The cover screen's dock, by key; starts as a copy of the first taskbar apps. */
+    var coverDock by mutableStateOf(if (sp.contains("coverDock")) readList("coverDock") else pinned.take(COVER_DOCK_MAX))
+        private set
+
+    fun isInCoverDock(app: AppEntry) = app.key in coverDock
+
+    fun toggleCoverDock(app: AppEntry) =
+        saveCoverDock(if (isInCoverDock(app)) coverDock - app.key else (coverDock + app.key).take(COVER_DOCK_MAX))
+
+    fun moveCoverDock(key: String, index: Int) {
+        val list = (coverDock - key).toMutableList()
+        list.add(index.coerceIn(0, list.size), key)
+        saveCoverDock(list)
+    }
+
+    private fun saveCoverDock(list: List<String>) {
+        coverDock = list
+        sp.edit().putString("coverDock", list.joinToString("\n")).apply()
     }
 
     /** Apps left out of the app drawer, by key. */

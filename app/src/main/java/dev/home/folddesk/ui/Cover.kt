@@ -15,6 +15,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -492,9 +494,12 @@ private fun EventRow(event: CoverEvent, now: Long) {
 private fun Dock(shell: ShellController, modifier: Modifier) {
     val desk = shell.desk
     val context = LocalContext.current
-    val apps = remember(desk.pinned, desk.apps) {
-        desk.pinned.mapNotNull { key -> desk.apps.firstOrNull { it.key == key } }.take(5)
+    val apps = remember(desk.coverDock, desk.apps) {
+        desk.coverDock.mapNotNull { key -> desk.apps.firstOrNull { it.key == key } }
     }
+    // An icon being dragged sideways to a new place: its key and how far it has moved.
+    var moving by remember { mutableStateOf<Pair<String, Float>?>(null) }
+    var rowWidth by remember { mutableFloatStateOf(1f) }
     if (apps.isEmpty()) {
         Spacer(modifier)
         return
@@ -502,18 +507,46 @@ private fun Dock(shell: ShellController, modifier: Modifier) {
     Box(modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
         Panel(24.dp, Modifier.fillMaxSize()) {
             Row(
-                Modifier.fillMaxSize().padding(horizontal = 10.dp),
+                Modifier.fillMaxSize().padding(horizontal = 10.dp).onSizeChanged { rowWidth = it.width.toFloat() },
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                for (app in apps) {
+                // Evenly spaced, so every icon has the same share of the row.
+                val slot = rowWidth / apps.size
+                val from = moving?.let { (key, _) -> apps.indexOfFirst { it.key == key } } ?: -1
+                val to = moving?.let { (_, dx) -> (from + (dx / slot).roundToInt()).coerceIn(0, apps.lastIndex) } ?: -1
+                apps.forEachIndexed { index, app ->
+                    val shift = when {
+                        index == from -> moving!!.second
+                        from < 0 -> 0f
+                        index in (from + 1)..to -> -slot
+                        index in to until from -> slot
+                        else -> 0f
+                    }
+                    val lifted = index == from
                     Image(
                         app.icon, contentDescription = app.label,
                         // Its own long press, so the page's menu (and a tap on release) stay out of it.
-                        modifier = Modifier.size(44.dp).deskGestures(
-                            onTap = { Launcher.open(context, app, windowed = false) },
-                            onMenu = { shell.coverAppMenu(app, it) },
-                        ),
+                        modifier = Modifier
+                            .zIndex(if (lifted) 1f else 0f)
+                            .graphicsLayer {
+                                translationX = shift
+                                if (lifted) { scaleX = 1.12f; scaleY = 1.12f }
+                            }
+                            .size(44.dp)
+                            .deskGestures(
+                                onTap = { Launcher.open(context, app, windowed = false) },
+                                onMenu = { shell.coverAppMenu(app, it) },
+                                onDragStart = {
+                                    shell.closeMenu()
+                                    moving = app.key to 0f
+                                },
+                                onDrag = { delta -> moving = moving?.let { (key, dx) -> key to dx + delta.x } },
+                                onDragEnd = {
+                                    if (to >= 0) desk.moveCoverDock(app.key, to)
+                                    moving = null
+                                },
+                            ),
                     )
                 }
             }
