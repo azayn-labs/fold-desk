@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk cover notification groups</title>
+<style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; --row:rgba(28,28,30,.55); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1560px; height:1220px; overflow:hidden; display:flex; gap:20px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; width:480px; height:1120px; overflow:hidden; border-radius:28px;
+    background: radial-gradient(500px 420px at 80% 10%, rgba(97,150,255,.30), transparent 65%), radial-gradient(500px 500px at 10% 95%, rgba(54,196,214,.22), transparent 60%), linear-gradient(170deg,#0d1730,#05080f); }
+  .status { height:30px; display:flex; justify-content:space-between; padding:7px 22px; font-size:12.5px; color:#d8d8dc; }
+  .dots { display:flex; justify-content:center; gap:6px; margin:4px 0 8px; }
+  .dots i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,.35); } .dots i.on { background:#fff; width:16px; }
+  .lbl { font-size:12px; color:rgba(250,250,250,.85); padding:8px 22px 8px; font-weight:500; display:flex; justify-content:space-between; }
+  .list { padding:0 14px; display:flex; flex-direction:column; gap:6px; }
+  .n { position:relative; border-radius:16px; background:var(--row); padding:10px 14px 10px 18px; display:flex; gap:12px; align-items:center; overflow:hidden; }
+  .n::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c); }
+  .n .ic { width:32px; height:32px; border-radius:16px; background:var(--c); flex:none; }
+  .n .b { flex:1; min-width:0; }
+  .n .t { font-size:14.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; gap:8px; align-items:center; }
+  .n .x { font-size:12.5px; color:var(--subtle); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+  .n .app { font-size:12px; color:var(--subtle); text-align:right; flex:none; }
+  .badge { font-size:11px; font-weight:600; background:#e53935; color:#fff; border-radius:9px; padding:1px 7px; }
+  .chev { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:var(--text); background:rgba(255,255,255,.12); border-radius:10px; padding:2px 8px; margin-top:4px; }
+  .group { border-radius:18px; background:rgba(28,28,30,.7); overflow:hidden; position:relative; }
+  .group::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c); }
+  .gh { display:flex; align-items:center; gap:10px; padding:10px 14px 8px 18px; font-size:13px; color:var(--subtle); }
+  .gh i { width:22px; height:22px; border-radius:11px; background:var(--c); flex:none; }
+  .gh b { color:var(--text); font-weight:500; }
+  .gh .r { margin-left:auto; display:flex; gap:14px; align-items:center; }
+  .gh .clr { color:var(--accent); }
+  .item { padding:8px 14px 8px 50px; border-top:1px solid rgba(255,255,255,.06); position:relative; }
+  .item .t { font-size:14px; font-weight:500; display:flex; justify-content:space-between; } .item .t small { font-size:11.5px; color:var(--subtle); font-weight:400; }
+  .item .x { font-size:12.5px; color:#c8c8cc; margin-top:2px; }
+  .item.swipe { transform:translateX(120px); opacity:.5; }
+  .ghostdel { position:absolute; left:14px; font-size:12px; color:var(--subtle); }
+  .clock { margin:12px 14px; height:104px; border-radius:22px; background:rgba(38,38,42,.78); padding:12px 20px; font-size:50px; font-weight:300; }
+  .clock small { display:block; font-size:13px; color:#ccc; margin-top:2px; }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.28); }
+  .pop { position:absolute; left:10px; right:10px; border-radius:22px; background:#2b2b2f; box-shadow:0 14px 40px rgba(0,0,0,.6); overflow:hidden; z-index:3; }
+  .pop .gh { padding:14px 16px 10px 18px; font-size:13.5px; }
+  .pop .item { padding:10px 16px 10px 50px; }
+  .pop .more { text-align:center; font-size:11.5px; color:var(--subtle); padding:6px 0 10px; }
+  .grow { position:absolute; left:14px; right:14px; border:2px dashed rgba(62,145,255,.6); border-radius:22px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:480px; }
+  .finger { position:absolute; z-index:5; width:44px; height:44px; border-radius:22px; background:rgba(255,255,255,.25); border:2px solid rgba(255,255,255,.6); }
+</style></head><body>
+<script>
+const top_ = (count) => `<div class="status"><span>12:00</span><span>80%</span></div><div class="dots"><i></i><i class="on"></i><i></i></div><div class="lbl"><span>Notifications</span><span>${count}</span></div>`;
+const row = (c, title, text, app, n) => `<div class="n" style="--c:${c}"><div class="ic"></div><div class="b"><div class="t">${title}</div><div class="x">${text}</div>${n?`<span class="chev">${n-1} more ⌄</span>`:''}</div><div class="app">${app}</div></div>`;
+const clock = `<div class="clock">12:00<small>Wed, Oct 28</small></div>`;
+const chat = [['Sam','Are we still on for tonight?','12:58'],['Alex','Sent a photo','12:41'],['Family group','Mum: Dinner at 7','12:30'],['Sam','Running a bit late','11:15']];
+const group = (swipe) => `<div class="group" style="--c:#25d366"><div class="gh"><i></i><b>Messages app</b>· 4 <div class="r"><span class="clr">Clear all</span><span>⌃</span></div></div>
+  ${chat.map(([t,x,time],k)=>`<div class="item${swipe&&k===1?' swipe':''}">${swipe&&k===1?'':''}<div class="t">${t}<small>${time}</small></div><div class="x">${x}</div></div>`).join('')}</div>`;
+const others = row('#1a73e8','Weather','Light rain from 15:00','Weather') + row('#e53935','Video app','New upload from a channel you follow','Video app', 3) + row('#f4b400','Shop app','Your parcel arrives today','Shop app');
+const s1 = top_(4) + `<div class="list">${row('#25d366','Sam','Are we still on for tonight?','Messages app', 6)}${others}</div>` + clock
+  + `<div class="finger" style="left:86px;top:121px"></div>`;
+const page = top_(4) + `<div class="list">${row('#25d366','Sam','Are we still on for tonight?','Messages app', 6)}${others}</div>` + clock;
+const chat2 = chat.concat([['Work chat','Ben: see you tomorrow','10:02'],['Alex','Thanks!','09:40']]);
+const pop = (swipe) => `<div class="pop" style="top:92px"><div class="gh" style="--c:#25d366"><i></i><b>Messages app</b>· 6 <div class="r"><span class="clr">Clear all</span><span>✕</span></div></div>
+  ${chat2.map(([t,x,time],k)=>`<div class="item${swipe&&k===1?' swipe':''}"><div class="t">${t}<small>${time}</small></div><div class="x">${x}</div></div>`).join('')}</div>`;
+const s2 = page + `<div class="dim"></div>` + pop(false);
+const s3 = page + `<div class="dim"></div>` + pop(true)
+  + `<div class="finger" style="left:178px;top:193px"></div>`;
+const cols = [
+  ['1 · Collapsed (as now, plus a hint)', s1, 'Each app stays one row with its newest notification. When there\'s more than one, a small "3 more ⌄" chip sits under the text (it replaces the red count). Tapping the row still opens the newest; tapping the chip expands the group.'],
+  ['2 · Group opens as a popup', s2, 'The popup grows out of the row (from its size and place, about 200 ms) and floats over the page, which dims but stays exactly where it was. App name and count at the top, then every notification, newest first, with its time. Tap one to open it. "Clear all" dismisses the group. ✕, Back or a tap outside shrinks it back into the row. If there are more than fit, it scrolls inside, up to about two thirds of the screen.'],
+  ['3 · Dismiss one', s3, 'Swipe a single notification right to dismiss just that one, the same gesture as for whole rows. The popup shrinks to fit; when only one is left it closes back into the row.'],
+];
+document.body.innerHTML = cols.map(([t,s,n])=>`<div class="col"><div class="cap">${t}</div><div class="screen">${s}</div><div class="note">${n}</div></div>`).join('');
+</script></body></html>

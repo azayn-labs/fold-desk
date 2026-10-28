@@ -24,7 +24,21 @@ data class CoverNotification(
     val color: Int,
     val intent: PendingIntent?,
     val autoCancel: Boolean,
+    /** Every notification in the group, newest first. */
+    val items: List<Item>,
 ) {
+    /** One notification inside an app's group. */
+    data class Item(
+        val key: String,
+        val title: String,
+        val text: String,
+        val postTime: Long,
+        val intent: PendingIntent?,
+        val autoCancel: Boolean,
+    ) {
+        fun open(context: Context, fallback: () -> Unit) = send(context, intent, listOf(key), autoCancel, fallback)
+    }
+
     companion object {
         /**
          * Media controls, including One UI's own "MediaOngoingActivity" from
@@ -47,40 +61,57 @@ data class CoverNotification(
             .groupBy { it.packageName }
             .mapNotNull { (pkg, list) ->
                 val shown = list.filter { it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }.ifEmpty { list }
-                val newest = shown.maxByOrNull { it.postTime } ?: return@mapNotNull null
-                val extras = newest.notification.extras
+                    .sortedByDescending { it.postTime }
+                val items = shown.map { it.toItem() }
+                val newest = items.firstOrNull() ?: return@mapNotNull null
                 CoverNotification(
                     pkg = pkg,
                     keys = list.map { it.key },
-                    title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty(),
-                    text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty(),
+                    title = newest.title,
+                    text = newest.text,
                     postTime = newest.postTime,
                     count = shown.size,
-                    color = newest.notification.color,
-                    intent = newest.notification.contentIntent,
-                    autoCancel = newest.notification.flags and Notification.FLAG_AUTO_CANCEL != 0,
+                    color = shown.first().notification.color,
+                    intent = newest.intent,
+                    autoCancel = newest.autoCancel,
+                    items = items,
                 )
             }
             .sortedByDescending { it.postTime }
-    }
 
-    /** Opens what the notification points at, as tapping it in the shade would. */
-    fun open(context: Context, fallback: () -> Unit) {
-        val pending = intent ?: return fallback()
-        try {
-            val mode = if (Build.VERSION.SDK_INT >= 36) {
-                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS
-            } else {
-                @Suppress("DEPRECATION")
-                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+        private fun StatusBarNotification.toItem(): Item {
+            val extras = notification.extras
+            return Item(
+                key = key,
+                title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty(),
+                text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty(),
+                postTime = postTime,
+                intent = notification.contentIntent,
+                autoCancel = notification.flags and Notification.FLAG_AUTO_CANCEL != 0,
+            )
+        }
+
+        /** Opens what a notification points at, as tapping it in the shade would. */
+        private fun send(context: Context, intent: PendingIntent?, keys: List<String>, autoCancel: Boolean, fallback: () -> Unit) {
+            val pending = intent ?: return fallback()
+            try {
+                val mode = if (Build.VERSION.SDK_INT >= 36) {
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS
+                } else {
+                    @Suppress("DEPRECATION")
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                }
+                val options = ActivityOptions.makeBasic().setPendingIntentBackgroundActivityStartMode(mode)
+                pending.send(context, 0, null, null, null, null, options.toBundle())
+                if (autoCancel) NotificationWatcher.dismiss(keys)
+            } catch (e: PendingIntent.CanceledException) {
+                fallback()
             }
-            val options = ActivityOptions.makeBasic().setPendingIntentBackgroundActivityStartMode(mode)
-            pending.send(context, 0, null, null, null, null, options.toBundle())
-            if (autoCancel) NotificationWatcher.dismiss(keys)
-        } catch (e: PendingIntent.CanceledException) {
-            fallback()
         }
     }
+
+    /** Opens the newest notification. */
+    fun open(context: Context, fallback: () -> Unit) = send(context, intent, keys, autoCancel, fallback)
 }
 
 data class CoverEvent(

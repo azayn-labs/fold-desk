@@ -57,6 +57,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -152,7 +156,7 @@ fun CoverScreen(shell: ShellController, homePresses: Int, widgetActions: WidgetA
             Box(Modifier.fillMaxSize().padding(top = top + 18.dp, bottom = bottom)) {
                 when (page) {
                     MAIN_PAGE -> {
-                        Glance(shell)
+                        Glance(shell, visits)
                         PopupLayer(shell, Modifier.fillMaxSize(), dragTargets = false)
                     }
                     WIDGETS_PAGE -> key(visits) { CoverWidgets(shell, widgetActions, onEditing = { widgetsEditing = it }) }
@@ -192,7 +196,7 @@ private fun rowBackground() = Dex.bar.copy(alpha = 0.55f)
 // --- First page: notifications, clock bar, calendar, dock ---
 
 @Composable
-private fun Glance(shell: ShellController) {
+private fun Glance(shell: ShellController, visits: Int) {
     val desk = shell.desk
     var split by remember { mutableFloatStateOf(desk.coverSplit) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -210,7 +214,7 @@ private fun Glance(shell: ShellController) {
         val dockHeight = 84.dp
         val freePx = with(LocalDensity.current) { (maxHeight - barHeight - dockHeight).toPx() }.coerceAtLeast(1f)
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxWidth().weight(split)) { NotificationsSection(desk) }
+            Box(Modifier.fillMaxWidth().weight(split)) { NotificationsSection(desk, visits) }
             ClockBar(
                 desk, now,
                 Modifier.height(barHeight).draggable(
@@ -264,15 +268,24 @@ private fun NoticeRow(text: String, onTap: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun NotificationsSection(desk: DeskState) {
+private fun NotificationsSection(desk: DeskState, visits: Int) {
     val context = LocalContext.current
     val list = desk.coverNotifications
     val listening = remember(list) {
         val me = ComponentName(context, NotificationWatcher::class.java)
         context.getSystemService(android.app.NotificationManager::class.java).isNotificationListenerAccessGranted(me)
     }
+    // One app's group open at a time; it closes again when you come back to the page.
+    var expanded by remember(visits) { mutableStateOf<String?>(null) }
+    val state = rememberLazyListState()
+    // The open group starts at the top of the list, so it doesn't run off the bottom.
+    LaunchedEffect(expanded) {
+        val index = list.indexOfFirst { it.pkg == expanded }
+        if (index >= 0) state.animateScrollToItem(index + 1)
+    }
     LazyColumn(
         Modifier.fillMaxSize(),
+        state = state,
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -286,38 +299,51 @@ private fun NotificationsSection(desk: DeskState) {
                 }
             }
             list.isEmpty() -> item { NoticeRow("No new notifications") }
-            else -> items(list, key = { it.pkg }) { NotificationRow(desk, it) }
+            else -> items(list, key = { it.pkg }) { n ->
+                if (n.pkg == expanded && n.count > 1) {
+                    NotificationGroup(desk, n, onCollapse = { expanded = null })
+                } else {
+                    SwipeAway(n.keys, onDismiss = { NotificationWatcher.dismiss(n.keys) }) {
+                        NotificationRow(desk, n, onExpand = { expanded = n.pkg })
+                    }
+                }
+            }
         }
     }
 }
 
+/** The app's name and icon, asking the system when it isn't in the app list (a system app, say). */
 @Composable
-private fun NotificationRow(desk: DeskState, n: CoverNotification) {
+private fun notificationApp(desk: DeskState, pkg: String): Pair<String?, ImageBitmap?> {
     val context = LocalContext.current
-    val app = desk.appForPackage(n.pkg)
-    // Not in the app list (a system app, say): ask the system for its name and icon.
-    val fallback = remember(n.pkg) {
+    val app = desk.appForPackage(pkg)
+    val fallback = remember(pkg) {
         if (app != null) null else runCatching {
             val pm = context.packageManager
-            val info = pm.getApplicationInfo(n.pkg, 0)
+            val info = pm.getApplicationInfo(pkg, 0)
             pm.getApplicationLabel(info).toString() to info.loadIcon(pm).toBitmap(96, 96).asImageBitmap()
         }.getOrNull()
     }
-    val appLabel = app?.label ?: fallback?.first
-    val appIcon = app?.icon ?: fallback?.second
-    val stripe = if (n.color != 0) Color(n.color).copy(alpha = 1f) else Dex.accent
-    var offset by remember(n.pkg) { mutableFloatStateOf(0f) }
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val width = constraints.maxWidth.toFloat()
-        Row(
+    return (app?.label ?: fallback?.first) to (app?.icon ?: fallback?.second)
+}
+
+@Composable
+private fun notificationStripe(n: CoverNotification) = if (n.color != 0) Color(n.color).copy(alpha = 1f) else Dex.accent
+
+/** Swipe right to dismiss; leftward drags are left for the pager. */
+@Composable
+private fun SwipeAway(key: Any, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    var offset by remember(key) { mutableFloatStateOf(0f) }
+    val dismiss by rememberUpdatedState(onDismiss)
+    // Plain layouts only: the group card measures this for its height.
+    var width by remember { mutableFloatStateOf(1f) }
+    Box(Modifier.fillMaxWidth().onSizeChanged { width = it.width.toFloat() }) {
+        Box(
             Modifier
                 .offset { IntOffset(offset.roundToInt(), 0) }
                 .alpha((1f - offset / width).coerceIn(0f, 1f))
                 .fillMaxWidth()
-                .clip(rowShape)
-                .background(rowBackground())
-                // Swipe right to dismiss; leftward drags are left for the pager.
-                .pointerInput(n.keys) {
+                .pointerInput(key) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         var dragging = false
@@ -339,55 +365,136 @@ private fun NotificationRow(desk: DeskState, n: CoverNotification) {
                         if (dragging) {
                             if (offset > width * 0.35f) {
                                 offset = width
-                                NotificationWatcher.dismiss(n.keys)
+                                dismiss()
                             } else {
                                 offset = 0f
                             }
                         }
                     }
-                }
-                .deskGestures(onTap = { n.open(context) { app?.let { Launcher.open(context, it, windowed = false) } } }),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.width(4.dp).height(58.dp).background(stripe))
-            Spacer(Modifier.width(10.dp))
-            appIcon?.let { Image(it, contentDescription = null, modifier = Modifier.size(30.dp)) }
-                ?: Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(stripe))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f).padding(vertical = 9.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Title and badge take what's left; the app name stays flush right.
-                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                        BasicText(
-                            n.title.ifEmpty { appLabel ?: n.pkg },
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = TextStyle(color = Dex.text, fontSize = 14.sp),
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                        if (n.count > 1) {
-                            BasicText(
-                                n.count.toString(),
-                                style = TextStyle(color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
-                                modifier = Modifier.padding(start = 6.dp).clip(CircleShape).background(stripe)
-                                    .padding(horizontal = 6.dp),
-                            )
+                },
+        ) { content() }
+    }
+}
+
+@Composable
+private fun NotificationRow(desk: DeskState, n: CoverNotification, onExpand: () -> Unit) {
+    val context = LocalContext.current
+    val (appLabel, appIcon) = notificationApp(desk, n.pkg)
+    val stripe = notificationStripe(n)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .clip(rowShape)
+            .background(rowBackground())
+            .deskGestures(onTap = { n.open(context) { desk.appForPackage(n.pkg)?.let { Launcher.open(context, it, windowed = false) } } }),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(4.dp).heightIn(min = 58.dp).fillMaxHeight().background(stripe))
+        Spacer(Modifier.width(10.dp))
+        appIcon?.let { Image(it, contentDescription = null, modifier = Modifier.size(30.dp)) }
+            ?: Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(stripe))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f).padding(vertical = 9.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // The title takes what's left; the app name stays flush right.
+                BasicText(
+                    n.title.ifEmpty { appLabel ?: n.pkg },
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(color = Dex.text, fontSize = 14.sp),
+                    modifier = Modifier.weight(1f),
+                )
+                BasicText(
+                    appLabel.orEmpty(), maxLines = 1,
+                    style = TextStyle(color = Dex.subtle, fontSize = 12.sp),
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+            if (n.text.isNotEmpty()) {
+                BasicText(
+                    n.text, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(color = Dex.subtle, fontSize = 12.5.sp),
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            if (n.count > 1) {
+                BasicText(
+                    "${n.count - 1} more ⌄",
+                    style = TextStyle(color = Dex.text, fontSize = 11.5.sp),
+                    modifier = Modifier
+                        .padding(top = 5.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Dex.text.copy(alpha = 0.12f))
+                        // Its own tap, consumed, so the row doesn't open the newest as well.
+                        .pointerInput(Unit) { detectTapGestures { onExpand() } }
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+    }
+}
+
+/** An app's notifications, opened out from its row. */
+@Composable
+private fun NotificationGroup(desk: DeskState, n: CoverNotification, onCollapse: () -> Unit) {
+    val context = LocalContext.current
+    val (appLabel, appIcon) = notificationApp(desk, n.pkg)
+    val stripe = notificationStripe(n)
+    val timeFormat = remember { DateFormat.getTimeFormat(context) }
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(RoundedCornerShape(18.dp)).background(rowBackground())) {
+        Box(Modifier.width(4.dp).fillMaxHeight().background(stripe))
+        Column(Modifier.weight(1f)) {
+            Row(
+                Modifier.fillMaxWidth().deskGestures(onTap = onCollapse).padding(start = 10.dp, end = 14.dp, top = 10.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                appIcon?.let { Image(it, contentDescription = null, modifier = Modifier.size(22.dp)) }
+                BasicText(
+                    "${appLabel ?: n.pkg} · ${n.count}", maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(color = Dex.text, fontSize = 13.sp, fontWeight = FontWeight.Medium),
+                    modifier = Modifier.weight(1f).padding(start = 10.dp),
+                )
+                BasicText(
+                    "Clear all",
+                    style = TextStyle(color = Dex.accent, fontSize = 13.sp),
+                    modifier = Modifier.deskGestures(onTap = { NotificationWatcher.dismiss(n.keys) }).padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+                BasicText("⌃", style = TextStyle(color = Dex.subtle, fontSize = 14.sp), modifier = Modifier.padding(start = 6.dp))
+            }
+            for (item in n.items) {
+                key(item.key) {
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Dex.text.copy(alpha = 0.06f)))
+                    SwipeAway(item.key, onDismiss = { NotificationWatcher.dismiss(listOf(item.key)) }) {
+                        Column(
+                            Modifier.fillMaxWidth()
+                                .deskGestures(onTap = { item.open(context) { desk.appForPackage(n.pkg)?.let { Launcher.open(context, it, windowed = false) } } })
+                                .padding(start = 42.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                BasicText(
+                                    item.title.ifEmpty { appLabel ?: n.pkg }, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    style = TextStyle(color = Dex.text, fontSize = 14.sp),
+                                    modifier = Modifier.weight(1f),
+                                )
+                                BasicText(
+                                    timeFormat.format(item.postTime),
+                                    style = TextStyle(color = Dex.subtle, fontSize = 11.5.sp),
+                                    modifier = Modifier.padding(start = 8.dp),
+                                )
+                            }
+                            if (item.text.isNotEmpty()) {
+                                BasicText(
+                                    item.text, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                    style = TextStyle(color = Dex.subtle, fontSize = 12.5.sp),
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
                         }
                     }
-                    BasicText(
-                        appLabel.orEmpty(), maxLines = 1,
-                        style = TextStyle(color = Dex.subtle, fontSize = 12.sp),
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-                if (n.text.isNotEmpty()) {
-                    BasicText(
-                        n.text, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        style = TextStyle(color = Dex.subtle, fontSize = 12.5.sp),
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
                 }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.height(4.dp))
         }
     }
 }
