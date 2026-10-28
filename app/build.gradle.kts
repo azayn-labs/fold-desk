@@ -30,6 +30,21 @@ android {
         versionName = releaseVersion ?: "0.1.0"
     }
 
+    // GitHub: the free APK on the releases page. Play: the paid store version, under
+    // its own package so the two can't be mixed up, with Play's required disclosures.
+    flavorDimensions += "store"
+    productFlavors {
+        create("github") {
+            dimension = "store"
+            buildConfigField("boolean", "PLAY_STORE", "false")
+        }
+        create("play") {
+            dimension = "store"
+            applicationId = "com.azayn.folddesk"
+            buildConfigField("boolean", "PLAY_STORE", "true")
+        }
+    }
+
     signingConfigs {
         if (releaseKeystore != null) {
             create("release") {
@@ -52,6 +67,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {

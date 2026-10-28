@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk accessibility disclosure</title>
+<style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; --warn:#ffb74d; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1700px; height:1000px; overflow:hidden; display:flex; gap:24px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; width:820px; height:880px; overflow:hidden; border-radius:26px;
+    background: radial-gradient(600px 500px at 80% 10%, rgba(97,150,255,.30), transparent 65%), radial-gradient(600px 500px at 10% 95%, rgba(54,196,214,.22), transparent 60%), linear-gradient(170deg,#0d1730,#05080f); }
+  .bar { position:absolute; left:0; right:0; bottom:0; height:56px; background:rgba(28,28,30,.85); display:flex; align-items:center; gap:14px; padding:0 18px; }
+  .bar i { width:32px; height:32px; border-radius:10px; background:#5f6672; }
+  .notice { position:absolute; left:110px; right:110px; bottom:80px; border-radius:22px; background:rgba(38,38,42,.92); display:flex; align-items:center; gap:14px; padding:14px 12px 14px 18px; }
+  .bang { width:36px; height:36px; border-radius:18px; background:rgba(255,183,77,.18); color:var(--warn); font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .t { font-size:14px; } .s { font-size:12.5px; color:var(--subtle); margin-top:2px; }
+  .btn { border-radius:18px; background:var(--accent); color:#fff; font-size:13.5px; font-weight:600; padding:9px 16px; white-space:nowrap; }
+  .ghost { background:transparent; color:var(--accent); }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.5); }
+  .dlg { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:520px; border-radius:26px; background:#2b2b2f; box-shadow:0 18px 50px rgba(0,0,0,.6); padding:26px 28px 20px; }
+  .dlg h2 { font-size:19px; font-weight:600; }
+  .dlg p { font-size:13.5px; color:#d6d6da; line-height:1.5; margin-top:12px; }
+  .dlg ul { margin:10px 0 0 0; list-style:none; }
+  .dlg li { font-size:13.5px; color:#d6d6da; line-height:1.45; padding:6px 0 6px 26px; position:relative; }
+  .dlg li::before { content:""; position:absolute; left:6px; top:13px; width:7px; height:7px; border-radius:4px; background:var(--accent); }
+  .dlg .no li::before { background:#5fd38d; }
+  .dlg h3 { font-size:12.5px; color:var(--subtle); font-weight:500; margin-top:16px; text-transform:none; }
+  .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:820px; }
+  .row { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-radius:18px; background:rgba(38,38,42,.85); margin:0 24px; }
+</style></head><body>
+<script>
+const desktop = `<div class="bar">${'<i></i>'.repeat(7)}</div>`;
+const notice = `<div class="notice"><div class="bang">!</div><div style="flex:1"><div class="t">The FoldDesk taskbar is turned off</div><div class="s">Without it the app drawer opens behind apps and unfolding won't bring you back here</div></div><div class="btn">Turn on</div><div style="padding:0 8px;color:var(--subtle)">✕</div></div>`;
+const dlg = `<div class="dim"></div><div class="dlg"><h2>Turn on the FoldDesk taskbar?</h2>
+  <p>FoldDesk uses Android's accessibility service to run its taskbar. It is not an accessibility tool. With it, FoldDesk can:</p>
+  <ul>
+    <li>show the taskbar and app drawer above other apps' windows</li>
+    <li>see which apps and windows are open, to show them on the taskbar and bring you back to the desktop when you unfold</li>
+    <li>press Back, Home and Recents for you, and the window buttons (maximise, close) when you use the taskbar's window controls</li>
+  </ul>
+  <h3>What it doesn't do</h3>
+  <ul class="no">
+    <li>It doesn't read what you type or what's on screen beyond window names and buttons</li>
+    <li>Nothing leaves your phone: FoldDesk has no internet permission and collects no data</li>
+  </ul>
+  <p style="margin-top:14px">On the next screen, tap <b>Installed apps → FoldDesk taskbar</b> and switch it on. You can turn it off there any time.</p>
+  <div class="actions"><div class="btn ghost">Not now</div><div class="btn">Agree and continue</div></div></div>`;
+const settings = `<div style="padding:40px 0"><div style="font-size:24px;padding:0 24px 18px">FoldDesk settings</div>
+  <div class="row"><div><div class="t">Taskbar service</div><div class="s" style="color:var(--warn)">Off · tap to turn on</div></div><div class="btn">Turn on</div></div></div>`;
+const cols = [
+  ['1 · Tapping "Turn on" on the desktop (or in settings) now shows this first', desktop + notice + dlg, 'Play\'s accessibility policy asks for a disclosure the user has to accept before they\'re sent to Android\'s accessibility settings: what the service is used for, what it can see, and that no data is collected or shared. "Not now" closes it and nothing happens; "Agree and continue" opens the accessibility settings as Turn on does today. Shown every time, until the service is on.'],
+  ['2 · Same dialog from FoldDesk settings', settings + dlg, 'The settings row goes through the same dialog. Only the Play version shows it; the GitHub build stays as it is. The same text goes into the Play Console declaration and the store listing.'],
+];
+document.body.innerHTML = cols.map(([c,s,n])=>`<div class="col"><div class="cap">${c}</div><div class="screen">${s}</div><div class="note">${n}</div></div>`).join('');
+</script></body></html>

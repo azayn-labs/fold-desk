@@ -97,8 +97,8 @@ Requirements:
 # Tell Gradle where the SDK is (this file is not committed):
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties
 
-./gradlew assembleDebug
-# → app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleGithubDebug
+# → app/build/outputs/apk/github/debug/app-github-debug.apk
 ```
 
 ## Installing on the phone
@@ -110,7 +110,7 @@ echo "sdk.dir=$HOME/Android/Sdk" > local.properties
 
    ```bash
    adb devices                       # note the Fold's serial
-   adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
+   adb -s <serial> install -r app/build/outputs/apk/github/debug/app-github-debug.apk
    ```
 
 3. Grant the permissions FoldDesk needs (adb can do these):

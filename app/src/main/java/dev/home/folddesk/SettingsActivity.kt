@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import dev.home.folddesk.ui.Dex
 import dev.home.folddesk.ui.DexTheme
+import dev.home.folddesk.ui.rememberTurnOnTaskbar
 import dev.home.folddesk.ui.LocalDexColors
 import dev.home.folddesk.ui.HoverBox
 import dev.home.folddesk.ui.deskGestures
@@ -284,10 +285,11 @@ private fun SettingsScreen(desk: DeskState) {
 
             Group("Status") {
                 val running = TaskbarService.running
+                val turnOnTaskbar = rememberTurnOnTaskbar()
                 SettingRow(
                     "Taskbar service",
                     hint = if (running) null else "Tap to turn it on in Accessibility settings",
-                    onTapAt = if (running) null else { _ -> Launcher.openAccessibilitySettings(context) },
+                    onTapAt = if (running) null else { _ -> turnOnTaskbar() },
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val color = if (running) Ui.running else Ui.stopped

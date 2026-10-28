@@ -189,12 +189,12 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
         )
         DesktopPill(shell, Modifier.align(Alignment.TopCenter).padding(top = statusTop + 18.dp))
         // The fallback taskbar is showing, so the service is off: say so.
-        val context = LocalContext.current
+        val turnOnTaskbar = rememberTurnOnTaskbar()
         var noticeDismissed by remember { mutableStateOf(false) }
         LaunchedEffect(showTaskbar) { if (!showTaskbar) noticeDismissed = false }
         if (showTaskbar && !noticeDismissed) {
             ServiceOffNotice(
-                onTurnOn = { Launcher.openAccessibilitySettings(context) },
+                onTurnOn = turnOnTaskbar,
                 onDismiss = { noticeDismissed = true },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = aboveTaskbar + 16.dp, start = barStart, end = barEnd),
             )

@@ -17,8 +17,8 @@
 2. Build and install:
 
    ```bash
-   ./gradlew assembleDebug
-   adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
+   ./gradlew assembleGithubDebug
+   adb -s <serial> install -r app/build/outputs/apk/github/debug/app-github-debug.apk
    ```
 
 3. Check the taskbar service survived the install (see below), then test on the
