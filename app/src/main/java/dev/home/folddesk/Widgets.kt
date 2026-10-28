@@ -51,6 +51,25 @@ object Widgets {
         return ceil(mw / cellWidthDp).toInt().coerceIn(1, dw) to ceil(mh / cellHeightDp).toInt().coerceIn(1, dh)
     }
 
+    /** Starting height on the cover screen's widget page, from what the widget asks for. */
+    fun coverHeightDp(info: AppWidgetProviderInfo, context: Context): Int {
+        val density = context.resources.displayMetrics.density
+        val asked = if (info.targetCellHeight > 0) info.targetCellHeight * COVER_ROW_DP else (info.minHeight / density).toInt()
+        return asked.coerceIn(COVER_MIN_DP, COVER_MAX_DP)
+    }
+
+    /** Smallest height the widget can be resized to on the cover screen. */
+    fun coverMinHeightDp(info: AppWidgetProviderInfo?, context: Context): Int {
+        info ?: return COVER_MIN_DP
+        val density = context.resources.displayMetrics.density
+        val min = (info.minResizeHeight.takeIf { it > 0 } ?: info.minHeight) / density
+        return min.toInt().coerceIn(COVER_MIN_DP, COVER_MAX_DP)
+    }
+
+    const val COVER_ROW_DP = 90
+    const val COVER_MIN_DP = 60
+    const val COVER_MAX_DP = 560
+
     fun canResize(info: AppWidgetProviderInfo) = info.resizeMode != AppWidgetProviderInfo.RESIZE_NONE
 
     fun isReconfigurable(info: AppWidgetProviderInfo) = info.configure != null &&

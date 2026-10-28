@@ -1,0 +1,72 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk cover widgets</title>
+<style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; --row:rgba(28,28,30,.55); --div:rgba(255,255,255,.08); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:2060px; height:1220px; overflow:hidden; display:flex; gap:20px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; width:480px; height:1120px; overflow:hidden; border-radius:28px;
+    background: radial-gradient(500px 420px at 80% 10%, rgba(97,150,255,.30), transparent 65%), radial-gradient(500px 500px at 10% 95%, rgba(54,196,214,.22), transparent 60%), linear-gradient(170deg,#0d1730,#05080f); }
+  .status { position:absolute; left:0; right:0; top:0; height:30px; display:flex; justify-content:space-between; padding:7px 22px; font-size:12.5px; color:#d8d8dc; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:480px; }
+  .dots { position:absolute; left:0; right:0; top:36px; display:flex; justify-content:center; gap:6px; }
+  .dots i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,.35); } .dots i.on { background:#fff; width:16px; }
+  .wrap { position:absolute; left:14px; right:14px; top:56px; bottom:16px; display:flex; flex-direction:column; gap:10px; }
+  .sh { font-size:12px; color:rgba(250,250,250,.85); padding:2px 8px; display:flex; justify-content:space-between; font-weight:500; }
+  .w { border-radius:22px; background:rgba(38,38,42,.72); backdrop-filter:blur(24px); padding:16px 18px; position:relative; }
+  .w.sel { outline:2px solid var(--accent); outline-offset:2px; }
+  .wx { font-size:12px; color:var(--subtle); }
+  .big { font-size:46px; font-weight:300; line-height:1.05; }
+  .row { display:flex; justify-content:space-between; align-items:center; }
+  .days { display:flex; justify-content:space-between; margin-top:12px; font-size:12px; color:var(--subtle); text-align:center; } .days b { display:block; color:var(--text); font-size:14px; font-weight:500; margin-top:4px; }
+  .bar { height:6px; border-radius:3px; background:rgba(255,255,255,.12); margin-top:10px; overflow:hidden; } .bar i { display:block; height:100%; background:var(--accent); }
+  .ring { width:58px; height:58px; border-radius:29px; border:6px solid rgba(255,255,255,.12); border-top-color:#25d366; border-right-color:#25d366; }
+  .add { border:2px dashed rgba(255,255,255,.25); border-radius:22px; padding:18px; text-align:center; color:var(--subtle); font-size:14px; }
+  .handle { position:absolute; left:50%; bottom:-9px; transform:translateX(-50%); width:44px; height:18px; border-radius:9px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff; }
+  .ctx { position:absolute; width:220px; background:#2b2b2f; border-radius:20px; padding:6px 0; box-shadow:0 10px 34px rgba(0,0,0,.55); font-size:14px; z-index:3; }
+  .ctx div { padding:11px 20px; } .ctx hr { border:0; border-top:1px solid rgba(255,255,255,.1); margin:4px 0; }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.45); }
+  .sheet { position:absolute; left:10px; right:10px; bottom:10px; top:300px; background:rgba(43,43,47,.95); border-radius:26px; padding:10px 0 0; }
+  .grab { width:40px; height:4px; border-radius:2px; background:#5a5a60; margin:0 auto 10px; }
+  .st { font-size:17px; font-weight:700; padding:4px 22px 0; } .ss { font-size:12.5px; color:var(--subtle); padding:3px 22px 10px; }
+  .search { margin:4px 18px 8px; height:40px; border-radius:20px; background:rgba(255,255,255,.08); color:var(--subtle); font-size:14px; display:flex; align-items:center; padding:0 18px; }
+  .app { display:flex; align-items:center; gap:12px; padding:10px 22px; font-size:15px; } .app i { width:30px; height:30px; border-radius:9px; flex:none; } .app span { flex:1; } .app small { color:var(--subtle); font-size:12px; }
+  .prev { margin:0 22px 8px 64px; display:flex; gap:8px; } .prev div { height:54px; border-radius:12px; background:rgba(255,255,255,.08); font-size:11px; color:var(--subtle); display:flex; align-items:flex-end; padding:6px 8px; }
+  .glance { position:absolute; inset:0; opacity:.9; }
+  .nrow { margin:0 14px 6px; height:58px; border-radius:16px; background:var(--row); }
+  .clock { margin:8px 14px; height:100px; border-radius:22px; background:rgba(38,38,42,.78); padding:12px 18px; font-size:48px; font-weight:300; }
+  .edge { position:absolute; left:0; top:50%; transform:translateY(-50%); width:4px; height:80px; border-radius:0 2px 2px 0; background:rgba(255,255,255,.3); }
+  .edge.r { left:auto; right:0; border-radius:2px 0 0 2px; }
+  .arrow { position:absolute; left:16px; top:50%; font-size:12px; color:#cfe1ff; background:rgba(0,0,0,.6); padding:5px 9px; border-radius:6px; }
+</style></head><body>
+<script>
+const status = `<div class="status"><span>12:52</span><span>84%</span></div>`;
+const dots = (n) => `<div class="dots">${[0,1,2].map(i=>`<i class="${i===n?'on':''}"></i>`).join('')}</div>`;
+const weather = (sel) => `<div class="w${sel?' sel':''}"><div class="row"><div><div class="wx">Munich · Cloudy</div><div class="big">11°</div></div><div style="font-size:44px">☁</div></div>
+  <div class="days">${[['Thu','12°'],['Fri','10°'],['Sat','9°'],['Sun','13°'],['Mon','12°']].map(([d,t])=>`<div>${d}<b>${t}</b></div>`).join('')}</div>${sel?'<div class="handle">⇕</div>':''}</div>`;
+const music = `<div class="w"><div class="wx">Now playing</div><div style="font-size:16px;margin-top:6px">Song title</div><div class="wx">Artist name</div><div class="bar"><i style="width:42%"></i></div>
+  <div class="row" style="margin-top:12px;font-size:22px;justify-content:center;gap:40px"><span>⏮</span><span>⏯</span><span>⏭</span></div></div>`;
+const fit = `<div class="w row"><div><div class="wx">Steps today</div><div style="font-size:30px;font-weight:300">6,420</div><div class="wx">Goal 10,000</div></div><div class="ring"></div></div>`;
+const notes = `<div class="w"><div class="wx">Notes</div><div style="font-size:14px;margin-top:6px;line-height:1.5">Buy milk · Call the bank · Book flights</div></div>`;
+
+const s0 = `${status}<div class="glance">
+  <div style="height:56px"></div>${'<div class="nrow"></div>'.repeat(4)}<div class="clock">12:52</div>${'<div class="nrow"></div>'.repeat(2)}
+  <div class="edge"></div><div class="edge r"></div></div>${dots(1)}
+  <div class="arrow">← swipe right for widgets &nbsp;·&nbsp; swipe left for apps →</div>`;
+const s1 = `${status}${dots(0)}<div class="wrap"><div class="sh"><span>Widgets</span><span>Edit</span></div>${weather()}${music}${fit}${notes}</div><div class="edge r"></div>`;
+const s2 = `${status}${dots(0)}<div class="wrap"><div class="sh"><span>Widgets</span><span>Done</span></div>${weather(true)}${music}${fit}<div class="add">+ Add widget</div></div>
+  <div class="ctx" style="left:200px;top:300px"><div>Resize</div><div>Move up</div><div>Move down</div><div>Widget settings</div><hr><div style="color:#ff6b5e">Remove</div></div>`;
+const apps = [['Clock','#5c6bc0','3 widgets'],['Spotify','#1db954','2 widgets'],['Weather','#29b6f6','4 widgets'],['Samsung Health','#26a69a','5 widgets']];
+const s3 = `${status}${dots(0)}<div class="wrap"><div class="sh"><span>Widgets</span><span>Done</span></div>${weather()}${music}</div><div class="dim"></div>
+  <div class="sheet"><div class="grab"></div><div class="st">Add widget</div><div class="ss">Widgets on the cover screen are separate from the desktop's</div>
+  <div class="search">Search widgets</div>
+  ${apps.map(([n,c,k],i)=>`<div class="app"><i style="background:${c}"></i><span>${n}</span><small>${k}</small></div>${i===2?`<div class="prev"><div style="flex:2">4×2 forecast</div><div style="flex:1">2×2</div><div style="flex:1">4×1</div></div>`:''}`).join('')}</div>`;
+const cols = [
+  ['1 · Main page (unchanged)', s0, 'The cover screen gets a third page. Dots at the top show where you are; small edge handles hint at the pages either side.'],
+  ['2 · Swipe right: widget page', s1, 'Widgets stacked full width, scrolling when there are more than fit. Each keeps its own height. Taps go straight to the widget, so music controls, notes and weather work like on One UI.'],
+  ['3 · Long press a widget (edit mode)', s2, 'Edit mode: Resize (drag the handle to change height), Move up / down, Widget settings (for widgets that have them), Remove. "+ Add widget" at the end. "Done" or Back leaves edit mode.'],
+  ['4 · Add widget', s3, 'Same picker as the desktop, as a sheet: apps with their widgets, a preview of each size, search. Picked widgets go to the end of the list.'],
+];
+document.body.innerHTML = cols.map(([c,s,n])=>`<div class="col"><div class="cap">${c}</div><div class="screen">${s}</div><div class="note">${n}</div></div>`).join('');
+</script></body></html>

@@ -37,6 +37,9 @@ data class AppEntry(
 /** Desktop cell, counted from the top-left corner. */
 data class Cell(val col: Int, val row: Int)
 
+/** A widget on the cover screen: full width, [heightDp] tall. */
+data class CoverWidget(val id: Int, val heightDp: Int)
+
 /** A widget on a desktop: [cell] is its top-left, [w]×[h] its span in cells. */
 data class DeskWidget(val id: Int, val cell: Cell, val w: Int, val h: Int) {
     fun covers(c: Cell) = c.col in cell.col until cell.col + w && c.row in cell.row until cell.row + h
@@ -104,6 +107,14 @@ class DeskState(private val context: Context) {
     val ownCoverScreen get() = coverLauncher == COVER_SCREEN
     /** Share of the cover screen's free height given to notifications; the rest is the calendar. */
     var coverSplit by mutableStateOf(sp.getFloat("coverSplit", 0.5f))
+        private set
+    /** Widgets on the cover screen's widget page, top to bottom; separate from the desktops'. */
+    var coverWidgets by mutableStateOf(
+        readList("coverWidgets").mapNotNull { line ->
+            val p = line.split('|').mapNotNull { it.toIntOrNull() }
+            if (p.size == 2) CoverWidget(p[0], p[1]) else null
+        },
+    )
         private set
 
     var autoHideTaskbar by mutableStateOf(sp.getBoolean("autoHideTaskbar", false))
@@ -568,6 +579,11 @@ class DeskState(private val context: Context) {
     fun updateNotificationsInWindows(value: Boolean) {
         notificationsInWindows = value
         sp.edit().putBoolean("notificationsInWindows", value).apply()
+    }
+
+    fun updateCoverWidgets(list: List<CoverWidget>) {
+        coverWidgets = list
+        sp.edit().putString("coverWidgets", list.joinToString("\n") { "${it.id}|${it.heightDp}" }).apply()
     }
 
     fun updateCoverSplit(value: Float) {

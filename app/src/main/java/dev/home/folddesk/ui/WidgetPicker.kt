@@ -70,6 +70,8 @@ fun WidgetPicker(
     onDragOut: (WidgetPlacement) -> Unit,
     onDrop: (WidgetPlacement) -> Unit,
     placing: Boolean,
+    /** Take the whole width, for the narrow cover screen. */
+    fullWidth: Boolean = false,
 ) {
     val context = LocalContext.current
     val desk = shell.desk
@@ -95,8 +97,8 @@ fun WidgetPicker(
     }
 
     BoxWithConstraints(modifier) {
-        val width = minOf(600.dp, maxWidth * 0.75f)
-        val height = minOf(760.dp, maxHeight)
+        val width = if (fullWidth) maxWidth else minOf(600.dp, maxWidth * 0.75f)
+        val height = minOf(if (fullWidth) 640.dp else 760.dp, maxHeight)
         // Kept composed (but invisible) while a widget is dragged out, so the drag isn't cut off.
         Panel(26.dp, Modifier.size(width, height).alpha(if (placing) 0f else 1f)) {
             Column(Modifier.fillMaxSize().deskGestures(onTap = shell::closeMenu).padding(18.dp)) {

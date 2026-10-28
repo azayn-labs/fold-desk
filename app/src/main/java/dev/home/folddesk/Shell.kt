@@ -166,6 +166,32 @@ class ShellController(
         )
     }
 
+    /** Long press on a cover screen widget: arrange it in the list. */
+    fun coverWidgetMenu(id: Int, at: Offset, actions: WidgetActions, onResize: () -> Unit) {
+        val info = Widgets.info(id)
+        val list = desk.coverWidgets
+        val index = list.indexOfFirst { it.id == id }
+        fun move(by: Int) {
+            val to = index + by
+            if (index < 0 || to !in list.indices) return
+            desk.updateCoverWidgets(list.toMutableList().apply { add(to, removeAt(index)) })
+        }
+        showMenu(
+            MenuState(
+                at = at,
+                groups = listOf(
+                    listOfNotNull(
+                        info?.takeIf { Widgets.canResize(it) }?.let { MenuItem("Resize") { onResize() } },
+                        MenuItem("Move up", enabled = index > 0) { move(-1) },
+                        MenuItem("Move down", enabled = index in 0 until list.lastIndex) { move(1) },
+                        info?.takeIf { Widgets.isReconfigurable(it) }?.let { MenuItem("Widget settings") { actions.configureWidget(id) } },
+                    ),
+                    listOf(MenuItem("Remove") { actions.removeCoverWidget(id) }),
+                ),
+            ),
+        )
+    }
+
     private fun startResize(id: Int) {
         menu = null
         resizingWidget = id

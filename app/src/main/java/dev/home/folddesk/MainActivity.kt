@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
     private var lastHandOff = 0L
 
     /** A widget on its way to the desktop: bound, maybe set up, then placed. */
-    private class Pending(val id: Int, val info: AppWidgetProviderInfo, val at: Cell?)
+    private class Pending(val id: Int, val info: AppWidgetProviderInfo, val at: Cell?, val cover: Boolean = false)
     private var pending: Pending? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
             LaunchedEffect(desk.hideStatusBar, inner) { showStatusBar(!(desk.hideStatusBar && inner)) }
             DexTheme {
                 when {
-                    !inner && desk.ownCoverScreen -> CoverScreen(shell, homePresses)
+                    !inner && desk.ownCoverScreen -> CoverScreen(shell, homePresses, this@MainActivity)
                     inner || !desk.coverUsesOneUi ->
                         DesktopScreen(shell, showTaskbar = !TaskbarService.running, widgetActions = this@MainActivity)
                 }
@@ -112,9 +112,13 @@ class MainActivity : ComponentActivity(), WidgetActions {
 
     // --- Widgets ---
 
-    override fun addWidget(info: AppWidgetProviderInfo, at: Cell?) {
+    override fun addWidget(info: AppWidgetProviderInfo, at: Cell?) = bind(info, at, cover = false)
+
+    override fun addCoverWidget(info: AppWidgetProviderInfo) = bind(info, null, cover = true)
+
+    private fun bind(info: AppWidgetProviderInfo, at: Cell?, cover: Boolean) {
         val id = Widgets.host.allocateAppWidgetId()
-        pending = Pending(id, info, at)
+        pending = Pending(id, info, at, cover)
         if (Widgets.manager.bindAppWidgetIdIfAllowed(id, info.profile, info.provider, null)) {
             afterBind()
         } else {
@@ -143,6 +147,10 @@ class MainActivity : ComponentActivity(), WidgetActions {
         val p = pending ?: return
         pending = null
         val desk = shell.desk
+        if (p.cover) {
+            desk.updateCoverWidgets(desk.coverWidgets + CoverWidget(p.id, Widgets.coverHeightDp(p.info, this)))
+            return
+        }
         val (cw, ch) = Widgets.defaultSpan(p.info, this, Dex.desktopCellWidth.value, Dex.desktopCellHeight.value)
         val w = cw.coerceAtMost(DesktopGrid.cols)
         val h = ch.coerceAtMost(DesktopGrid.rows)
@@ -168,6 +176,11 @@ class MainActivity : ComponentActivity(), WidgetActions {
     override fun removeWidget(id: Int) {
         Widgets.host.deleteAppWidgetId(id)
         shell.desk.removeWidget(id)
+    }
+
+    override fun removeCoverWidget(id: Int) {
+        Widgets.host.deleteAppWidgetId(id)
+        shell.desk.updateCoverWidgets(shell.desk.coverWidgets.filter { it.id != id })
     }
 
     @Deprecated("Needed for AppWidgetHost.startAppWidgetConfigureActivityForResult")
@@ -197,6 +210,8 @@ class MainActivity : ComponentActivity(), WidgetActions {
 /** Widget operations that need the home activity (permission and setup screens). */
 interface WidgetActions {
     fun addWidget(info: AppWidgetProviderInfo, at: Cell?)
+    fun addCoverWidget(info: AppWidgetProviderInfo)
     fun configureWidget(id: Int)
     fun removeWidget(id: Int)
+    fun removeCoverWidget(id: Int)
 }

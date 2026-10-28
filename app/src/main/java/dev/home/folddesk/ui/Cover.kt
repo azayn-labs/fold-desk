@@ -9,6 +9,19 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import dev.home.folddesk.Widgets
+import dev.home.folddesk.WidgetActions
+import dev.home.folddesk.DeskWidgetView
+import dev.home.folddesk.CoverWidget
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -98,26 +111,47 @@ import kotlin.math.roundToInt
  * the app list one swipe away.
  */
 @Composable
-fun CoverScreen(shell: ShellController, homePresses: Int) {
-    val pager = rememberPagerState { 2 }
+fun CoverScreen(shell: ShellController, homePresses: Int, widgetActions: WidgetActions) {
+    // Widgets ← main → apps; the main page is in the middle.
+    val pager = rememberPagerState(initialPage = MAIN_PAGE) { 3 }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(homePresses) { pager.animateScrollToPage(0) }
+    LaunchedEffect(homePresses) { pager.animateScrollToPage(MAIN_PAGE) }
     var visits by remember { mutableIntStateOf(0) }
-    LaunchedEffect(pager.settledPage) { if (pager.settledPage == 0) visits++ }
+    LaunchedEffect(pager.settledPage) { if (pager.settledPage == MAIN_PAGE) visits++ }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { visits++ }
-    BackHandler(enabled = pager.currentPage == 1) { scope.launch { pager.animateScrollToPage(0) } }
+    BackHandler(enabled = pager.currentPage != MAIN_PAGE) { scope.launch { pager.animateScrollToPage(MAIN_PAGE) } }
 
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
-        Box(Modifier.fillMaxSize().padding(top = top + 6.dp, bottom = bottom)) {
-            if (page == 0) {
-                Glance(shell)
-                PopupLayer(shell, Modifier.fillMaxSize(), dragTargets = false)
-            } else {
-                // Keyed on visits, so the search starts empty each time.
-                key(visits) { CoverApps(shell) }
+    Box(Modifier.fillMaxSize()) {
+        HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
+            Box(Modifier.fillMaxSize().padding(top = top + 18.dp, bottom = bottom)) {
+                when (page) {
+                    MAIN_PAGE -> {
+                        Glance(shell)
+                        PopupLayer(shell, Modifier.fillMaxSize(), dragTargets = false)
+                    }
+                    WIDGETS_PAGE -> key(visits) { CoverWidgets(shell, widgetActions) }
+                    // Keyed on visits, so the search starts empty each time.
+                    else -> key(visits) { CoverApps(shell) }
+                }
             }
+        }
+        PageDots(pager.currentPage, Modifier.align(Alignment.TopCenter).padding(top = top + 4.dp))
+    }
+}
+
+private const val WIDGETS_PAGE = 0
+private const val MAIN_PAGE = 1
+
+@Composable
+private fun PageDots(current: Int, modifier: Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        for (i in 0 until 3) {
+            Box(
+                Modifier.size(width = if (i == current) 16.dp else 6.dp, height = 6.dp).clip(CircleShape)
+                    .background(Dex.text.copy(alpha = if (i == current) 1f else 0.35f)),
+            )
         }
     }
 }
@@ -161,10 +195,14 @@ private fun Glance(shell: ShellController) {
             Box(Modifier.fillMaxWidth().weight(1f - split)) { CalendarSection(now, resumes) }
             Dock(desk, Modifier.height(dockHeight))
         }
-        // Hint that the app list is a swipe away.
+        // Hints that widgets and the app list are a swipe away.
         Box(
             Modifier.align(Alignment.CenterEnd).size(width = 4.dp, height = 80.dp)
                 .clip(RoundedCornerShape(topStart = 2.dp, bottomStart = 2.dp)).background(Dex.subtle.copy(alpha = 0.5f)),
+        )
+        Box(
+            Modifier.align(Alignment.CenterStart).size(width = 4.dp, height = 80.dp)
+                .clip(RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp)).background(Dex.subtle.copy(alpha = 0.5f)),
         )
     }
 }
@@ -455,7 +493,136 @@ private fun Dock(desk: DeskState, modifier: Modifier) {
     }
 }
 
-// --- Second page: all apps ---
+// --- Widget page ---
+
+@Composable
+private fun CoverWidgets(shell: ShellController, actions: WidgetActions) {
+    val desk = shell.desk
+    var editing by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf<Int?>(null) }
+    var picking by remember { mutableStateOf(false) }
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    BackHandler(enabled = editing || picking) { if (picking) picking = false else { editing = false; selected = null } }
+    // Widget long presses come in window coordinates; the menu layer is placed in this box.
+    Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInWindow() }) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp)) {
+            Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+                SectionTitle("Widgets", Modifier.weight(1f))
+                if (desk.coverWidgets.isNotEmpty()) {
+                    SectionTitle(
+                        if (editing) "Done" else "Edit",
+                        Modifier.deskGestures(onTap = { editing = !editing; selected = null }),
+                    )
+                }
+            }
+            for (widget in desk.coverWidgets) {
+                key(widget.id) {
+                    CoverWidgetView(
+                        widget,
+                        selected = selected == widget.id,
+                        onLongPress = { at ->
+                            editing = true
+                            shell.coverWidgetMenu(widget.id, at - origin, actions, onResize = { selected = widget.id })
+                        },
+                        onResized = { h -> desk.updateCoverWidgets(desk.coverWidgets.map { if (it.id == widget.id) it.copy(heightDp = h) else it }) },
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+            if (editing || desk.coverWidgets.isEmpty()) {
+                BasicText(
+                    if (desk.coverWidgets.isEmpty()) "+ Add a widget" else "+ Add widget",
+                    style = TextStyle(color = Dex.text.copy(alpha = 0.8f), fontSize = 14.sp, textAlign = TextAlign.Center),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
+                        .border(2.dp, Dex.text.copy(alpha = 0.25f), RoundedCornerShape(22.dp))
+                        .deskGestures(onTap = { picking = true }).padding(vertical = 18.dp),
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+        PopupLayer(shell, Modifier.fillMaxSize(), dragTargets = false)
+        if (picking) {
+            Box(Modifier.fillMaxSize().background(Color(0x73000000)).deskGestures(onTap = { picking = false })) {
+                WidgetPicker(
+                    shell,
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(8.dp),
+                    onAdd = { info -> picking = false; actions.addCoverWidget(info) },
+                    onDragOut = {},
+                    onDrop = { p -> picking = false; actions.addCoverWidget(p.info) },
+                    placing = false,
+                    fullWidth = true,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
+    BasicText(
+        text,
+        style = TextStyle(
+            color = Dex.text.copy(alpha = 0.85f), fontSize = 12.sp, fontWeight = FontWeight.Medium,
+            shadow = Shadow(Dex.bar, blurRadius = 8f),
+        ),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun CoverWidgetView(widget: CoverWidget, selected: Boolean, onLongPress: (Offset) -> Unit, onResized: (Int) -> Unit) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val info = remember(widget.id) { Widgets.info(widget.id) }
+    var height by remember(widget.id) { mutableFloatStateOf(widget.heightDp.toFloat()) }
+    val minHeight = remember(widget.id) { Widgets.coverMinHeightDp(info, context).toFloat() }
+    val latestLongPress by rememberUpdatedState(onLongPress)
+    val shape = RoundedCornerShape(22.dp)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val width = maxWidth
+        Box(
+            Modifier.fillMaxWidth().height(height.dp)
+                .then(if (selected) Modifier.border(2.dp, Dex.accent, shape) else Modifier),
+        ) {
+            if (info == null) {
+                // The widget's app was removed or the widget can't load.
+                BasicText(
+                    "Widget unavailable",
+                    style = TextStyle(color = Dex.subtle, fontSize = 13.sp),
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            } else {
+                AndroidView(
+                    factory = { ctx -> Widgets.host.createView(ctx, widget.id, info) },
+                    update = { view ->
+                        (view as? DeskWidgetView)?.onLongPress = { x, y -> latestLongPress(Offset(x, y)) }
+                        Widgets.reportSize(view as android.appwidget.AppWidgetHostView, width.value, height)
+                    },
+                    modifier = Modifier.fillMaxSize().clip(shape),
+                )
+            }
+            if (selected) {
+                // Drag to change the height.
+                Box(
+                    Modifier.align(Alignment.BottomCenter).offset(y = 9.dp).size(width = 48.dp, height = 18.dp)
+                        .clip(RoundedCornerShape(9.dp)).background(Dex.accent)
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { delta ->
+                                height = (height + with(density) { delta.toDp().value }).coerceIn(minHeight, Widgets.COVER_MAX_DP.toFloat())
+                            },
+                            onDragStopped = { onResized(height.roundToInt()) },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BasicText("⇕", style = TextStyle(color = Color.White, fontSize = 11.sp))
+                }
+            }
+        }
+    }
+}
+
+// --- Last page: all apps ---
 
 @Composable
 private fun CoverApps(shell: ShellController) {
