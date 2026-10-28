@@ -384,7 +384,8 @@ private fun ContextMenu(state: MenuState, onDismiss: () -> Unit) {
                 val loc = IntArray(2).also { view.getLocationOnScreen(it) }
                 state.at - androidx.compose.ui.geometry.Offset(loc[0].toFloat(), loc[1].toFloat() + layerTop)
             } else {
-                state.at
+                // Window position; this layer starts lower when there's a top bar.
+                state.at - androidx.compose.ui.geometry.Offset(0f, layerTop)
             }
             val maxX = (constraints.maxWidth - menu.width - margin).coerceAtLeast(0)
             val maxY = (constraints.maxHeight - menu.height - margin).coerceAtLeast(margin)
@@ -400,7 +401,7 @@ private fun ContextMenu(state: MenuState, onDismiss: () -> Unit) {
                 constraints.maxHeight - menu.height - margin
             } else {
                 // Open downward from the pointer, flipping up near the bottom edge.
-                val below = state.at.y.roundToInt()
+                val below = at.y.roundToInt()
                 if (below + menu.height > constraints.maxHeight - margin) below - menu.height else below
             }.coerceAtLeast(margin)
             menu.place(x, y)

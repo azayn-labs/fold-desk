@@ -17,6 +17,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -500,12 +501,14 @@ private fun Dock(shell: ShellController, modifier: Modifier) {
     // An icon being dragged sideways to a new place: its key and how far it has moved.
     var moving by remember { mutableStateOf<Pair<String, Float>?>(null) }
     var rowWidth by remember { mutableFloatStateOf(1f) }
+    // Menus open above the dock rather than over it.
+    var dockTop by remember { mutableFloatStateOf(0f) }
     if (apps.isEmpty()) {
         Spacer(modifier)
         return
     }
     Box(modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
-        Panel(24.dp, Modifier.fillMaxSize()) {
+        Panel(24.dp, Modifier.fillMaxSize().onGloballyPositioned { dockTop = it.positionInRoot().y }) {
             Row(
                 Modifier.fillMaxSize().padding(horizontal = 10.dp).onSizeChanged { rowWidth = it.width.toFloat() },
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -536,7 +539,7 @@ private fun Dock(shell: ShellController, modifier: Modifier) {
                             .size(44.dp)
                             .deskGestures(
                                 onTap = { Launcher.open(context, app, windowed = false) },
-                                onMenu = { shell.coverAppMenu(app, it) },
+                                onMenu = { shell.coverAppMenu(app, Offset(it.x, dockTop)) },
                                 onDragStart = {
                                     shell.closeMenu()
                                     moving = app.key to 0f
