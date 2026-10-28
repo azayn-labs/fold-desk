@@ -5,10 +5,13 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -40,6 +43,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
         })
 
         setContent {
+            LaunchedEffect(desk.hideStatusBar, inner) { showStatusBar(!(desk.hideStatusBar && inner)) }
             DexTheme {
                 if (inner || !desk.coverUsesOneUi) {
                     DesktopScreen(shell, showTaskbar = !TaskbarService.running, widgetActions = this@MainActivity)
@@ -62,6 +66,17 @@ class MainActivity : ComponentActivity(), WidgetActions {
         super.onConfigurationChanged(newConfig)
         inner = FoldDeskApp.isInnerScreen(newConfig)
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) handOffCoverScreen()
+    }
+
+    /** Hidden on the desktop only; a swipe from the top edge still brings it back for a moment. */
+    private fun showStatusBar(show: Boolean) {
+        val controller = window.insetsController ?: return
+        if (show) {
+            controller.show(WindowInsets.Type.statusBars())
+        } else {
+            controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsets.Type.statusBars())
+        }
     }
 
     private fun handOffCoverScreen(): Boolean {

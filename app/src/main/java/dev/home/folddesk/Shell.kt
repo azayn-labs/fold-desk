@@ -201,12 +201,13 @@ class ShellController(
         }
     }
 
-    fun appMenu(app: AppEntry, at: Offset, fromTaskbar: Boolean = false, desktopRows: Int = 6) {
+    fun appMenu(app: AppEntry, at: Offset, fromTaskbar: Boolean = false, fromDrawer: Boolean = false, desktopRows: Int = 6) {
         val placement = buildList {
             add(MenuItem(if (desk.isPinned(app)) "Unpin from taskbar" else "Pin to taskbar") { desk.togglePin(app) })
             if (desk.isOnDesktop(app)) add(MenuItem("Remove from desktop") { desk.removeFromDesktop(app) })
             else add(MenuItem("Add to desktop") { desk.addToDesktop(app, desktopRows) })
             if (fromTaskbar && !desk.isPinned(app)) add(MenuItem("Remove from taskbar") { desk.dismissOpen(app) })
+            if (fromDrawer) add(MenuItem("Hide from drawer") { desk.updateHiddenApps(desk.hiddenApps + app.key) })
         }
         showMenu(
             MenuState(

@@ -80,6 +80,13 @@ class DeskState(private val context: Context) {
         private set
     var notificationsInWindows by mutableStateOf(sp.getBoolean("notificationsInWindows", false))
         private set
+    var keepOverFullScreen by mutableStateOf(sp.getBoolean("keepOverFullScreen", false))
+        private set
+    var hideStatusBar by mutableStateOf(sp.getBoolean("hideStatusBar", false))
+        private set
+    /** Apps left out of the app drawer, by key. */
+    var hiddenApps by mutableStateOf(readList("hiddenApps").toSet())
+        private set
     /**
      * Launcher package the cover screen hands over to; FoldDesk's own package
      * means FoldDesk runs on both screens. Migrates the old on/off switch.
@@ -529,6 +536,23 @@ class DeskState(private val context: Context) {
     fun updateOpenInWindow(value: Boolean) {
         openInWindow = value
         sp.edit().putBoolean("openInWindow", value).apply()
+    }
+
+    fun updateKeepOverFullScreen(value: Boolean) {
+        keepOverFullScreen = value
+        sp.edit().putBoolean("keepOverFullScreen", value).apply()
+    }
+
+    fun updateHideStatusBar(value: Boolean) {
+        hideStatusBar = value
+        sp.edit().putBoolean("hideStatusBar", value).apply()
+    }
+
+    fun isHidden(app: AppEntry) = app.key in hiddenApps
+
+    fun updateHiddenApps(keys: Set<String>) {
+        hiddenApps = keys
+        sp.edit().putString("hiddenApps", keys.joinToString("\n")).apply()
     }
 
     fun updateNotificationsInWindows(value: Boolean) {

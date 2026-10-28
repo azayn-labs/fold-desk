@@ -95,7 +95,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             snapshotFlow { shell.desk.taskbarSide to shell.desk.taskbarSize }.drop(1).collect { rebuildBar() }
         }
         scope.launch {
-            snapshotFlow { shell.desk.autoHideTaskbar }.drop(1).collect {
+            snapshotFlow { shell.desk.autoHideTaskbar to shell.desk.keepOverFullScreen }.drop(1).collect {
                 revealed = false
                 updateVisibility()
             }
@@ -469,7 +469,11 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             TaskbarSide.Left -> Rect(0, 0, thickness, screen.height())
             TaskbarSide.Right -> Rect(screen.width() - thickness, 0, screen.width(), screen.height())
         }
-        val coversTaskbar = topPackage != null && topPackage != packageName && Rect.intersects(bounds, strip)
+        // "Keep over full-screen apps" only stays put for apps filling the screen;
+        // dialogs and windows dragged over the strip still get it out of the way.
+        val fillsScreen = bounds.width() >= screen.width() && bounds.height() >= screen.height() * 9 / 10
+        val coversTaskbar = topPackage != null && topPackage != packageName && Rect.intersects(bounds, strip) &&
+            !(shell.desk.keepOverFullScreen && fillsScreen)
         // The notification panel / Quick settings: a large System UI window. Our
         // overlays always stack above it, so get out of its way.
         val shade = windows.filter { it.type == AccessibilityWindowInfo.TYPE_SYSTEM }

@@ -149,10 +149,11 @@ private fun AppDrawer(shell: ShellController, modifier: Modifier, blurAmount: Fl
     val desk = shell.desk
     val context = LocalContext.current
     var query by remember { mutableStateOf("") }
-    val results = remember(query, desk.apps) {
+    val results = remember(query, desk.apps, desk.hiddenApps) {
         val q = query.trim().lowercase()
-        if (q.isEmpty()) desk.apps
-        else desk.apps.filter { q in it.label.lowercase() }
+        val shown = desk.apps.filter { !desk.isHidden(it) }
+        if (q.isEmpty()) shown
+        else shown.filter { q in it.label.lowercase() }
             .sortedBy { if (it.label.lowercase().startsWith(q)) 0 else 1 }
     }
 
@@ -216,7 +217,7 @@ private fun AppDrawer(shell: ShellController, modifier: Modifier, blurAmount: Fl
                         app, onWallpaper = false, feedback = feedback,
                         modifier = Modifier.deskGestures(
                             onTap = { shell.open(app) },
-                            onMenu = { shell.appMenu(app, it) },
+                            onMenu = { shell.appMenu(app, it, fromDrawer = true) },
                             feedback = feedback,
                         ),
                     )

@@ -8,6 +8,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.border
+import androidx.compose.runtime.MutableState
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.Image
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.slideInVertically
@@ -123,6 +126,19 @@ private fun SettingsScreen(desk: DeskState) {
         }
     }
 
+    fun pickHiddenApps() {
+        // Ticks apply on Apply; Cancel leaves the list as it was.
+        val ticked = mutableStateOf(desk.hiddenApps)
+        val query = mutableStateOf("")
+        sheet = Sheet(
+            "Hidden apps", "Ticked apps don't show in the app drawer",
+            buttons = listOf(
+                "Cancel" to { sheet = null },
+                "Apply" to { desk.updateHiddenApps(ticked.value); sheet = null },
+            ),
+        ) { HiddenAppsPicker(desk.apps, ticked, query) }
+    }
+
     fun pickColours() {
         // Colours apply live; Cancel puts back what was there.
         val before = desk.taskbarColour to desk.accentColour
@@ -165,6 +181,12 @@ private fun SettingsScreen(desk: DeskState) {
                     onTapAt = { desk.updateAutoHideTaskbar(!desk.autoHideTaskbar) },
                 ) { Switch(desk.autoHideTaskbar) }
                 Divider()
+                SettingRow(
+                    "Keep over full-screen apps",
+                    hint = "Stays visible over videos and games too. It covers the bottom of the app, so some controls may be hidden under it",
+                    onTapAt = { desk.updateKeepOverFullScreen(!desk.keepOverFullScreen) },
+                ) { Switch(desk.keepOverFullScreen) }
+                Divider()
                 SettingRow("Background") {
                     Segmented(TaskbarBackground.entries, desk.taskbarBackground, { it.label }, desk::updateTaskbarBackground)
                 }
@@ -176,6 +198,23 @@ private fun SettingsScreen(desk: DeskState) {
                 SettingRow("Colours", value = desk.coloursName, onTapAt = { pickColours() }) {
                     ColourChip(desk)
                 }
+            }
+
+            Group("Desktop") {
+                SettingRow(
+                    "Hide status bar on desktop",
+                    hint = "Clock and icons at the top are hidden while you're on the FoldDesk desktop. Apps still show it",
+                    onTapAt = { desk.updateHideStatusBar(!desk.hideStatusBar) },
+                ) { Switch(desk.hideStatusBar) }
+            }
+
+            Group("App drawer") {
+                val count = desk.hiddenApps.count { key -> desk.apps.any { it.key == key } }
+                SettingRow(
+                    "Hidden apps",
+                    value = when (count) { 0 -> "None"; 1 -> "1 app"; else -> "$count apps" },
+                    onTapAt = { pickHiddenApps() },
+                )
             }
 
             Group("Taskbar shortcuts") {
@@ -423,6 +462,75 @@ private fun SheetHost(sheet: Sheet?, onDismiss: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+/** Every app with a tick box; ticked (hidden) apps are listed first. */
+@Composable
+private fun HiddenAppsPicker(apps: List<AppEntry>, ticked: MutableState<Set<String>>, query: MutableState<String>) {
+    Row(
+        Modifier.padding(horizontal = 20.dp, vertical = 4.dp).fillMaxWidth().height(40.dp)
+            .clip(RoundedCornerShape(20.dp)).background(Dex.field).padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.weight(1f)) {
+            if (query.value.isEmpty()) BasicText("Search apps", style = TextStyle(color = Dex.subtle, fontSize = 14.sp))
+            BasicTextField(
+                value = query.value,
+                onValueChange = { query.value = it },
+                singleLine = true,
+                textStyle = TextStyle(color = Dex.text, fontSize = 14.sp),
+                cursorBrush = SolidColor(Dex.accent),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+    val q = query.value.trim().lowercase()
+    val matching = apps.filter { q.isEmpty() || q in it.label.lowercase() }
+    // Sorted by what was hidden when the sheet opened, so rows don't jump while ticking.
+    val hiddenAtOpen = remember { ticked.value }
+    val (hidden, shown) = matching.partition { it.key in hiddenAtOpen }
+    if (hidden.isNotEmpty()) PickerSection("Hidden · ${hidden.size}")
+    hidden.forEach { HiddenAppRow(it, ticked) }
+    if (shown.isNotEmpty()) PickerSection("All apps")
+    shown.forEach { HiddenAppRow(it, ticked) }
+}
+
+@Composable
+private fun PickerSection(title: String) {
+    BasicText(
+        title,
+        style = TextStyle(color = Dex.accent, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold),
+        modifier = Modifier.padding(start = 24.dp, top = 12.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun HiddenAppRow(app: AppEntry, ticked: MutableState<Set<String>>) {
+    val on = app.key in ticked.value
+    HoverBox(
+        corner = 0,
+        modifier = Modifier.fillMaxWidth().deskGestures(onTap = {
+            ticked.value = if (on) ticked.value - app.key else ticked.value + app.key
+        }),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+            Image(app.icon, contentDescription = null, modifier = Modifier.size(32.dp))
+            Spacer(Modifier.width(14.dp))
+            BasicText(app.label, style = TextStyle(color = Dex.text, fontSize = 15.sp), modifier = Modifier.weight(1f))
+            Checkbox(on)
+        }
+    }
+}
+
+@Composable
+private fun Checkbox(on: Boolean) {
+    Box(
+        Modifier.size(22.dp).clip(RoundedCornerShape(6.dp))
+            .then(if (on) Modifier.background(Dex.accent) else Modifier.border(2.dp, Dex.subtle, RoundedCornerShape(6.dp))),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (on) BasicText("✓", style = TextStyle(color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold))
     }
 }
 
