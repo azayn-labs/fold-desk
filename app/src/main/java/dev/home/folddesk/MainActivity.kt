@@ -117,6 +117,10 @@ class MainActivity : ComponentActivity(), WidgetActions {
             intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
     }
 
+    private val retryHandOff = Runnable {
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) handOffCoverScreen()
+    }
+
     private fun handOffCoverScreen(): Boolean {
         if (inner || welcoming || !shell.desk.coverUsesOneUi) return false
         shell.closePopups()
@@ -124,7 +128,14 @@ class MainActivity : ComponentActivity(), WidgetActions {
         // intent right after the first counts as Home pressed again in One UI
         // Home, which then opens Finder.
         val now = SystemClock.uptimeMillis()
-        if (now - lastHandOff < HAND_OFF_GAP_MS) return true
+        if (now - lastHandOff < HAND_OFF_GAP_MS) {
+            // Too soon, but don't drop it: going home quickly from Recents would
+            // leave an empty FoldDesk on the cover screen. Try again once the gap
+            // is over, if FoldDesk is still in front then.
+            window.decorView.removeCallbacks(retryHandOff)
+            window.decorView.postDelayed(retryHandOff, HAND_OFF_GAP_MS - (now - lastHandOff))
+            return true
+        }
         lastHandOff = now
         return Launcher.openCoverLauncher(this, shell.desk.coverLauncher)
     }
