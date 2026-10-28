@@ -1,5 +1,6 @@
 package dev.home.folddesk.ui
 
+import dev.home.folddesk.HiddenApi
 import android.util.Log
 import android.view.View
 import androidx.compose.foundation.background
@@ -14,7 +15,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.viewinterop.AndroidView
-import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 private const val TAG = "FoldDesk"
 private const val BLUR_RADIUS_DP = 30f
@@ -72,15 +72,15 @@ private object SemBlur {
             builder = call(builder, "setRadius", radius) ?: builder
             builder = call(builder, "setBackgroundColor", color) ?: builder
             builder = call(builder, "setBackgroundCornerRadius", corner) ?: builder
-            val info = HiddenApiBypass.invoke(builderClass, builder, "build")
-            HiddenApiBypass.invoke(View::class.java, view, "semSetBlurInfo", info)
+            val info = HiddenApi.invoke(builderClass, builder, "build")
+            HiddenApi.invoke(View::class.java, view, "semSetBlurInfo", info)
         } catch (e: Throwable) {
             Log.w(TAG, "SemBlurInfo failed", e)
         }
     }
 
     private fun call(target: Any, name: String, arg: Any): Any? = try {
-        HiddenApiBypass.invoke(builderClass!!, target, name, arg)
+        HiddenApi.invoke(builderClass!!, target, name, arg)
     } catch (e: Throwable) {
         Log.w(TAG, "SemBlurInfo.Builder.$name unavailable: $e")
         null

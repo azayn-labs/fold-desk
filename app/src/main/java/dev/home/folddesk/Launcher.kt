@@ -13,7 +13,6 @@ import android.util.Log
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
-import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 /** Starts apps fullscreen or in freeform windows, plus a few system shortcuts. */
 object Launcher {
@@ -54,7 +53,7 @@ object Launcher {
 
     private fun setWindowingMode(options: ActivityOptions, mode: Int) {
         try {
-            HiddenApiBypass.invoke(ActivityOptions::class.java, options, "setLaunchWindowingMode", mode)
+            HiddenApi.invoke(ActivityOptions::class.java, options, "setLaunchWindowingMode", mode)
         } catch (e: Exception) {
             Log.w(TAG, "setLaunchWindowingMode unavailable", e)
         }
@@ -91,7 +90,7 @@ object Launcher {
 
     private fun statusBar(context: Context, method: String) {
         try {
-            HiddenApiBypass.invoke(
+            HiddenApi.invoke(
                 StatusBarManager::class.java, context.getSystemService(StatusBarManager::class.java), method,
             )
         } catch (e: Exception) {
