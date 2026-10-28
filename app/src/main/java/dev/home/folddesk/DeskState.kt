@@ -37,11 +37,28 @@ data class AppEntry(
 /** Desktop cell, counted from the top-left corner. */
 data class Cell(val col: Int, val row: Int)
 
+/** A widget on the cover screen's 3-column grid: [w]×[h] cells, top-left at [col], [row]. */
+data class CoverWidget(val id: Int, val w: Int, val h: Int, val col: Int = 0, val row: Int = -1) {
+    val cells get() = (col until col + w).flatMap { c -> (row until row + h).map { r -> c to r } }
+
+    fun overlaps(other: CoverWidget) = col < other.col + other.w && other.col < col + w &&
+        row < other.row + other.h && other.row < row + h
+}
+
 /**
- * A widget on the cover screen's 3-column grid: [w]×[h] cells from column
- * [col]. Its row follows from the order: the first one where it fits.
+ * First spot from the top where a [w]×[h] widget fits among [others], from
+ * [fromRow] down.
  */
-data class CoverWidget(val id: Int, val w: Int, val h: Int, val col: Int = 0)
+fun freeCoverSpot(others: List<CoverWidget>, w: Int, h: Int, cols: Int, fromRow: Int = 0): Pair<Int, Int> {
+    var row = fromRow
+    while (true) {
+        for (col in 0..cols - w) {
+            val probe = CoverWidget(-1, w, h, col, row)
+            if (others.none { it.overlaps(probe) }) return col to row
+        }
+        row++
+    }
+}
 
 /** A widget on a desktop: [cell] is its top-left, [w]×[h] its span in cells. */
 data class DeskWidget(val id: Int, val cell: Cell, val w: Int, val h: Int) {
@@ -127,11 +144,23 @@ class DeskState(private val context: Context) {
         readList("coverWidgets").mapNotNull { line ->
             val p = line.split('|').mapNotNull { it.toIntOrNull() }
             when (p.size) {
+                5 -> CoverWidget(p[0], p[1], p[2], p[3], p[4])
                 4 -> CoverWidget(p[0], p[1], p[2], p[3])
                 3 -> CoverWidget(p[0], p[1], p[2])
                 // Before the grid: full width and a height in dp.
                 2 -> CoverWidget(p[0], Widgets.COVER_COLUMNS, Widgets.coverRows(p[1]))
                 else -> null
+            }
+        }.let { list ->
+            // Saved before widgets had a row: stack them as they used to show.
+            list.fold(emptyList<CoverWidget>()) { placed, w ->
+                if (w.row >= 0) placed + w
+                else {
+                    val col = w.col.coerceIn(0, Widgets.COVER_COLUMNS - w.w)
+                    var row = 0
+                    while (placed.any { it.overlaps(w.copy(col = col, row = row)) }) row++
+                    placed + w.copy(col = col, row = row)
+                }
             }
         },
     )
@@ -603,7 +632,7 @@ class DeskState(private val context: Context) {
 
     fun updateCoverWidgets(list: List<CoverWidget>) {
         coverWidgets = list
-        sp.edit().putString("coverWidgets", list.joinToString("\n") { "${it.id}|${it.w}|${it.h}|${it.col}" }).apply()
+        sp.edit().putString("coverWidgets", list.joinToString("\n") { "${it.id}|${it.w}|${it.h}|${it.col}|${it.row}" }).apply()
     }
 
     fun updateCoverSplit(value: Float) {

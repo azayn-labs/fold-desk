@@ -23,6 +23,7 @@ import dev.home.folddesk.Widgets
 import dev.home.folddesk.WidgetActions
 import dev.home.folddesk.DeskWidgetView
 import dev.home.folddesk.CoverWidget
+import dev.home.folddesk.freeCoverSpot
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.layout.positionInWindow
@@ -516,52 +517,6 @@ private fun Dock(desk: DeskState, modifier: Modifier) {
 
 // --- Widget page ---
 
-/** Where each widget goes: in order, in its own column, in the first row where it fits. */
-private fun packCoverWidgets(widgets: List<CoverWidget>, cols: Int): Map<Int, IntOffset> {
-    val taken = mutableSetOf<Pair<Int, Int>>()
-    val placed = mutableMapOf<Int, IntOffset>()
-    for (w in widgets) {
-        val width = w.w.coerceIn(1, cols)
-        val col = w.col.coerceIn(0, cols - width)
-        var row = 0
-        while (true) {
-            val cells = (col until col + width).flatMap { c -> (row until row + w.h).map { r -> c to r } }
-            if (cells.none { it in taken }) {
-                taken += cells
-                placed[w.id] = IntOffset(col, row)
-                break
-            }
-            row++
-        }
-    }
-    return placed
-}
-
-/**
- * Drops widget [id] at [col], [row]: it takes that column and moves in the
- * order to just before the first widget at or below that row, so the packing
- * puts it there and the rest move out of the way.
- */
-private fun moveCoverWidget(widgets: List<CoverWidget>, id: Int, col: Int, row: Int, places: Map<Int, IntOffset>): List<CoverWidget> {
-    val moved = widgets.firstOrNull { it.id == id }?.copy(col = col) ?: return widgets
-    val rest = widgets.filter { it.id != id }
-    val index = rest.indexOfFirst { (places[it.id]?.y ?: 0) >= row }.let { if (it < 0) rest.size else it }
-    return rest.toMutableList().apply { add(index, moved) }
-}
-
-/** First column where a 1-wide tile fits in the last row, for "+ Add widget". */
-private fun addTileSpot(widgets: List<CoverWidget>, places: Map<Int, IntOffset>, cols: Int): IntOffset {
-    val taken = widgets.flatMap { w ->
-        val at = places[w.id] ?: return@flatMap emptyList()
-        (at.x until at.x + w.w).flatMap { c -> (at.y until at.y + w.h).map { r -> c to r } }
-    }.toSet()
-    var row = 0
-    while (true) {
-        for (c in 0 until cols) if ((c to row) !in taken) return IntOffset(c, row)
-        row++
-    }
-}
-
 @Composable
 private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditing: (Boolean) -> Unit) {
     val desk = shell.desk
@@ -578,7 +533,9 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditi
     var moving by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
     BackHandler(enabled = editing || picking) { if (picking) picking = false else { editing = false; selected = null } }
     // Widget long presses come in window coordinates; the menu layer is placed in this box.
-    Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInWindow() }) {
+    BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInWindow() }) {
+        // The grid fills the screen, so widgets can go anywhere on it, gaps and all.
+        val pageHeight = maxHeight
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
                 SectionTitle("Widgets", Modifier.weight(1f))
@@ -595,15 +552,18 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditi
                 val cols = Widgets.COVER_COLUMNS
                 val gap = 8.dp
                 val cell = (maxWidth + gap) / cols
-                val places = packCoverWidgets(shown, cols)
-                val rows = shown.maxOfOrNull { (places[it.id]?.y ?: 0) + it.h } ?: 0
-                // Room for one more row in edit mode, for the add tile.
-                val addAt = if (editing || shown.isEmpty()) addTileSpot(shown, places, cols) else null
-                val totalRows = maxOf(rows, (addAt?.y ?: -1) + 1)
+                val screenRows = ((pageHeight - 40.dp) / cell).toInt().coerceAtLeast(1)
+                val usedRows = shown.maxOfOrNull { it.row + it.h } ?: 0
+                val addAt = if (editing || shown.isEmpty()) {
+                    freeCoverSpot(shown, if (shown.isEmpty()) cols else 1, 1, cols).let { (c, r) -> IntOffset(c, r) }
+                } else {
+                    null
+                }
+                val totalRows = maxOf(screenRows, usedRows, (addAt?.y ?: -1) + 1)
                 Box(Modifier.fillMaxWidth().height(cell * totalRows)) {
                     if (editing) GridLines(cols, totalRows, cell)
                     for (widget in shown) {
-                        val at = places[widget.id] ?: continue
+                        val at = IntOffset(widget.col, widget.row)
                         key(widget.id) {
                             CoverWidgetView(
                                 widget,
@@ -624,12 +584,20 @@ private fun CoverWidgets(shell: ShellController, actions: WidgetActions, onEditi
                                     val cellPx = with(density) { cell.toPx() }
                                     val col = Math.round(at.x + d.x / cellPx).coerceIn(0, cols - widget.w)
                                     val row = Math.round(at.y + d.y / cellPx).coerceAtLeast(0)
-                                    desk.updateCoverWidgets(moveCoverWidget(desk.coverWidgets, widget.id, col, row, places))
+                                    val moved = widget.copy(col = col, row = row)
+                                    // Only onto free cells; otherwise it goes back where it was.
+                                    if (desk.coverWidgets.none { it.id != widget.id && it.overlaps(moved) }) {
+                                        desk.updateCoverWidgets(desk.coverWidgets.map { if (it.id == widget.id) moved else it })
+                                    }
                                 },
-                                onResizing = { resized -> preview = resized },
-                                onResized = { resized ->
+                                // A resize stops short of other widgets.
+                                onResizing = { resized ->
+                                    if (desk.coverWidgets.none { it.id != widget.id && it.overlaps(resized) }) preview = resized
+                                },
+                                onResized = {
+                                    val final = preview?.takeIf { it.id == widget.id }
                                     preview = null
-                                    desk.updateCoverWidgets(desk.coverWidgets.map { if (it.id == widget.id) resized else it })
+                                    if (final != null) desk.updateCoverWidgets(desk.coverWidgets.map { if (it.id == widget.id) final else it })
                                 },
                             )
                         }
@@ -721,7 +689,7 @@ private fun CoverWidgetView(
     val height = cell * widget.h - gap
     // Corner drag in progress, in px, and the widget as it was when it started.
     var drag by remember(widget.id) { mutableStateOf<Offset?>(null) }
-    var start by remember(widget.id) { mutableStateOf(widget.copy(col = at.x)) }
+    var start by remember(widget.id) { mutableStateOf(widget) }
     val cols = Widgets.COVER_COLUMNS
     Box(
         Modifier.offset(cell * at.x, cell * at.y)
@@ -784,7 +752,7 @@ private fun CoverWidgetView(
                                 }
                             }
                             detectDragGestures(
-                                onDragStart = { start = widget.copy(col = at.x); drag = Offset.Zero },
+                                onDragStart = { start = widget; drag = Offset.Zero },
                                 onDrag = { change, amount ->
                                     change.consume()
                                     val d = (drag ?: Offset.Zero) + amount

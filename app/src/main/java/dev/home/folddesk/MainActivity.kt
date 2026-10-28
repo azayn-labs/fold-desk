@@ -149,7 +149,8 @@ class MainActivity : ComponentActivity(), WidgetActions {
         val desk = shell.desk
         if (p.cover) {
             val (w, h) = Widgets.coverSpan(p.info, this)
-            desk.updateCoverWidgets(desk.coverWidgets + CoverWidget(p.id, w, h))
+            val (col, row) = freeCoverSpot(desk.coverWidgets, w, h, Widgets.COVER_COLUMNS)
+            desk.updateCoverWidgets(desk.coverWidgets + CoverWidget(p.id, w, h, col, row))
             return
         }
         val (cw, ch) = Widgets.defaultSpan(p.info, this, Dex.desktopCellWidth.value, Dex.desktopCellHeight.value)
