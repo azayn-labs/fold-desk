@@ -216,7 +216,7 @@ private fun Glance(shell: ShellController) {
                 ),
             )
             Box(Modifier.fillMaxWidth().weight(1f - split)) { CalendarSection(now, resumes) }
-            Dock(desk, Modifier.height(dockHeight))
+            Dock(shell, Modifier.height(dockHeight))
         }
         // Hints that widgets and the app list are a swipe away.
         Box(
@@ -489,7 +489,8 @@ private fun EventRow(event: CoverEvent, now: Long) {
 
 /** The taskbar's pinned apps, for the cover screen. */
 @Composable
-private fun Dock(desk: DeskState, modifier: Modifier) {
+private fun Dock(shell: ShellController, modifier: Modifier) {
+    val desk = shell.desk
     val context = LocalContext.current
     val apps = remember(desk.pinned, desk.apps) {
         desk.pinned.mapNotNull { key -> desk.apps.firstOrNull { it.key == key } }.take(5)
@@ -508,7 +509,11 @@ private fun Dock(desk: DeskState, modifier: Modifier) {
                 for (app in apps) {
                     Image(
                         app.icon, contentDescription = app.label,
-                        modifier = Modifier.size(44.dp).deskGestures(onTap = { Launcher.open(context, app, windowed = false) }),
+                        // Its own long press, so the page's menu (and a tap on release) stay out of it.
+                        modifier = Modifier.size(44.dp).deskGestures(
+                            onTap = { Launcher.open(context, app, windowed = false) },
+                            onMenu = { shell.coverAppMenu(app, it) },
+                        ),
                     )
                 }
             }
