@@ -57,6 +57,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.ImageBitmap
@@ -419,7 +423,7 @@ private fun NotificationRow(desk: DeskState, n: CoverNotification, onExpand: () 
             }
             if (n.count > 1) {
                 BasicText(
-                    "${n.count - 1} more ⌄",
+                    "${n.count - 1} more",
                     style = TextStyle(color = Dex.text, fontSize = 11.5.sp),
                     modifier = Modifier
                         .padding(top = 5.dp)
@@ -431,8 +435,29 @@ private fun NotificationRow(desk: DeskState, n: CoverNotification, onExpand: () 
                 )
             }
         }
-        Spacer(Modifier.width(12.dp))
+        if (n.count > 1) {
+            ExpandArrow(expanded = false, onTap = onExpand, Modifier.padding(start = 4.dp, end = 6.dp))
+        } else {
+            Spacer(Modifier.width(12.dp))
+        }
     }
+}
+
+/** Opens or closes a group; on the right of the card, so it reads as expandable at a glance. */
+@Composable
+private fun ExpandArrow(expanded: Boolean, onTap: () -> Unit, modifier: Modifier = Modifier) {
+    Image(
+        if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+        contentDescription = if (expanded) "Collapse" else "Expand",
+        colorFilter = ColorFilter.tint(Dex.subtle),
+        modifier = modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(Dex.text.copy(alpha = 0.08f))
+            // Consumed, so the row doesn't open the newest as well.
+            .pointerInput(Unit) { detectTapGestures { onTap() } }
+            .padding(6.dp),
+    )
 }
 
 /** An app's notifications, opened out from its row. */
@@ -446,7 +471,7 @@ private fun NotificationGroup(desk: DeskState, n: CoverNotification, onCollapse:
         Box(Modifier.width(4.dp).fillMaxHeight().background(stripe))
         Column(Modifier.weight(1f)) {
             Row(
-                Modifier.fillMaxWidth().deskGestures(onTap = onCollapse).padding(start = 10.dp, end = 14.dp, top = 10.dp, bottom = 8.dp),
+                Modifier.fillMaxWidth().deskGestures(onTap = onCollapse).padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 appIcon?.let { Image(it, contentDescription = null, modifier = Modifier.size(22.dp)) }
@@ -460,7 +485,7 @@ private fun NotificationGroup(desk: DeskState, n: CoverNotification, onCollapse:
                     style = TextStyle(color = Dex.accent, fontSize = 13.sp),
                     modifier = Modifier.deskGestures(onTap = { NotificationWatcher.dismiss(n.keys) }).padding(horizontal = 8.dp, vertical = 4.dp),
                 )
-                BasicText("⌃", style = TextStyle(color = Dex.subtle, fontSize = 14.sp), modifier = Modifier.padding(start = 6.dp))
+                ExpandArrow(expanded = true, onTap = onCollapse, Modifier.padding(start = 4.dp))
             }
             for (item in n.items) {
                 key(item.key) {
