@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk cover recent apps</title>
+<style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1060px; height:1220px; overflow:hidden; display:flex; gap:20px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; overflow:hidden; border-radius:28px; height:1120px;
+    background: radial-gradient(500px 420px at 80% 10%, rgba(97,150,255,.30), transparent 65%), linear-gradient(170deg,#0d1730,#05080f); }
+  .status { height:30px; display:flex; justify-content:space-between; padding:7px 22px; font-size:12.5px; color:#d8d8dc; }
+  .dots { display:flex; justify-content:center; gap:6px; margin:4px 0 8px; }
+  .dots i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,.35); } .dots i.on { background:#fff; width:16px; }
+  .panel { position:absolute; left:0; right:0; top:52px; bottom:0; background:rgba(28,28,30,.6); border-radius:24px 24px 0 0; }
+  .lbl { font-size:12px; color:var(--accent); padding:12px 26px 6px; }
+  .recent { display:flex; justify-content:space-between; padding:0 18px 4px; }
+  .recent div { width:60px; display:flex; flex-direction:column; align-items:center; gap:5px; font-size:11px; color:#ddd; }
+  .recent i { width:46px; height:46px; border-radius:14px; }
+  .search { margin:8px 16px; height:42px; border-radius:21px; background:rgba(28,28,30,.55); display:flex; align-items:center; padding:0 18px; color:var(--subtle); font-size:14px; }
+  .letter { font-size:12px; color:var(--accent); padding:10px 26px 2px; }
+  .app { display:flex; gap:14px; align-items:center; padding:8px 24px; font-size:15px; } .app i { width:36px; height:36px; border-radius:11px; flex:none; }
+  .az { position:absolute; right:6px; top:240px; display:flex; flex-direction:column; gap:4px; font-size:10px; color:var(--subtle); text-align:center; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; }
+</style></head><body>
+<script>
+const cols = ['#1a73e8','#25d366','#ff0033','#d6249f','#f4b400','#0f9d58','#7e57c2','#ff7043','#26a69a'];
+const names = ['Chrome','WhatsApp','YouTube','Instagram','Notes','Maps','Music','Photos','Calendar'];
+const recent = (n) => `<div class="lbl">Recent</div><div class="recent">${names.slice(0,n).map((x,i)=>`<div><i style="background:${cols[i]}"></i>${x}</div>`).join('')}</div>`;
+const list = `<div class="search">Search apps</div><div class="letter">★ Favourites</div><div class="app"><i style="background:#1db954"></i>Spotify</div>
+  <div class="letter">#</div><div class="app"><i style="background:#5f6672"></i>1Password</div><div class="letter">A</div>
+  ${['Account Access','Acode','Adobe Express','Advanzia','Airtel','Amazon Shopping','Among Us'].map((x,i)=>`<div class="app"><i style="background:${cols[i%9]}"></i>${x}</div>`).join('')}`;
+const az = `<div class="az">${'★#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(x=>`<span>${x}</span>`).join('')}</div>`;
+const screen = (w, n) => `<div class="screen" style="width:${w}px"><div class="status"><span>17:45</span><span>84%</span></div><div class="dots"><i></i><i></i><i class="on"></i></div>
+  <div class="panel">${recent(n)}${list}${az}</div></div>`;
+document.body.innerHTML = `
+ <div class="col"><div class="cap">1 · Fold7 cover screen (480 dp wide): 6 recent apps</div>${screen(480,6)}
+  <div class="note" style="width:480px">One row of the apps you used most recently, newest first, above the search bar. As many as fit the width (about 72 dp each), so 6 on the Fold7, 5 on the narrower Fold6. Tap opens, long press gives the same menu as the list. Hidden apps and launchers are left out. While you type in search, the row hides.</div></div>
+ <div class="col"><div class="cap">2 · Fold6 cover screen (≈410 dp): 5 recent apps</div>${screen(410,5)}
+  <div class="note" style="width:410px">Uses the usage access FoldDesk already has for the taskbar; if it isn't granted, the row simply doesn't show.</div></div>`;
+</script></body></html>

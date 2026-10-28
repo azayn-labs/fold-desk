@@ -70,6 +70,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -795,6 +796,51 @@ private fun CoverWidgetView(
 
 // --- Last page: all apps ---
 
+/** One row of the most recently used apps, as many as fit the width. */
+@Composable
+private fun RecentApps(shell: ShellController) {
+    val desk = shell.desk
+    val context = LocalContext.current
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val count = (maxWidth / RECENT_SLOT).toInt().coerceAtLeast(1)
+        val recent by produceState(emptyList<AppEntry>(), count, desk.apps, desk.hiddenApps) {
+            value = withContext(Dispatchers.IO) { desk.recentlyUsed(count) }
+        }
+        if (recent.isEmpty()) return@BoxWithConstraints
+        Column(Modifier.fillMaxWidth()) {
+            BasicText(
+                "Recent",
+                style = TextStyle(color = Dex.accent, fontSize = 12.sp),
+                modifier = Modifier.padding(start = 26.dp, top = 12.dp, bottom = 6.dp),
+            )
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                for (app in recent) {
+                    val feedback = remember { PressFeedback() }
+                    Column(
+                        Modifier.weight(1f).deskGestures(
+                            onTap = { Launcher.open(context, app, windowed = false) },
+                            onMenu = { shell.coverAppMenu(app, it) },
+                            feedback = feedback,
+                        ),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Image(app.icon, contentDescription = null, modifier = Modifier.size(46.dp))
+                        BasicText(
+                            app.label, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = TextStyle(color = Dex.text, fontSize = 11.sp, textAlign = TextAlign.Center),
+                            modifier = Modifier.padding(top = 5.dp, start = 2.dp, end = 2.dp),
+                        )
+                    }
+                }
+                // Fewer recent apps than slots: keep the others where they'd be.
+                repeat(count - recent.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+private val RECENT_SLOT = 72.dp
+
 /** Section key for favourites in the cover app list, shown as a star. */
 private const val FAVOURITES = '★'
 
@@ -825,6 +871,7 @@ private fun CoverApps(shell: ShellController) {
 
     // A light tint behind the whole list, like the app drawer's panel.
     Column(Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Dex.bar.copy(alpha = 0.6f))) {
+        if (query.isEmpty()) RecentApps(shell)
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().height(42.dp)
                 .clip(RoundedCornerShape(21.dp)).background(rowBackground()).padding(horizontal = 18.dp),

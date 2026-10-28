@@ -805,6 +805,27 @@ class DeskState(private val context: Context) {
     }
 
     /** Package of the most recently resumed activity, if usage access is granted. */
+    /** Apps used most recently, newest first, from the last [days] days; empty without usage access. */
+    fun recentlyUsed(limit: Int, days: Int = 7): List<AppEntry> {
+        if (!hasUsageAccess()) return emptyList()
+        val usage = context.getSystemService(UsageStatsManager::class.java)
+        val end = System.currentTimeMillis()
+        val events = usage.queryEvents(end - days * 24 * 60 * 60 * 1000L, end)
+        val event = UsageEvents.Event()
+        val lastUsed = HashMap<String, Long>()
+        while (events.getNextEvent(event)) {
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) lastUsed[event.packageName] = event.timeStamp
+        }
+        return lastUsed.entries.sortedByDescending { it.value }
+            .asSequence()
+            .map { it.key }
+            .filter { it != context.packageName && it !in homePackages }
+            .mapNotNull { appForPackage(it) }
+            .filter { !isHidden(it) }
+            .take(limit)
+            .toList()
+    }
+
     fun foregroundPackage(): String? {
         if (!hasUsageAccess()) return null
         val usage = context.getSystemService(UsageStatsManager::class.java)
