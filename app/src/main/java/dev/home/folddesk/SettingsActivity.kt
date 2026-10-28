@@ -112,13 +112,23 @@ private fun SettingsScreen(desk: DeskState) {
     }
 
     fun pickCoverLauncher() {
-        val options = desk.installedLaunchers() + (context.packageName to "FoldDesk (both screens)")
+        val options = desk.installedLaunchers() + listOf(
+            COVER_SCREEN to "FoldDesk cover screen",
+            context.packageName to "FoldDesk desktop (both screens)",
+        )
         sheet = Sheet(
             "Cover screen launcher", "Used when the phone is folded",
             buttons = listOf("Cancel" to { sheet = null }),
         ) {
             for ((pkg, label) in options) {
-                OptionRow(label, icon = rememberAppIcon(pkg), selected = pkg == desk.coverLauncher) {
+                val own = pkg == COVER_SCREEN
+                OptionRow(
+                    label,
+                    icon = rememberAppIcon(if (own) context.packageName else pkg),
+                    selected = pkg == desk.coverLauncher,
+                    hint = if (own) "Notifications and your day at a glance" else null,
+                    tag = if (own) "PREVIEW" else null,
+                ) {
                     desk.updateCoverLauncher(pkg)
                     sheet = null
                 }
@@ -268,7 +278,8 @@ private fun SettingsScreen(desk: DeskState) {
             }
 
             Group("Cover screen") {
-                val label = if (!desk.coverUsesOneUi) "FoldDesk (both screens)"
+                val label = if (desk.ownCoverScreen) "FoldDesk cover screen"
+                else if (!desk.coverUsesOneUi) "FoldDesk desktop (both screens)"
                 else desk.installedLaunchers().firstOrNull { it.first == desk.coverLauncher }?.second ?: "One UI Home"
                 SettingRow("Cover screen launcher", value = label, onTapAt = { pickCoverLauncher() })
             }
@@ -535,7 +546,14 @@ private fun Checkbox(on: Boolean) {
 }
 
 @Composable
-private fun OptionRow(label: String, selected: Boolean, icon: ImageBitmap? = null, onClick: () -> Unit) {
+private fun OptionRow(
+    label: String,
+    selected: Boolean,
+    icon: ImageBitmap? = null,
+    hint: String? = null,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
     HoverBox(corner = 0, modifier = Modifier.fillMaxWidth().deskGestures(onTap = onClick)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
@@ -545,7 +563,20 @@ private fun OptionRow(label: String, selected: Boolean, icon: ImageBitmap? = nul
                 Image(it, contentDescription = null, modifier = Modifier.size(30.dp))
                 Spacer(Modifier.width(14.dp))
             }
-            BasicText(label, style = TextStyle(color = Dex.text, fontSize = 15.sp), modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    BasicText(label, style = TextStyle(color = Dex.text, fontSize = 15.sp))
+                    tag?.let {
+                        BasicText(
+                            it,
+                            style = TextStyle(color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(6.dp))
+                                .background(Dex.accent).padding(horizontal = 5.dp, vertical = 1.dp),
+                        )
+                    }
+                }
+                hint?.let { BasicText(it, style = TextStyle(color = Dex.subtle, fontSize = 12.5.sp), modifier = Modifier.padding(top = 2.dp)) }
+            }
             Radio(selected)
         }
     }

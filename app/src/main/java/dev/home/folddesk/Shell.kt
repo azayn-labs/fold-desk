@@ -444,6 +444,22 @@ class ShellController(
         )
     }
 
+    /** Long press on the cover screen's empty space. */
+    fun coverMenu(at: Offset) {
+        showMenu(
+            MenuState(
+                at = at,
+                groups = listOf(
+                    listOf(MenuItem("Change wallpaper") { Launcher.openWallpaperPicker(context) }),
+                    listOf(
+                        MenuItem("FoldDesk settings") { Launcher.openDeskSettings(context) },
+                        MenuItem("Settings") { Launcher.openSettings(context) },
+                    ),
+                ),
+            ),
+        )
+    }
+
     companion object {
         private val all = mutableSetOf<ShellController>()
 

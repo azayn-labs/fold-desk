@@ -13,9 +13,11 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
+import dev.home.folddesk.ui.CoverScreen
 import dev.home.folddesk.ui.DesktopScreen
 import dev.home.folddesk.ui.Dex
 import dev.home.folddesk.ui.DesktopGrid
@@ -25,6 +27,8 @@ import dev.home.folddesk.ui.DexTheme
 class MainActivity : ComponentActivity(), WidgetActions {
     private lateinit var shell: ShellController
     private var inner by mutableStateOf(true)
+    /** Home pressed while already home; the cover screen goes back to its first page. */
+    private var homePresses by mutableIntStateOf(0)
 
     /** A widget on its way to the desktop: bound, maybe set up, then placed. */
     private class Pending(val id: Int, val info: AppWidgetProviderInfo, val at: Cell?)
@@ -45,8 +49,10 @@ class MainActivity : ComponentActivity(), WidgetActions {
         setContent {
             LaunchedEffect(desk.hideStatusBar, inner) { showStatusBar(!(desk.hideStatusBar && inner)) }
             DexTheme {
-                if (inner || !desk.coverUsesOneUi) {
-                    DesktopScreen(shell, showTaskbar = !TaskbarService.running, widgetActions = this@MainActivity)
+                when {
+                    !inner && desk.ownCoverScreen -> CoverScreen(shell, homePresses)
+                    inner || !desk.coverUsesOneUi ->
+                        DesktopScreen(shell, showTaskbar = !TaskbarService.running, widgetActions = this@MainActivity)
                 }
             }
         }
@@ -60,6 +66,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         ShellController.closeAll()
+        homePresses++
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

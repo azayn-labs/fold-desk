@@ -21,6 +21,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** [DeskState.coverLauncher] value for FoldDesk's own cover screen layout. */
+const val COVER_SCREEN = "folddesk:cover"
+
 data class AppEntry(
     val key: String,
     val component: ComponentName,
@@ -89,14 +92,19 @@ class DeskState(private val context: Context) {
         private set
     /**
      * Launcher package the cover screen hands over to; FoldDesk's own package
-     * means FoldDesk runs on both screens. Migrates the old on/off switch.
+     * means its desktop runs on both screens, [COVER_SCREEN] its cover screen
+     * layout. Migrates the old on/off switch.
      */
     var coverLauncher by mutableStateOf(
         sp.getString("coverLauncher", null)
             ?: if (sp.getBoolean("coverUsesOneUi", true)) Launcher.ONE_UI_HOME else context.packageName,
     )
         private set
-    val coverUsesOneUi get() = coverLauncher != context.packageName
+    val coverUsesOneUi get() = coverLauncher != context.packageName && coverLauncher != COVER_SCREEN
+    val ownCoverScreen get() = coverLauncher == COVER_SCREEN
+    /** Share of the cover screen's free height given to notifications; the rest is the calendar. */
+    var coverSplit by mutableStateOf(sp.getFloat("coverSplit", 0.5f))
+        private set
 
     var autoHideTaskbar by mutableStateOf(sp.getBoolean("autoHideTaskbar", false))
         private set
@@ -137,6 +145,8 @@ class DeskState(private val context: Context) {
         private set
     /** Apps with notifications, newest first; set by [NotificationWatcher]. */
     var notificationPackages by mutableStateOf<List<String>>(emptyList())
+    /** Notifications for the cover screen, one entry per app; set by [NotificationWatcher]. */
+    var coverNotifications by mutableStateOf<List<CoverNotification>>(emptyList())
     /** True with gesture navigation, where the taskbar's Back/Home/Recents keys are redundant. */
     var gestureNav by mutableStateOf(readGestureNav())
         private set
@@ -558,6 +568,11 @@ class DeskState(private val context: Context) {
     fun updateNotificationsInWindows(value: Boolean) {
         notificationsInWindows = value
         sp.edit().putBoolean("notificationsInWindows", value).apply()
+    }
+
+    fun updateCoverSplit(value: Float) {
+        coverSplit = value
+        sp.edit().putFloat("coverSplit", value).apply()
     }
 
     fun updateCoverLauncher(pkg: String) {
