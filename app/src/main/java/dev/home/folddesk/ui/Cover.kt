@@ -46,6 +46,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -59,6 +60,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -99,6 +102,9 @@ fun CoverScreen(shell: ShellController, homePresses: Int) {
     val pager = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     LaunchedEffect(homePresses) { pager.animateScrollToPage(0) }
+    var visits by remember { mutableIntStateOf(0) }
+    LaunchedEffect(pager.settledPage) { if (pager.settledPage == 0) visits++ }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { visits++ }
     BackHandler(enabled = pager.currentPage == 1) { scope.launch { pager.animateScrollToPage(0) } }
 
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -109,7 +115,8 @@ fun CoverScreen(shell: ShellController, homePresses: Int) {
                 Glance(shell)
                 PopupLayer(shell, Modifier.fillMaxSize(), dragTargets = false)
             } else {
-                CoverApps(shell)
+                // Keyed on visits, so the search starts empty each time.
+                key(visits) { CoverApps(shell) }
             }
         }
     }
@@ -223,6 +230,16 @@ private fun NotificationsSection(desk: DeskState) {
 private fun NotificationRow(desk: DeskState, n: CoverNotification) {
     val context = LocalContext.current
     val app = desk.appForPackage(n.pkg)
+    // Not in the app list (a system app, say): ask the system for its name and icon.
+    val fallback = remember(n.pkg) {
+        if (app != null) null else runCatching {
+            val pm = context.packageManager
+            val info = pm.getApplicationInfo(n.pkg, 0)
+            pm.getApplicationLabel(info).toString() to info.loadIcon(pm).toBitmap(96, 96).asImageBitmap()
+        }.getOrNull()
+    }
+    val appLabel = app?.label ?: fallback?.first
+    val appIcon = app?.icon ?: fallback?.second
     val stripe = if (n.color != 0) Color(n.color).copy(alpha = 1f) else Dex.accent
     var offset by remember(n.pkg) { mutableFloatStateOf(0f) }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -269,7 +286,7 @@ private fun NotificationRow(desk: DeskState, n: CoverNotification) {
         ) {
             Box(Modifier.width(4.dp).height(58.dp).background(stripe))
             Spacer(Modifier.width(10.dp))
-            app?.let { Image(it.icon, contentDescription = null, modifier = Modifier.size(30.dp)) }
+            appIcon?.let { Image(it, contentDescription = null, modifier = Modifier.size(30.dp)) }
                 ?: Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(stripe))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f).padding(vertical = 9.dp)) {
@@ -277,7 +294,7 @@ private fun NotificationRow(desk: DeskState, n: CoverNotification) {
                     // Title and badge take what's left; the app name stays flush right.
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                         BasicText(
-                            n.title.ifEmpty { app?.label ?: n.pkg },
+                            n.title.ifEmpty { appLabel ?: n.pkg },
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
                             style = TextStyle(color = Dex.text, fontSize = 14.sp),
                             modifier = Modifier.weight(1f, fill = false),
@@ -292,7 +309,7 @@ private fun NotificationRow(desk: DeskState, n: CoverNotification) {
                         }
                     }
                     BasicText(
-                        app?.label.orEmpty(), maxLines = 1,
+                        appLabel.orEmpty(), maxLines = 1,
                         style = TextStyle(color = Dex.subtle, fontSize = 12.sp),
                         modifier = Modifier.padding(start = 8.dp),
                     )

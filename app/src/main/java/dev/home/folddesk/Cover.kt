@@ -28,7 +28,8 @@ data class CoverNotification(
     companion object {
         /** Newest first, one entry per app; group summaries only count when they're all there is. */
         fun from(active: List<StatusBarNotification>): List<CoverNotification> = active
-            .filter { it.isClearable }
+            // Music players and other ongoing notifications aren't news.
+            .filter { it.isClearable && !it.isOngoing && it.notification.flags and Notification.FLAG_FOREGROUND_SERVICE == 0 }
             .groupBy { it.packageName }
             .mapNotNull { (pkg, list) ->
                 val shown = list.filter { it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }.ifEmpty { list }

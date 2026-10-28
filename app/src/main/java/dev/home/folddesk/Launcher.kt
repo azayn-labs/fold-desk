@@ -114,9 +114,10 @@ object Launcher {
 
     fun openSettings(context: Context) = start(context, Intent(Settings.ACTION_SETTINGS))
 
-    /** FoldDesk's own settings, always as a window like the mockup. */
+    /** FoldDesk's own settings: a window when apps open in windows, like everything else. */
     fun openDeskSettings(context: Context) = startWindowed(
-        context, Intent(context, SettingsActivity::class.java), true, WindowSize.Medium,
+        context, Intent(context, SettingsActivity::class.java),
+        (context.applicationContext as FoldDeskApp).desk.openInWindow, WindowSize.Medium,
     )
 
     // Shortcut targets, checked on the Fold7 (One UI 9).
@@ -150,7 +151,8 @@ object Launcher {
         size: WindowSize = WindowSize.Medium,
         fallback: Intent? = null,
     ) {
-        val options = windowOptions(context, windowed, size).toBundle()
+        val inner = FoldDeskApp.isInnerScreen(context.resources.configuration)
+        val options = windowOptions(context, windowed && inner, size).toBundle()
         try {
             context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), options)
         } catch (e: ActivityNotFoundException) {

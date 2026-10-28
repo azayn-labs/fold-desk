@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.border
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.text.BasicTextField
@@ -172,11 +173,11 @@ private fun SettingsScreen(desk: DeskState) {
             )
 
             Group("Layout") {
-                SettingRow("Taskbar position") {
+                SettingRow("Taskbar position", wide = true) {
                     Segmented(TaskbarSide.entries, desk.taskbarSide, { it.label }, desk::updateTaskbarSide)
                 }
                 Divider()
-                SettingRow("Taskbar icons", hint = "Start or centre of the taskbar") {
+                SettingRow("Taskbar icons", hint = "Start or centre of the taskbar", wide = true) {
                     Segmented(Placement.entries, desk.taskbarAlignment, { it.label }, desk::updateTaskbarAlignment)
                 }
             }
@@ -194,11 +195,11 @@ private fun SettingsScreen(desk: DeskState) {
                     onTapAt = { desk.updateKeepOverFullScreen(!desk.keepOverFullScreen) },
                 ) { Switch(desk.keepOverFullScreen) }
                 Divider()
-                SettingRow("Background") {
+                SettingRow("Background", wide = true) {
                     Segmented(TaskbarBackground.entries, desk.taskbarBackground, { it.label }, desk::updateTaskbarBackground)
                 }
                 Divider()
-                SettingRow("Size") {
+                SettingRow("Size", wide = true) {
                     Segmented(TaskbarSize.entries, desk.taskbarSize, { it.label }, desk::updateTaskbarSize)
                 }
                 Divider()
@@ -328,9 +329,13 @@ private fun SettingRow(
     value: String? = null,
     hint: String? = null,
     onTapAt: ((Offset) -> Unit)? = null,
+    /** Set for wide controls: they move under the title when space is short. */
+    wide: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     var anchor by remember { mutableStateOf(Offset.Zero) }
+    val config = LocalConfiguration.current
+    val stacked = wide && config.screenWidthDp / config.fontScale < 520
     HoverBox(
         corner = 0,
         modifier = Modifier
@@ -338,11 +343,8 @@ private fun SettingRow(
             .onGloballyPositioned { anchor = it.boundsInRoot().bottomLeft }
             .then(if (onTapAt != null) Modifier.deskGestures(onTap = { onTapAt(anchor) }) else Modifier),
     ) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 20.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
+        val text: @Composable (Modifier) -> Unit = { modifier ->
+            Column(modifier) {
                 BasicText(title, style = TextStyle(color = Dex.text, fontSize = 15.5.sp))
                 val sub = value ?: hint
                 if (sub != null) {
@@ -353,9 +355,27 @@ private fun SettingRow(
                     )
                 }
             }
-            if (trailing != null) {
-                Spacer(Modifier.width(14.dp))
-                trailing()
+        }
+        if (stacked) {
+            // Wide controls (segments) on a narrow screen or with big text:
+            // title on top, control underneath, so neither gets squeezed.
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp)) {
+                text(Modifier)
+                if (trailing != null) {
+                    Spacer(Modifier.height(10.dp))
+                    trailing()
+                }
+            }
+        } else {
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                text(Modifier.weight(1f))
+                if (trailing != null) {
+                    Spacer(Modifier.width(14.dp))
+                    trailing()
+                }
             }
         }
     }
