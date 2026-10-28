@@ -59,6 +59,11 @@ browser; the `.png` files are renders of them).
 Updates install over the previous version (same signing key); your desktops,
 icons and settings are kept.
 
+**Using another launcher on the cover screen?** Pick it in FoldDesk settings →
+Cover screen launcher. If it's Niagara, it will keep asking to be made the
+default launcher; typing `/suppress-set-launcher-prompt` into Niagara's search
+turns that off (tip from a Reddit user, thanks!).
+
 ## Repository layout
 
 ```
