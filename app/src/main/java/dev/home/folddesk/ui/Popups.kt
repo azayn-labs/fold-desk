@@ -254,7 +254,7 @@ private fun RoundButton(onTap: () -> Unit, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun SearchGlyph() {
+internal fun SearchGlyph() {
     val ink = Dex.subtle
     androidx.compose.foundation.Canvas(Modifier.size(18.dp)) {
         val u = size.width / 24f

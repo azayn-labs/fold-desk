@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.ImageBitmap
@@ -1093,11 +1094,14 @@ private fun CoverApps(shell: ShellController) {
         }
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().height(42.dp)
-                .clip(RoundedCornerShape(21.dp)).background(rowBackground()).padding(horizontal = 18.dp),
+                // Same as the drawer's search, but on the rows' tint so it reads over the wallpaper.
+                .clip(RoundedCornerShape(21.dp)).background(rowBackground()).padding(start = 16.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            SearchGlyph()
+            Spacer(Modifier.width(10.dp))
             Box(Modifier.weight(1f)) {
-                if (query.isEmpty()) BasicText("Search apps", style = TextStyle(color = Dex.subtle, fontSize = 14.sp))
+                if (query.isEmpty()) BasicText("Search", style = TextStyle(color = Dex.subtle, fontSize = 14.sp))
                 BasicTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -1108,13 +1112,12 @@ private fun CoverApps(shell: ShellController) {
                 )
             }
             if (query.isNotEmpty()) {
-                Box(
-                    Modifier.padding(start = 8.dp).size(28.dp).clip(CircleShape)
-                        .deskGestures(onTap = { query = "" }),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    BasicText("✕", style = TextStyle(color = Dex.subtle, fontSize = 15.sp))
-                }
+                Image(
+                    Icons.Default.Close, contentDescription = "Clear",
+                    colorFilter = ColorFilter.tint(Dex.subtle),
+                    modifier = Modifier.padding(start = 4.dp).size(32.dp).clip(CircleShape)
+                        .deskGestures(onTap = { query = "" }).padding(6.dp),
+                )
             }
         }
         if (query.isEmpty()) FavouriteApps(shell)
