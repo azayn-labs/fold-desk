@@ -9,6 +9,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -870,26 +871,9 @@ private fun CoverApps(shell: ShellController) {
     LaunchedEffect(desk.coverFavourites) { list.scrollToItem(0) }
 
     // A light tint behind the whole list, like the app drawer's panel.
-    Column(Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Dex.bar.copy(alpha = 0.6f))) {
-        if (query.isEmpty()) RecentApps(shell)
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().height(42.dp)
-                .clip(RoundedCornerShape(21.dp)).background(rowBackground()).padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.weight(1f)) {
-                if (query.isEmpty()) BasicText("Search apps", style = TextStyle(color = Dex.subtle, fontSize = 14.sp))
-                BasicTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    singleLine = true,
-                    textStyle = TextStyle(color = Dex.text, fontSize = 14.sp),
-                    cursorBrush = SolidColor(Dex.accent),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-        Row(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Dex.bar.copy(alpha = 0.6f)).imePadding()) {
+        // The list on top; search and recent apps at the bottom, within thumb reach.
+        Row(Modifier.fillMaxWidth().weight(1f)) {
             LazyColumn(Modifier.weight(1f).fillMaxHeight(), state = list) {
                 groups.forEach { (letter, apps) ->
                     item(key = "header-$letter") {
@@ -921,6 +905,24 @@ private fun CoverApps(shell: ShellController) {
                 }
             }
         }
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().height(42.dp)
+                .clip(RoundedCornerShape(21.dp)).background(rowBackground()).padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.weight(1f)) {
+                if (query.isEmpty()) BasicText("Search apps", style = TextStyle(color = Dex.subtle, fontSize = 14.sp))
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = TextStyle(color = Dex.text, fontSize = 14.sp),
+                    cursorBrush = SolidColor(Dex.accent),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        if (query.isEmpty()) RecentApps(shell)
     }
 }
 
