@@ -703,6 +703,15 @@ class DeskState(private val context: Context) {
         sp.edit().putFloat("coverSplit", value).apply()
     }
 
+    /** The cover screen welcome (see CoverWelcome) has been answered. */
+    var coverWelcomeSeen by mutableStateOf(sp.getBoolean("coverWelcomeSeen", false))
+        private set
+
+    fun markCoverWelcomeSeen() {
+        coverWelcomeSeen = true
+        sp.edit().putBoolean("coverWelcomeSeen", true).apply()
+    }
+
     fun updateCoverLauncher(pkg: String) {
         coverLauncher = pkg
         sp.edit().putString("coverLauncher", pkg).apply()

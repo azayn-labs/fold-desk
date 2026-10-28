@@ -23,6 +23,7 @@ import dev.home.folddesk.ui.DesktopScreen
 import dev.home.folddesk.ui.Dex
 import dev.home.folddesk.ui.DesktopGrid
 import dev.home.folddesk.ui.DexTheme
+import dev.home.folddesk.ui.CoverWelcome
 
 /** The home screen. On the cover screen it hands over to One UI Home. */
 class MainActivity : ComponentActivity(), WidgetActions {
@@ -31,6 +32,8 @@ class MainActivity : ComponentActivity(), WidgetActions {
     /** Home pressed while already home; the cover screen goes back to its first page. */
     private var homePresses by mutableIntStateOf(0)
     private var lastHandOff = 0L
+    /** Opened from its icon on the cover screen before the welcome was answered. */
+    private var welcoming by mutableStateOf(false)
 
     /** A widget on its way to the desktop: bound, maybe set up, then placed. */
     private class Pending(val id: Int, val info: AppWidgetProviderInfo, val at: Cell?, val cover: Boolean = false)
@@ -42,6 +45,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
         shell = ShellController(this, desk, keys = null, windowKeys = { TaskbarService.current })
         ShellController.register(shell)
         inner = FoldDeskApp.isInnerScreen(resources.configuration)
+        checkWelcome(intent)
 
         // Home never closes; Back only dismisses popups.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -52,6 +56,11 @@ class MainActivity : ComponentActivity(), WidgetActions {
             LaunchedEffect(desk.hideStatusBar, inner) { showStatusBar(!(desk.hideStatusBar && inner)) }
             DexTheme {
                 when {
+                    !inner && welcoming -> CoverWelcome { useFoldDesk ->
+                        desk.markCoverWelcomeSeen()
+                        welcoming = false
+                        if (useFoldDesk) desk.updateCoverLauncher(COVER_SCREEN) else handOffCoverScreen()
+                    }
                     !inner && desk.ownCoverScreen -> CoverScreen(shell, homePresses, this@MainActivity)
                     inner || !desk.coverUsesOneUi ->
                         DesktopScreen(shell, showTaskbar = !TaskbarService.running, widgetActions = this@MainActivity)
@@ -67,6 +76,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        checkWelcome(intent)
         ShellController.closeAll()
         homePresses++
     }
@@ -88,8 +98,14 @@ class MainActivity : ComponentActivity(), WidgetActions {
         }
     }
 
+    /** Only when opened as an app (its icon, Play's Open button), not as the home screen. */
+    private fun checkWelcome(intent: Intent?) {
+        val desk = shell.desk
+        welcoming = !desk.coverWelcomeSeen && desk.coverUsesOneUi && intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
+    }
+
     private fun handOffCoverScreen(): Boolean {
-        if (inner || !shell.desk.coverUsesOneUi) return false
+        if (inner || welcoming || !shell.desk.coverUsesOneUi) return false
         shell.closePopups()
         // Folding brings both a configuration change and a resume. A second home
         // intent right after the first counts as Home pressed again in One UI

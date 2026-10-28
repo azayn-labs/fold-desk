@@ -1,0 +1,53 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk cover welcome</title>
+<style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1560px; height:1220px; overflow:hidden; display:flex; gap:20px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; width:480px; height:1120px; overflow:hidden; border-radius:28px;
+    background: radial-gradient(500px 420px at 80% 10%, rgba(97,150,255,.30), transparent 65%), radial-gradient(500px 500px at 10% 95%, rgba(54,196,214,.22), transparent 60%), linear-gradient(170deg,#0d1730,#05080f); }
+  .status { height:30px; display:flex; justify-content:space-between; padding:7px 22px; font-size:12.5px; color:#d8d8dc; }
+  .wrap { position:absolute; left:22px; right:22px; top:0; bottom:40px; display:flex; flex-direction:column; justify-content:center; }
+  .logo { width:84px; height:84px; border-radius:24px; background:linear-gradient(140deg,#3e91ff,#36c4d6); margin-bottom:22px; position:relative; }
+  .logo::after { content:""; position:absolute; left:18px; right:18px; bottom:18px; height:10px; border-radius:5px; background:rgba(255,255,255,.85); }
+  h1 { font-size:30px; font-weight:600; }
+  .lead { font-size:15.5px; color:#d6d6da; line-height:1.5; margin-top:10px; }
+  .card { margin-top:26px; border-radius:22px; background:rgba(38,38,42,.78); padding:18px 18px; display:flex; gap:14px; align-items:center; }
+  .fold { width:54px; height:54px; flex:none; position:relative; }
+  .fold i { position:absolute; top:6px; bottom:6px; width:22px; border:2px solid #cfe1ff; border-radius:5px; }
+  .fold i:first-child { left:4px; } .fold i:last-child { right:4px; transform:skewY(-8deg); opacity:.7; }
+  .card b { font-size:15px; font-weight:500; display:block; } .card span { font-size:13px; color:var(--subtle); display:block; margin-top:3px; line-height:1.4; }
+  .q { font-size:13px; color:var(--subtle); margin:30px 4px 10px; }
+  .opt { border-radius:20px; background:rgba(38,38,42,.78); padding:15px 18px; margin-bottom:8px; display:flex; align-items:center; gap:12px; }
+  .opt .r { width:20px; height:20px; border-radius:10px; border:2px solid var(--subtle); flex:none; }
+  .opt.on .r { border-color:var(--accent); box-shadow:inset 0 0 0 4px #26262a; background:var(--accent); }
+  .opt b { font-size:15px; font-weight:500; display:block; } .opt span { font-size:12.5px; color:var(--subtle); display:block; margin-top:2px; }
+  .btn { margin-top:18px; height:48px; border-radius:24px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:480px; }
+  .ui { position:absolute; inset:30px 0 0 0; background:linear-gradient(170deg,#1b2a44,#0b1220); display:flex; flex-direction:column; }
+  .ui .clock { font-size:64px; font-weight:200; padding:120px 28px 0; } .ui .date { font-size:15px; color:#cfd3dc; padding:0 30px; }
+  .ui .grid { margin-top:auto; display:grid; grid-template-columns:repeat(4,1fr); gap:26px; padding:30px; }
+  .ui .grid i { width:56px; height:56px; border-radius:18px; background:rgba(255,255,255,.18); margin:auto; }
+  .tag { position:absolute; left:20px; top:46px; font-size:12px; background:rgba(0,0,0,.55); padding:5px 10px; border-radius:8px; color:#cfe1ff; }
+  .dots { display:flex; justify-content:center; gap:6px; margin:4px 0 8px; }
+  .dots i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,.35); } .dots i.on { background:#fff; width:16px; }
+</style></head><body>
+<script>
+const status = `<div class="status"><span>12:00</span><span>80%</span></div>`;
+const welcome = (pick) => `${status}<div class="wrap"><div class="logo"></div><h1>Welcome to FoldDesk</h1>
+  <div class="lead">A desktop for your Fold's big inner screen: a taskbar, apps in windows and more.</div>
+  <div class="card"><div class="fold"><i></i><i></i></div><div><b>Unfold your phone to set it up</b><span>FoldDesk walks you through it on the inner screen.</span></div></div>
+  <div class="q">And on this cover screen?</div>
+  <div class="opt${pick===0?' on':''}"><div class="r"></div><div><b>Keep One UI here</b><span>FoldDesk only on the inner screen</span></div></div>
+  <div class="opt${pick===1?' on':''}"><div class="r"></div><div><b>Use FoldDesk here too</b><span>Notifications, widgets, your dock and apps</span></div></div>
+  <div class="btn">Done</div></div>`;
+const oneui = `${status}<div class="ui"><div class="clock">12:00</div><div class="date">Wed, Oct 28</div><div class="grid">${'<i></i>'.repeat(8)}</div></div><div class="tag">One UI Home</div>`;
+const cols = [
+  ['1 · Opening FoldDesk on the cover screen (first time)', welcome(0), 'The real app icon goes where the blue square is. Shown when FoldDesk is opened from its icon or Play\'s "Open" button on the cover screen, while the cover screen is set to One UI. Before, it went straight back to One UI Home and looked broken. "Keep One UI here" is picked by default, as today.'],
+  ['2 · Choosing FoldDesk for the cover screen', welcome(1), 'Same as Settings → Cover screen launcher → FoldDesk cover screen. "Done" saves it and shows the FoldDesk cover home page; with "Keep One UI here" it goes to One UI Home. It only shows once: after that, opening FoldDesk on the cover screen behaves as it does now.'],
+  ['3 · After "Done" with One UI kept', oneui, 'Back to One UI Home on the cover screen. Unfolding shows FoldDesk on the inner screen with its usual setup banner.'],
+];
+document.body.innerHTML = cols.map(([t,s,n])=>`<div class="col"><div class="cap">${t}</div><div class="screen">${s}</div><div class="note">${n}</div></div>`).join('');
+</script></body></html>
