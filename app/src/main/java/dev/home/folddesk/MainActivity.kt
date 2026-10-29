@@ -33,6 +33,8 @@ class MainActivity : ComponentActivity(), WidgetActions {
     /** Home pressed while already home; the cover screen goes back to its first page. */
     private var homePresses by mutableIntStateOf(0)
     private var lastHandOff = 0L
+    /** Set by a Home press: that hand-off goes at once, gap or not. */
+    private var homePressed = false
     /** Opened from its icon on the cover screen before the welcome was answered. */
     private var welcoming by mutableStateOf(false)
 
@@ -91,6 +93,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
         checkWelcome(intent)
         ShellController.closeAll()
         homePresses++
+        homePressed = true
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -126,9 +129,12 @@ class MainActivity : ComponentActivity(), WidgetActions {
         shell.closePopups()
         // Folding brings both a configuration change and a resume. A second home
         // intent right after the first counts as Home pressed again in One UI
-        // Home, which then opens Finder.
+        // Home, which then opens Finder. A real Home press skips the gap though:
+        // holding it back left FoldDesk's empty window on screen (a blank flash).
         val now = SystemClock.uptimeMillis()
-        if (now - lastHandOff < HAND_OFF_GAP_MS) {
+        val pressed = homePressed
+        homePressed = false
+        if (!pressed && now - lastHandOff < HAND_OFF_GAP_MS) {
             // Too soon, but don't drop it: going home quickly from Recents would
             // leave an empty FoldDesk on the cover screen. Try again once the gap
             // is over, if FoldDesk is still in front then.
