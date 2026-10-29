@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk support purchase</title>
+<style>
+  :root { --bg:#0c0c0e; --card:#1c1c1f; --accent:#3e91ff; --text:#fafafa; --subtle:#9a9aa0; --divider:rgba(255,255,255,.08); --run:#4cd964; --heart:#ff6b81; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1560px; height:1180px; overflow:hidden; display:flex; gap:24px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; width:480px; height:1000px; overflow:hidden; border-radius:30px; background:var(--bg); padding:30px 18px; }
+  h1 { font-size:30px; font-weight:600; padding:20px 8px 18px; }
+  .g { font-size:13px; color:var(--accent); padding:16px 10px 8px; }
+  .card { border-radius:22px; background:var(--card); }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; font-size:16px; gap:12px; }
+  .row + .row { border-top:1px solid var(--divider); }
+  .row small { display:block; color:var(--subtle); font-size:13px; margin-top:3px; }
+  .row .v { color:var(--accent); font-size:14px; white-space:nowrap; }
+  .row .chev { color:var(--subtle); font-size:18px; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:4px; background:var(--run); margin-right:8px; }
+  .faded { opacity:.35; }
+  .new { outline:2px dashed rgba(255,215,106,.7); outline-offset:6px; border-radius:22px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:480px; }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.5); }
+  .sheet { position:absolute; left:10px; right:10px; bottom:10px; border-radius:26px; background:#2b2b2f; padding:22px 22px 12px; box-shadow:0 -10px 40px rgba(0,0,0,.5); }
+  .sheet h2 { font-size:19px; font-weight:600; } .sheet p { font-size:14px; color:#d6d6da; line-height:1.5; margin-top:8px; }
+  .tier { display:flex; align-items:center; gap:14px; padding:14px 4px; font-size:15px; border-top:1px solid var(--divider); }
+  .tier:first-of-type { margin-top:12px; }
+  .tier i { width:34px; height:34px; border-radius:10px; flex:none; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:18px; background:rgba(62,145,255,.16); }
+  .tier span { flex:1; } .tier span small { display:block; color:var(--subtle); font-size:12.5px; margin-top:2px; }
+  .price { color:var(--accent); font-weight:600; font-size:15px; }
+  .btns { display:flex; justify-content:flex-end; margin-top:10px; } .btn { color:var(--accent); font-size:15px; font-weight:600; padding:8px 12px; }
+  .heart { color:var(--heart); }
+  .thanks { text-align:center; padding:14px 6px 4px; }
+  .thanks .big { font-size:44px; }
+  .thanks h2 { margin-top:8px; }
+</style></head><body>
+<script>
+const header = `<h1>FoldDesk settings</h1>`;
+const faded = `<div class="faded"><div class="g">Cover screen</div><div class="card"><div class="row"><div>Cover screen launcher</div><span class="v">FoldDesk cover screen</span></div></div>
+  <div class="g">Status</div><div class="card"><div class="row"><div>Taskbar service</div><span><span class="dot"></span><span style="color:var(--run);font-size:13px">Running</span></span></div></div></div>`;
+const about = (supported) => `<div class="new"><div class="g">About</div><div class="card">
+  <div class="row"><div>Version<small>Updates come from Google Play</small></div><span class="v">0.1.16</span></div>
+  <div class="row"><div>What's new<small>Release notes for every version</small></div><span class="chev">›</span></div>
+  <div class="row"><div>Feedback and bug reports<small>GitHub issues, the Reddit thread or email</small></div><span class="chev">›</span></div>
+  <div class="row"><div>Support FoldDesk<small>${supported ? '<span class="heart">♥</span> Thanks for supporting FoldDesk' : 'FoldDesk is free. Leave a tip if you like it'}</small></div><span class="chev">›</span></div>
+</div></div>`;
+const s1 = header + faded + about(false);
+const s2 = header + faded + about(false) + `<div class="dim"></div><div class="sheet"><h2>Support FoldDesk</h2>
+  <p>FoldDesk is free and stays free, with nothing locked. If it's useful to you, a tip helps keep it going.</p>
+  <div class="tier"><i>☕</i><span>A coffee<small>Small thanks</small></span><b class="price">€1.99</b></div>
+  <div class="tier"><i>🍕</i><span>A lunch<small>Big thanks</small></span><b class="price">€4.99</b></div>
+  <div class="tier"><i>🎉</i><span>A great day<small>Huge thanks</small></span><b class="price">€9.99</b></div>
+  <div class="btns"><span class="btn">Close</span></div></div>`;
+const s3 = header + faded + about(true) + `<div class="dim"></div><div class="sheet"><div class="thanks"><div class="big heart">♥</div><h2>Thank you!</h2>
+  <p>Your support means a lot. FoldDesk keeps getting better because of people like you.</p></div>
+  <div class="btns"><span class="btn">Close</span></div></div>`;
+const cols = [
+  ['1 · Play version: "Support FoldDesk" back in About', s1, 'The row the GitHub build uses for Ko-fi now also shows in the Play build, but it opens Google Play\'s own purchase flow instead of a website. Nothing is locked: every feature stays free.'],
+  ['2 · Tap it: three tip sizes', s2, 'Prices come from Google Play, so they show in the user\'s currency (€ here). Tapping a tip opens the normal Play payment sheet. Tips can be given more than once.'],
+  ['3 · After paying', s3, 'A short thank-you, and the row\'s hint changes to "♥ Thanks for supporting FoldDesk". The GitHub build keeps the Ko-fi link and gets no in-app purchases.'],
+];
+document.body.innerHTML = cols.map(([t,s,n])=>`<div class="col"><div class="cap">${t}</div><div class="screen">${s}</div><div class="note">${n}</div></div>`).join('');
+</script></body></html>

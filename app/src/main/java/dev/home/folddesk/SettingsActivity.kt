@@ -47,6 +47,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,6 +92,7 @@ private object Ui {
     val segment: Color @Composable get() = LocalDexColors.current.segment
     val switchOff: Color @Composable get() = LocalDexColors.current.switchOff
     val running = Color(0xFF4CD964)
+    val heart = Color(0xFFFF6B81)
     val stopped: Color @Composable get() = LocalDexColors.current.warning
 }
 
@@ -128,6 +131,45 @@ private fun SettingsScreen(desk: DeskState) {
             }
             OptionRow("Email", selected = null, hint = FEEDBACK_EMAIL) {
                 Launcher.openLink(context, "mailto:$FEEDBACK_EMAIL"); sheet = null
+            }
+        }
+    }
+
+    // Play build only: tips through Google Play, opened from About.
+    val tipStore = remember { createTipStore(context) }
+    DisposableEffect(tipStore) { onDispose { tipStore?.close() } }
+
+    fun showSupport(tips: TipStore) {
+        sheet = Sheet(
+            "Support FoldDesk",
+            "FoldDesk is free and stays free, with nothing locked. If it's useful to you, a tip helps keep it going.",
+            buttons = listOf("Close" to { sheet = null }),
+        ) {
+            if (tips.tips.isEmpty()) {
+                BasicText(
+                    "Tips aren't available right now. Check that Google Play is signed in, then try again.",
+                    style = TextStyle(color = Dex.subtle, fontSize = 13.sp),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                )
+            }
+            for (tip in tips.tips) {
+                TipRow(tip) { (context as? android.app.Activity)?.let { tips.buy(it, tip) } }
+            }
+        }
+    }
+
+    tipStore?.let { tips ->
+        LaunchedEffect(tips.thanked) {
+            if (tips.thanked == 0) return@LaunchedEffect
+            sheet = Sheet("Thank you!", buttons = listOf("Close" to { sheet = null })) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    BasicText("♥", style = TextStyle(color = Ui.heart, fontSize = 40.sp))
+                    BasicText(
+                        "Your support means a lot. FoldDesk keeps getting better because of people like you.",
+                        style = TextStyle(color = Dex.text, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
     }
@@ -343,7 +385,7 @@ private fun SettingsScreen(desk: DeskState) {
                     }
                 }
             }
-            AboutGroup(context, onFeedback = ::showFeedback)
+            AboutGroup(context, tipStore, onFeedback = ::showFeedback, onSupport = { tipStore?.let(::showSupport) })
             Spacer(Modifier.height(24.dp))
         }
 
@@ -359,10 +401,16 @@ private const val KOFI = "https://ko-fi.com/azayn"
 /**
  * Version and where to get updates, notes and help. FoldDesk has no internet
  * permission, so "Check for updates" just opens the latest release in the browser.
- * The Play version updates itself, and Play doesn't allow outside payment links.
+ * The Play version updates itself, and Play doesn't allow outside payment links,
+ * so its "Support FoldDesk" takes tips through Play billing instead of Ko-fi.
  */
 @Composable
-private fun AboutGroup(context: android.content.Context, onFeedback: () -> Unit) {
+private fun AboutGroup(
+    context: android.content.Context,
+    tips: TipStore?,
+    onFeedback: () -> Unit,
+    onSupport: () -> Unit,
+) {
     val play = BuildConfig.PLAY_STORE
     // Hints under the titles; the version and the arrows sit on the right.
     val arrow: @Composable () -> Unit = { BasicText("›", style = TextStyle(color = Dex.subtle, fontSize = 20.sp)) }
@@ -385,6 +433,40 @@ private fun AboutGroup(context: android.content.Context, onFeedback: () -> Unit)
             Divider()
             SettingRow("Support FoldDesk", hint = "ko-fi.com/azayn",
                 onTapAt = { Launcher.openLink(context, KOFI) }, trailing = arrow)
+        } else if (tips != null) {
+            Divider()
+            SettingRow(
+                "Support FoldDesk",
+                hint = if (tips.supported) "♥ Thanks for supporting FoldDesk" else "FoldDesk is free. Leave a tip if you like it",
+                onTapAt = { onSupport() }, trailing = arrow,
+            )
+        }
+    }
+}
+
+/** A tip in the support sheet: emoji tile, name, and Play's price on the right. */
+@Composable
+private fun TipRow(tip: Tip, onClick: () -> Unit) {
+    val (emoji, name, hint) = when (tip.id) {
+        "tip_coffee" -> Triple("☕", "A coffee", "Small thanks")
+        "tip_lunch" -> Triple("🍕", "A lunch", "Big thanks")
+        else -> Triple("🎉", "A great day", "Huge thanks")
+    }
+    HoverBox(corner = 0, modifier = Modifier.fillMaxWidth().deskGestures(onTap = onClick)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(Dex.accent.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center,
+            ) { BasicText(emoji, style = TextStyle(fontSize = 18.sp)) }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                BasicText(name, style = TextStyle(color = Dex.text, fontSize = 15.sp))
+                BasicText(hint, style = TextStyle(color = Dex.subtle, fontSize = 12.5.sp), modifier = Modifier.padding(top = 2.dp))
+            }
+            BasicText(tip.price, style = TextStyle(color = Dex.accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
         }
     }
 }

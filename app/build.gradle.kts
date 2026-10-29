@@ -93,4 +93,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    // Optional tips in the Play build only; the GitHub build stays without it.
+    "playImplementation"("com.android.billingclient:billing-ktx:8.3.0")
 }
