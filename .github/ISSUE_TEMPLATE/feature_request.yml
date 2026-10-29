@@ -1,0 +1,26 @@
+name: Feature request
+description: An idea to make FoldDesk better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help?
+      description: How you'd use it, or what's awkward today without it.
+
+  - type: dropdown
+    id: screen
+    attributes:
+      label: Which screen?
+      options:
+        - Inner screen
+        - Cover screen
+        - Both screens
+        - Phone without a fold

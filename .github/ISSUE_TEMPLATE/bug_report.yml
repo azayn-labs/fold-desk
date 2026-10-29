@@ -1,0 +1,95 @@
+name: Bug report
+description: Something doesn't work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this! The more of the fields below you fill in, the quicker it can be fixed.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: If you know how to make it happen again.
+      placeholder: |
+        1. Unfold the phone
+        2. Open the app drawer
+        3. ...
+
+  - type: input
+    id: version
+    attributes:
+      label: FoldDesk version
+      description: FoldDesk settings → About → Version
+      placeholder: e.g. 0.1.22
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: Installed from
+      options:
+        - GitHub
+        - Google Play
+    validations:
+      required: true
+
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and One UI version
+      description: Settings → About phone → Software information
+      placeholder: e.g. Galaxy Z Fold7, One UI 9
+    validations:
+      required: true
+
+  - type: dropdown
+    id: screen
+    attributes:
+      label: Where does it happen?
+      options:
+        - Inner screen
+        - Cover screen
+        - Both screens
+        - Phone without a fold
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cover-launcher
+    attributes:
+      label: Cover screen launcher
+      description: FoldDesk settings → Cover screen → Cover screen launcher
+      options:
+        - One UI Home
+        - FoldDesk cover screen
+        - FoldDesk desktop (both screens)
+        - Another app
+        - Not sure
+
+  - type: dropdown
+    id: taskbar
+    attributes:
+      label: Is the FoldDesk taskbar turned on?
+      description: Settings → Accessibility → Installed apps → FoldDesk taskbar. FoldDesk settings → Status shows it too.
+      options:
+        - "Yes"
+        - "No"
+        - Not sure
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or a screen recording
+      description: |
+        Drag files in here. This repository is public, so please hide notifications, names and anything else personal first.
