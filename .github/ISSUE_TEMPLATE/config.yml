@@ -3,6 +3,3 @@ contact_links:
   - name: Help test the Google Play version
     url: https://github.com/azayn-labs/fold-desk/issues/4
     about: FoldDesk needs 12 testers on Google Play before it can go public.
-  - name: Email
-    url: mailto:info@azayn.com
-    about: For anything you'd rather not post in public.

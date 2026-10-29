@@ -7,6 +7,8 @@ body:
       value: |
         Thanks for taking the time to report this! The more of the fields below you fill in, the quicker it can be fixed.
 
+        Anything you'd rather not post in public? Email info@azayn.com instead.
+
   - type: textarea
     id: what-happened
     attributes:
