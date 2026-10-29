@@ -304,6 +304,12 @@ private fun SettingsScreen(desk: DeskState) {
                 }
 
                 Group("App drawer") {
+                    SettingRow(
+                        "Open keyboard with app drawer",
+                        hint = "Start typing to search straight away. Also on the cover screen's apps page",
+                        onTapAt = { desk.updateDrawerKeyboard(!desk.drawerKeyboard) },
+                    ) { Switch(desk.drawerKeyboard) }
+                    Divider()
                     val count = desk.hiddenApps.count { key -> desk.apps.any { it.key == key } }
                     SettingRow(
                         "Hidden apps",

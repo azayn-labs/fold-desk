@@ -47,6 +47,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalWindowInfo
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -149,6 +157,8 @@ private fun AppDrawer(shell: ShellController, modifier: Modifier, blurAmount: Fl
     val desk = shell.desk
     val context = LocalContext.current
     var query by remember { mutableStateOf("") }
+    val search = remember { FocusRequester() }
+    FocusSearch(desk.drawerKeyboard, search)
     val results = remember(query, desk.apps, desk.hiddenApps) {
         val q = query.trim().lowercase()
         val shown = desk.apps.filter { !desk.isHidden(it) }
@@ -193,7 +203,7 @@ private fun AppDrawer(shell: ShellController, modifier: Modifier, blurAmount: Fl
                         cursorBrush = SolidColor(Dex.accent),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = { results.firstOrNull()?.let { shell.open(it) } }),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().focusRequester(search),
                     )
                 }
             }
@@ -251,6 +261,31 @@ private fun Modifier.swipeDownToClose(grid: LazyGridState, enabled: () -> Boolea
 @Composable
 private fun RoundButton(onTap: () -> Unit, content: @Composable () -> Unit) {
     HoverBox(corner = 19, modifier = Modifier.size(38.dp).deskGestures(onTap = onTap)) { content() }
+}
+
+/**
+ * Focuses a search field while [active], which brings up the keyboard. Waits for
+ * the window to get focus first: a freshly shown overlay doesn't have it yet,
+ * and focusing before that leaves the keyboard down.
+ */
+@Composable
+internal fun FocusSearch(active: Boolean, search: FocusRequester) {
+    val window = LocalWindowInfo.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
+    var focused by remember { mutableStateOf(false) }
+    LaunchedEffect(active) {
+        if (active) {
+            snapshotFlow { window.isWindowFocused }.first { it }
+            search.requestFocus()
+            keyboard?.show()
+            focused = true
+        } else if (focused) {
+            focus.clearFocus()
+            keyboard?.hide()
+            focused = false
+        }
+    }
 }
 
 @Composable

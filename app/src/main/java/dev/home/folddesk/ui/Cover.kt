@@ -99,6 +99,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -182,7 +184,7 @@ fun CoverScreen(shell: ShellController, homePresses: Int, widgetActions: WidgetA
                     WIDGETS_PAGE -> key(visits) { CoverWidgets(shell, widgetActions, onEditing = { widgetsEditing = it }) }
                     // Keyed on visits, so the search starts empty each time.
                     else -> {
-                        key(visits) { CoverApps(shell) }
+                        key(visits) { CoverApps(shell, active = pager.settledPage == page) }
                         PopupLayer(shell, Modifier.fillMaxSize(), dragTargets = false)
                     }
                 }
@@ -1221,11 +1223,13 @@ private val RECENT_SLOT = 72.dp
 private const val RECENT_MAX = 8
 
 @Composable
-private fun CoverApps(shell: ShellController) {
+private fun CoverApps(shell: ShellController, active: Boolean) {
     val desk = shell.desk
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
+    val search = remember { FocusRequester() }
+    FocusSearch(active && desk.drawerKeyboard, search)
     val groups = remember(desk.apps, desk.hiddenApps, query) {
         val q = query.trim().lowercase()
         desk.apps.filter { !desk.isHidden(it) && (q.isEmpty() || q in it.label.lowercase()) }
@@ -1297,7 +1301,7 @@ private fun CoverApps(shell: ShellController) {
                     singleLine = true,
                     textStyle = TextStyle(color = Dex.text, fontSize = 14.sp),
                     cursorBrush = SolidColor(Dex.accent),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().focusRequester(search),
                 )
             }
             if (query.isNotEmpty()) {

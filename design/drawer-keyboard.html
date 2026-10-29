@@ -1,0 +1,91 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk drawer keyboard setting</title>
+<style>
+  :root { --bg:#0c0c0e; --card:#1c1c1f; --accent:#3e91ff; --text:#fafafa; --subtle:#9a9aa0; --divider:rgba(255,255,255,.08); --panel:rgba(34,35,40,.94); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1700px; height:1080px; overflow:hidden; display:flex; gap:24px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; overflow:hidden; border-radius:30px; background:var(--bg); }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; }
+  h1 { font-size:30px; font-weight:600; padding:20px 8px 18px; }
+  .g { font-size:13px; color:var(--accent); padding:16px 10px 8px; }
+  .card { border-radius:22px; background:var(--card); }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; font-size:16px; gap:12px; }
+  .row + .row { border-top:1px solid var(--divider); }
+  .row small { display:block; color:var(--subtle); font-size:13px; margin-top:3px; line-height:1.35; }
+  .row .v { color:var(--accent); font-size:14px; white-space:nowrap; }
+  .faded { opacity:.35; }
+  .new { outline:2px dashed rgba(255,215,106,.7); outline-offset:6px; border-radius:22px; }
+  .sw { width:44px; height:26px; border-radius:13px; background:var(--accent); position:relative; flex:none; }
+  .sw::after { content:""; position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:10px; background:#fff; }
+  .wall { position:absolute; inset:0; background: radial-gradient(420px 360px at 78% 18%, rgba(118,150,255,.55), transparent 65%), radial-gradient(460px 420px at 12% 92%, rgba(54,196,214,.38), transparent 60%), linear-gradient(160deg,#1b2650,#0b1022 60%,#120c25); }
+  .ic { width:44px; height:44px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:17px; flex:none; }
+  .ic.s { width:30px; height:30px; border-radius:9px; font-size:12px; }
+  .lbl { font-size:11px; text-align:center; margin-top:6px; color:#eef0f5; }
+  .app { display:flex; flex-direction:column; align-items:center; width:72px; }
+  .search { height:40px; border-radius:20px; background:rgba(255,255,255,.1); display:flex; align-items:center; gap:10px; padding:0 16px; font-size:14px; }
+  .search .glass { width:12px; height:12px; border:2px solid var(--subtle); border-radius:7px; flex:none; }
+  .caret { display:inline-block; width:2px; height:18px; background:var(--accent); vertical-align:middle; animation:none; }
+  .kb { position:absolute; left:0; right:0; bottom:0; background:#1f2024; padding:10px 8px 14px; display:flex; flex-direction:column; gap:9px; }
+  .kb .r { display:flex; gap:6px; justify-content:center; }
+  .kb .k { height:42px; flex:1; max-width:56px; border-radius:8px; background:#3a3b41; display:flex; align-items:center; justify-content:center; font-size:16px; color:#eee; }
+  .kb .k.w { max-width:none; flex:5; } .kb .k.m { max-width:84px; flex:1.6; background:#2c2d32; }
+  .kb .k.go { background:var(--accent); }
+  .taskbar { position:absolute; left:0; right:0; bottom:0; height:48px; background:rgba(16,17,21,.86); display:flex; align-items:center; gap:12px; padding:0 14px; }
+  .drawer { position:absolute; left:50%; transform:translateX(-50%); width:520px; border-radius:28px; background:var(--panel); padding:18px 20px; box-shadow:0 30px 70px rgba(0,0,0,.55); }
+  .dgrid { display:grid; grid-template-columns:repeat(5,1fr); gap:16px 6px; margin-top:18px; }
+  .nrow { display:flex; align-items:center; gap:12px; padding:7px 10px; font-size:14px; }
+  .hl { color:var(--accent); font-weight:600; }
+</style></head><body>
+<script>
+const C = { mail:'#e5484d', notes:'#f5a524', web:'#3e91ff', music:'#9b5cf6', photos:'#ff7a59', files:'#d4a017', cal:'#1f9d68', chat:'#25b45e', maps:'#0fa3b1', cam:'#6b7280', clock:'#2b6cb0', set:'#556070', news:'#c2410c', phone:'#16a34a', store:'#2563eb' };
+const L = { mail:'M', notes:'N', web:'W', music:'♪', photos:'P', files:'F', cal:'31', chat:'C', maps:'➤', cam:'◉', clock:'◷', set:'⚙', news:'N', phone:'✆', store:'S' };
+const N = { mail:'Mail', notes:'Notes', web:'Browser', music:'Music', photos:'Photos', files:'Files', cal:'Calendar', chat:'Chat', maps:'Maps', cam:'Camera', clock:'Clock', set:'Settings', news:'News', phone:'Phone', store:'Store' };
+const ic = (k, c='') => `<div class="ic ${c}" style="background:${C[k]}">${L[k]}</div>`;
+const app = k => `<div class="app">${ic(k)}<div class="lbl">${N[k]}</div></div>`;
+const keyboard = (wide) => {
+  const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+  return `<div class="kb" style="${wide ? 'padding:12px 120px 16px' : ''}">
+    <div class="r">${[...rows[0]].map(c => `<div class="k">${c}</div>`).join('')}</div>
+    <div class="r">${[...rows[1]].map(c => `<div class="k">${c}</div>`).join('')}</div>
+    <div class="r"><div class="k m">⇧</div>${[...rows[2]].map(c => `<div class="k">${c}</div>`).join('')}<div class="k m">⌫</div></div>
+    <div class="r"><div class="k m">!#1</div><div class="k">,</div><div class="k w">English</div><div class="k">.</div><div class="k m go">Go</div></div></div>`;
+};
+
+// 1 · Settings
+const settings = `<div class="screen" style="width:460px;height:960px;padding:30px 18px"><h1>FoldDesk settings</h1>
+  <div class="faded"><div class="g">Desktop</div><div class="card"><div class="row"><div>Hide status bar on desktop</div><div class="sw" style="background:#555"></div></div></div></div>
+  <div class="new"><div class="g">App drawer</div><div class="card">
+    <div class="row"><div>Open keyboard with app drawer<small>Start typing to search straight away. Also on the cover screen's apps page.</small></div><div class="sw"></div></div>
+    <div class="row"><div>Hidden apps</div><span class="v">None</span></div>
+  </div></div>
+  <div class="faded"><div class="g">Taskbar shortcuts</div><div class="card"><div class="row"><div>Tap Wi-Fi and battery</div><span class="v">Quick settings</span></div><div class="row"><div>Tap the date and time</div><span class="v">Notifications</span></div></div></div>
+</div>`;
+
+// 2 · Inner screen drawer
+const inner = `<div class="screen" style="width:700px;height:780px"><div class="wall"></div>
+  <div class="taskbar">${['web','mail','chat','music'].map(k => ic(k,'s')).join('')}</div>
+  <div class="drawer" style="top:40px"><div class="search"><span class="glass"></span><span><span class="caret"></span></span><span style="color:var(--subtle)">Search</span></div>
+    <div class="dgrid">${['cal','cam','chat','clock','files','mail','maps','music','news','notes'].map(app).join('')}</div></div>
+  ${keyboard(true)}</div>`;
+
+// 3 · Cover screen apps page
+const list = ['cal','cam','chat','clock','files','mail','maps','music'];
+const cover = `<div class="screen" style="width:400px;height:900px"><div class="wall"></div><div style="position:absolute;inset:0;background:rgba(10,10,14,.35)"></div>
+  <div style="position:absolute;left:14px;right:14px;top:40px">
+    <div style="display:flex;justify-content:space-around;padding:4px 0 6px">${['web','mail','music','maps'].map(app).join('')}</div>
+    <div style="font-size:11px;color:var(--accent);padding:6px 10px">C</div>
+    ${['cal','cam','chat'].map(k => `<div class="nrow">${ic(k,'s')}${N[k]}</div>`).join('')}
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:262px;display:flex;justify-content:space-around">${['photos','notes','chat','store'].map(app).join('')}</div>
+  <div style="position:absolute;left:18px;right:18px;bottom:350px" class="search"><span class="glass"></span><span class="caret"></span><span style="color:var(--subtle)">Search</span></div>
+  ${keyboard(false)}</div>`;
+
+const cols = [
+  ['1 · New switch at the top of "App drawer", off by default', settings, 'One setting for both screens, as asked in issue #3. Off by default, so nothing changes for people who scroll or tap icons.'],
+  ['2 · Inner screen: open the drawer and the keyboard comes up with it', inner, 'Exactly what you get today after tapping Search, just without the tap. Typing filters at once and Go opens the first result. Back closes the keyboard first, a second Back closes the drawer, as now.'],
+  ['3 · Cover screen: swipe to the apps page', cover, 'The search box is focused when the page comes into view, the same as tapping it today: recent apps and favourites stay until you type, then the list filters. Swiping back to the home page closes the keyboard.'],
+];
+document.body.innerHTML = cols.map(([t,s,n]) => `<div class="col"><div class="cap">${t}</div>${s}<div class="note" style="max-width:${t.startsWith('2') ? 700 : 460}px">${n}</div></div>`).join('');
+</script></body></html>

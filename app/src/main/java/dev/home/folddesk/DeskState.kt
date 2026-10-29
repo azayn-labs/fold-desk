@@ -155,6 +155,8 @@ class DeskState(private val context: Context) {
     var keepOverFullScreen by mutableStateOf(sp.getBoolean("keepOverFullScreen", false))
         private set
     var hideStatusBar by mutableStateOf(sp.getBoolean("hideStatusBar", false))
+    /** Focus the search (and bring up the keyboard) when the drawer or the cover app list opens. */
+    var drawerKeyboard by mutableStateOf(sp.getBoolean("drawerKeyboard", false))
         private set
     /** Apps pinned to the top of the cover screen's app list, by key, in the order added. */
     var coverFavourites by mutableStateOf(readList("coverFavourites"))
@@ -719,6 +721,11 @@ class DeskState(private val context: Context) {
     fun updateHideStatusBar(value: Boolean) {
         hideStatusBar = value
         sp.edit().putBoolean("hideStatusBar", value).apply()
+    }
+
+    fun updateDrawerKeyboard(value: Boolean) {
+        drawerKeyboard = value
+        sp.edit().putBoolean("drawerKeyboard", value).apply()
     }
 
     fun isHidden(app: AppEntry) = app.key in hiddenApps
