@@ -8,6 +8,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.content.pm.LauncherApps
+import android.net.Uri
+import android.provider.MediaStore
+import androidx.compose.runtime.derivedStateOf
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
@@ -172,9 +175,30 @@ class DeskState(private val context: Context) {
         sp.edit().putString("coverFavourites", coverFavourites.joinToString("\n")).apply()
     }
 
-    /** The cover screen's dock, by key; starts as a copy of the first taskbar apps. */
-    var coverDock by mutableStateOf(if (sp.contains("coverDock")) readList("coverDock") else pinned.take(5))
-        private set
+    /** The dock as last changed on the cover screen; null until then. */
+    private var savedCoverDock by mutableStateOf(if (sp.contains("coverDock")) readList("coverDock") else null)
+
+    /**
+     * The cover screen's dock, by key. Until it's changed there, it follows the
+     * first taskbar apps, or a few everyday apps on a fresh install with none pinned.
+     */
+    val coverDock: List<String>
+        get() = savedCoverDock ?: pinned.take(5).ifEmpty { everydayApps }
+
+    /** The default phone, messages, browser and camera apps, as installed. */
+    private val everydayApps by derivedStateOf {
+        if (apps.isEmpty()) return@derivedStateOf emptyList()
+        listOf(
+            Intent(Intent.ACTION_DIAL),
+            Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")),
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://")),
+            Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA),
+        ).mapNotNull { intent ->
+            // No default chosen yet resolves to the system's chooser, which isn't an app.
+            val pkg = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
+            pkg?.let { appForPackage(it)?.key }
+        }.distinct()
+    }
 
     fun isInCoverDock(app: AppEntry) = app.key in coverDock
 
@@ -189,7 +213,7 @@ class DeskState(private val context: Context) {
     }
 
     private fun saveCoverDock(list: List<String>) {
-        coverDock = list
+        savedCoverDock = list
         sp.edit().putString("coverDock", list.joinToString("\n")).apply()
     }
 
