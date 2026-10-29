@@ -43,8 +43,6 @@ body:
       options:
         - GitHub
         - Google Play
-    validations:
-      required: true
 
   - type: input
     id: phone
@@ -64,8 +62,6 @@ body:
         - Cover screen
         - Both screens
         - Phone without a fold
-    validations:
-      required: true
 
   - type: dropdown
     id: cover-launcher
