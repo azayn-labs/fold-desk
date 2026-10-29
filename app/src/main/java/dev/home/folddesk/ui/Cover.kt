@@ -20,6 +20,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.Dp
+import android.view.HapticFeedbackConstants
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.input.pointer.PointerEventPass
 import dev.home.folddesk.CoverRow
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.geometry.Size
@@ -1025,29 +1028,28 @@ private fun AppIconRow(
     val context = LocalContext.current
     val rearranging = row != null && shell.coverRearranging == row
     val scroll = rememberScrollState()
-    // The icon being dragged and how far it has moved, scrolling included.
-    var moving by remember { mutableStateOf<Pair<String, Float>?>(null) }
-    LaunchedEffect(rearranging) { if (!rearranging) moving = null }
+    val view = LocalView.current
+    // The icon being dragged; tracked on the row, so scrolling never loses the finger.
+    var drag by remember { mutableStateOf<RowDrag?>(null) }
+    LaunchedEffect(rearranging) { if (!rearranging) drag = null }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val slot = (maxWidth - 24.dp) / perRow
         val slotPx = with(LocalDensity.current) { slot.toPx() }
-        val viewPx = with(LocalDensity.current) { (maxWidth - 24.dp).toPx() }
-        val from = moving?.let { (key, _) -> apps.indexOfFirst { it.key == key } } ?: -1
-        val to = moving?.let { (_, dx) -> landing(from, dx, slotPx, apps.lastIndex) } ?: -1
-        // Held near an edge: scroll that way, and keep the icon under the finger.
-        LaunchedEffect(moving != null) {
-            while (moving != null) {
-                val (key, dx) = moving ?: break
-                val x = apps.indexOfFirst { it.key == key } * slotPx + dx - scroll.value
+        val padPx = with(LocalDensity.current) { 6.dp.toPx() }
+        val viewPx = with(LocalDensity.current) { (maxWidth - 12.dp).toPx() }
+        val from = drag?.let { d -> apps.indexOfFirst { it.key == d.key } } ?: -1
+        val dx = drag?.let { it.finger - it.startFinger + scroll.value - it.startScroll } ?: 0f
+        val to = if (from >= 0) landing(from, dx, slotPx, apps.lastIndex) else -1
+        // Held near an edge: scroll that way; the icon stays under the finger.
+        LaunchedEffect(drag != null) {
+            while (true) {
+                val d = drag ?: break
                 val step = when {
-                    x < slotPx * 0.3f -> -EDGE_SCROLL_PX
-                    x > viewPx - slotPx * 1.3f -> EDGE_SCROLL_PX
+                    d.finger < slotPx * 0.6f -> -EDGE_SCROLL_PX
+                    d.finger > viewPx - slotPx * 0.6f -> EDGE_SCROLL_PX
                     else -> 0f
                 }
-                if (step != 0f) {
-                    val used = scroll.scrollBy(step)
-                    moving = moving?.let { (k, d) -> k to d + used }
-                }
+                if (step != 0f) scroll.scrollBy(step)
                 delay(16)
             }
         }
@@ -1064,8 +1066,49 @@ private fun AppIconRow(
             Row(
                 Modifier.fillMaxWidth()
                     .then(if (rearranging) Modifier.padding(horizontal = 6.dp).dashedOutline(18.dp) else Modifier)
+                    .then(
+                        if (rearranging) {
+                            // A quick swipe scrolls the row; holding still for a moment picks an icon up.
+                            Modifier.pointerInput(apps, slotPx) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    val held = withTimeoutOrNull(PICK_UP_MS) {
+                                        while (true) {
+                                            val change = awaitPointerEvent(PointerEventPass.Initial).changes
+                                                .firstOrNull { it.id == down.id } ?: break
+                                            if (!change.pressed) break
+                                            if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) break
+                                        }
+                                    } == null
+                                    if (!held) return@awaitEachGesture
+                                    val index = ((down.position.x - padPx + scroll.value) / slotPx).toInt()
+                                    val app = apps.getOrNull(index) ?: return@awaitEachGesture
+                                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                    drag = RowDrag(app.key, down.position.x, scroll.value, down.position.x)
+                                    while (true) {
+                                        val change = awaitPointerEvent(PointerEventPass.Initial).changes
+                                            .firstOrNull { it.id == down.id } ?: break
+                                        change.consume()
+                                        if (!change.pressed) break
+                                        drag = drag?.copy(finger = change.position.x)
+                                    }
+                                    drag?.let { d ->
+                                        val keys = apps.map { it.key }.toMutableList()
+                                        val at = keys.indexOf(d.key)
+                                        val moved = d.finger - d.startFinger + scroll.value - d.startScroll
+                                        keys.removeAt(at)
+                                        keys.add(landing(at, moved, slotPx, apps.lastIndex), d.key)
+                                        shell.desk.reorderCoverFavourites(keys)
+                                    }
+                                    drag = null
+                                }
+                            }
+                        } else {
+                            Modifier
+                        },
+                    )
                     // Sideways swipes here are for the row, never for changing page.
-                    .then(if (scrolls) Modifier.nestedScroll(KeepSideways).horizontalScroll(scroll, enabled = !rearranging) else Modifier)
+                    .then(if (scrolls) Modifier.nestedScroll(KeepSideways).horizontalScroll(scroll) else Modifier)
                     .padding(horizontal = if (rearranging) 6.dp else 12.dp),
             ) {
                 (if (scrolls) apps else apps.take(perRow)).forEachIndexed { index, app ->
@@ -1073,7 +1116,7 @@ private fun AppIconRow(
                         val feedback = remember { PressFeedback() }
                         val lifted = index == from
                         val shift = when {
-                            lifted -> moving!!.second
+                            lifted -> dx
                             from < 0 -> 0f
                             index in (from + 1)..to -> -slotPx
                             index in to until from -> slotPx
@@ -1088,21 +1131,7 @@ private fun AppIconRow(
                                 }
                                 .then(
                                     if (rearranging) {
-                                        Modifier.rearrangeDrag(
-                                            app.key,
-                                            onStart = { moving = app.key to 0f },
-                                            onDrag = { dx -> moving = moving?.let { (k, x) -> k to x + dx } },
-                                            onEnd = {
-                                                moving?.let { (k, dx) ->
-                                                    val keys = apps.map { it.key }.toMutableList()
-                                                    val at = keys.indexOf(k)
-                                                    keys.removeAt(at)
-                                                    keys.add(landing(at, dx, slotPx, apps.lastIndex), k)
-                                                    shell.desk.reorderCoverFavourites(keys)
-                                                }
-                                                moving = null
-                                            },
-                                        )
+                                        Modifier
                                     } else {
                                         Modifier.deskGestures(
                                             onTap = { Launcher.open(context, app, windowed = false) },
@@ -1180,7 +1209,12 @@ private fun RearrangeBar(onDone: () -> Unit) {
     }
 }
 
-private const val EDGE_SCROLL_PX = 14f
+private const val EDGE_SCROLL_PX = 18f
+/** How long a finger rests on a favourite before it's picked up instead of scrolling. */
+private const val PICK_UP_MS = 200L
+
+/** A favourite being dragged: where the finger and the scroll were at the start, and the finger now. */
+private data class RowDrag(val key: String, val startFinger: Float, val startScroll: Int, val finger: Float)
 
 private val RECENT_SLOT = 72.dp
 /** More than any cover screen fits in a row; the row takes what fits. */
