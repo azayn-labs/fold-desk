@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk default home prompt</title>
+<style>
+  :root { --bg:#0c0c0e; --card:#1c1c1f; --panel:rgba(38,38,42,.94); --accent:#3e91ff; --text:#fafafa; --subtle:#9a9aa0; --divider:rgba(255,255,255,.08); --run:#4cd964; --warn:#ffb340; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1880px; height:1080px; overflow:hidden; display:flex; gap:24px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; }
+  .inner { position:relative; width:660px; height:900px; border-radius:26px; overflow:hidden;
+    background: radial-gradient(500px 420px at 80% 15%, rgba(97,150,255,.45), transparent 65%), radial-gradient(520px 480px at 10% 95%, rgba(54,196,214,.3), transparent 60%), linear-gradient(160deg,#18264a,#0a0f1d); }
+  .status { position:absolute; top:10px; left:22px; right:22px; display:flex; justify-content:space-between; font-size:13px; color:#ddd; }
+  .icons { position:absolute; top:70px; left:40px; display:grid; grid-template-columns:repeat(2,74px); gap:26px 18px; }
+  .ic { text-align:center; font-size:11px; color:#eee; } .ic i { display:block; width:52px; height:52px; border-radius:15px; margin:0 auto 6px; }
+  .bar { position:absolute; left:0; right:0; bottom:0; height:56px; background:rgba(12,12,14,.86); display:flex; align-items:center; gap:16px; padding:0 18px; }
+  .bar i { width:30px; height:30px; border-radius:9px; } .bar .t { margin-left:auto; font-size:12px; color:#ddd; text-align:right; }
+  .notice { position:absolute; left:50%; transform:translateX(-50%); bottom:76px; width:540px; background:var(--panel); border-radius:22px; display:flex; align-items:center; padding:14px 10px 14px 18px; gap:14px; box-shadow:0 10px 40px rgba(0,0,0,.45); }
+  .notice .b { width:36px; height:36px; border-radius:18px; background:rgba(62,145,255,.18); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:18px; flex:none; }
+  .notice .tx { flex:1; } .notice .tx b { font-weight:400; font-size:14px; display:block; } .notice .tx small { color:var(--subtle); font-size:12.5px; display:block; margin-top:2px; line-height:1.35; }
+  .btn { background:var(--accent); color:#fff; font-weight:600; font-size:13.5px; border-radius:18px; padding:9px 16px; white-space:nowrap; }
+  .x { color:var(--subtle); font-size:16px; padding:10px; }
+  .new { outline:2px dashed rgba(255,215,106,.75); outline-offset:6px; }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.5); }
+  .sys { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:420px; background:#2a2a2e; border-radius:28px; padding:26px 22px 16px; }
+  .sys h3 { font-size:19px; font-weight:600; text-align:center; } .sys p { font-size:13.5px; color:#cfcfd4; text-align:center; margin-top:8px; line-height:1.45; }
+  .opt { display:flex; align-items:center; gap:12px; padding:12px 6px; font-size:15px; } .opt i { width:34px; height:34px; border-radius:10px; }
+  .radio { margin-left:auto; width:20px; height:20px; border-radius:10px; border:2px solid #888; } .radio.on { border-color:var(--accent); background:radial-gradient(circle, var(--accent) 45%, transparent 50%); }
+  .sysb { display:flex; justify-content:space-around; margin-top:10px; font-size:15px; color:var(--accent); font-weight:600; }
+  .screen { position:relative; width:440px; height:900px; overflow:hidden; border-radius:30px; background:var(--bg); padding:30px 18px; }
+  h1 { font-size:30px; font-weight:600; padding:20px 8px 18px; }
+  .g { font-size:13px; color:var(--accent); padding:16px 10px 8px; }
+  .card { border-radius:22px; background:var(--card); }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; font-size:16px; gap:12px; }
+  .row + .row { border-top:1px solid var(--divider); }
+  .row small { display:block; color:var(--subtle); font-size:13px; margin-top:3px; } .row small.v { color:var(--accent); }
+  .faded { opacity:.35; } .dot { display:inline-block; width:8px; height:8px; border-radius:4px; background:var(--run); margin-right:8px; }
+</style></head><body>
+<script>
+const icons = `<div class="icons">${['#e53935','#1a73e8','#25d366','#f4b400','#7e57c2','#00897b'].map((c,i)=>`<div class="ic"><i style="background:${c}"></i>App ${i+1}</div>`).join('')}</div>`;
+const bar = `<div class="bar"><i style="background:#444"></i><i style="background:#e53935"></i><i style="background:#1a73e8"></i><i style="background:#25d366"></i><i style="background:#f4b400"></i><div class="t">12:00<br>Thu, Oct 29</div></div>`;
+const notice = `<div class="notice new"><div class="b">⌂</div><div class="tx"><b>FoldDesk isn't your home app yet</b><small>Set it so Home and unfolding bring you back here. The cover screen stays as it is.</small></div><div class="btn">Set as home</div><div class="x">✕</div></div>`;
+const s1 = `<div class="inner"><div class="status"><span>12:00</span><span>80%</span></div>${icons}${notice}${bar}</div>`;
+const s2 = `<div class="inner"><div class="status"><span>12:00</span><span>80%</span></div>${icons}${bar}<div class="dim"></div>
+  <div class="sys"><h3>Set FoldDesk as your default home app?</h3><p>Android's own dialog, FoldDesk can't change its wording.</p>
+  <div class="opt"><i style="background:linear-gradient(140deg,#3e91ff,#36c4d6)"></i>FoldDesk<span class="radio on"></span></div>
+  <div class="opt"><i style="background:#1d6fe0"></i>One UI Home<span class="radio"></span></div>
+  <div class="sysb"><span>Cancel</span><span>Set as default</span></div></div></div>`;
+const s3 = `<div class="screen"><h1>FoldDesk settings</h1><div class="faded"><div class="g">Cover screen</div><div class="card"><div class="row"><div>Cover screen launcher<small class="v">One UI Home</small></div></div></div></div>
+  <div class="g">Status</div><div class="card new">
+  <div class="row"><div>Default home app<small>Tap to choose</small></div><span style="color:var(--warn);font-size:13px">Another app</span></div>
+  <div class="row"><div>Taskbar service</div><span><span class="dot"></span><span style="color:var(--run);font-size:13px">Running</span></span></div></div></div>`;
+const cols = [
+  ['1 · Opened from its icon while another app is home', s1, 660, 'Same style and spot as the "taskbar is turned off" notice. Shows on the inner screen whenever FoldDesk isn\'t the default home app (e.g. right after installing from Play). ✕ hides it until FoldDesk is opened from its icon again. If the taskbar notice is also due, this one comes first, since without being home FoldDesk can\'t keep the inner screen anyway.'],
+  ['2 · Tap "Set as home"', s2, 660, 'Opens Android\'s own "default home app" dialog (no trip through Settings). After choosing FoldDesk the notice disappears. If the user cancels, the notice stays.'],
+  ['3 · Settings → Status', s3, 440, 'The "Default home app" row phone mode already has also shows on Folds, next to Taskbar service, so it can be fixed later from settings too. Orange "Another app" when FoldDesk isn\'t home, blue "FoldDesk" when it is.'],
+];
+document.body.innerHTML = cols.map(([t,s,w,n])=>`<div class="col" style="width:${w}px"><div class="cap">${t}</div>${s}<div class="note">${n}</div></div>`).join('');
+</script></body></html>

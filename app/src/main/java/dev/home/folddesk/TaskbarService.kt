@@ -16,6 +16,8 @@ import android.content.IntentFilter
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.hardware.display.DisplayManager
+import android.view.Display
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -88,6 +90,10 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             addAction(Intent.ACTION_USER_PRESENT)
         })
         lockReceiverRegistered = true
+        getSystemService(DisplayManager::class.java).let { dm ->
+            panel = dm.getDisplay(Display.DEFAULT_DISPLAY)?.mode?.let { it.physicalWidth to it.physicalHeight }
+            dm.registerDisplayListener(foldListener, handler)
+        }
         updateVisibility()
         handler.post(refreshTick)
         scope.launch {
@@ -135,6 +141,9 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             }
         }
         if (event.packageName == Launcher.ONE_UI_HOME) {
+            // On the inner screen One UI Home only shows up as Recents; the
+            // drawer and menus are our overlays and would stay on top of it.
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) shell.closePopups()
             if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED &&
                 event.source?.viewIdResourceName == RECENTS_CLOSE_ALL
             ) {
@@ -217,6 +226,47 @@ class TaskbarService : AccessibilityService(), SystemKeys {
     private var wasInner = true
 
     /**
+     * Folding or unfolding: drop the bar at once. The configuration change that
+     * hides it for the cover screen comes a moment after the screens switch, and
+     * until then the bar showed on top of the cover launcher. The built-in
+     * display's panel size is what changes when the phone folds or unfolds.
+     */
+    private var panel: Pair<Int, Int>? = null
+    private val foldListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayChanged(displayId: Int) {
+            if (displayId != Display.DEFAULT_DISPLAY) return
+            val mode = getSystemService(DisplayManager::class.java).getDisplay(displayId)?.mode ?: return
+            val size = mode.physicalWidth to mode.physicalHeight
+            val before = panel
+            panel = size
+            if (before == null || before == size) return
+            shell.closePopups()
+            handler.removeCallbacks(revealBar)
+            bar?.let { view ->
+                view.animate().cancel()
+                view.visibility = View.GONE
+                barShown = false
+            }
+            handler.removeCallbacks(updateSoon)
+            handler.postDelayed(updateSoon, FOLD_SETTLE_MS)
+        }
+
+        override fun onDisplayAdded(displayId: Int) = Unit
+        override fun onDisplayRemoved(displayId: Int) = Unit
+    }
+
+    /**
+     * Whether the built-in display is the inner panel right now. Right after
+     * folding, events still arrive with the unfolded configuration; the
+     * panel's shape (near square inside, tall outside) is already right.
+     */
+    private fun panelIsInner(): Boolean {
+        val mode = getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)?.mode ?: return true
+        val (w, h) = mode.physicalWidth to mode.physicalHeight
+        return maxOf(w, h) < minOf(w, h) * 3 / 2
+    }
+
+    /**
      * Unfolded onto the cover launcher (One UI Home by default): press Home so
      * Android opens the default home app, FoldDesk. The service is always
      * running, so this works even when the app process was killed while
@@ -266,6 +316,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         DesktopDrag.finish()
         handler.removeCallbacksAndMessages(null)
         if (lockReceiverRegistered) unregisterReceiver(lockReceiver)
+        getSystemService(DisplayManager::class.java).unregisterDisplayListener(foldListener)
         if (::shell.isInitialized) {
             shell.closePopups()
             ShellController.unregister(shell)
@@ -470,7 +521,9 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         } catch (e: Exception) {
             emptyList()
         }
-        val apps = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+        // A picture-in-picture video floats over everything; the app under it
+        // decides whether the taskbar steps aside.
+        val apps = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && !it.isInPictureInPictureMode }
         val top = apps.maxByOrNull { it.layer }
         val topPackage = top?.root?.packageName?.toString()
         val focusedWindow = apps.firstOrNull { it.isFocused }
@@ -480,7 +533,13 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         focused?.let { pkg -> shell.desk.onAppFocused(pkg)?.let { shell.followAppToDesktop(it, pkg) } }
 
         val screen = wm.maximumWindowMetrics.bounds
+        // Apps put small pop-ups (menus, tooltips) in windows of their own. When
+        // the top one sits inside a bigger window of the same app, go by that.
         val bounds = Rect().also { top?.getBoundsInScreen(it) }
+        apps.filter { it !== top && it.root?.packageName?.toString() == topPackage }.forEach { window ->
+            val around = Rect().also { window.getBoundsInScreen(it) }
+            if (around.contains(bounds)) bounds.set(around)
+        }
         // Pop-up windows never span the screen's width; see Shell.open. Go by
         // focus: pop-up windows stay layered above a full-screen app.
         val split = windows.any { it.type == AccessibilityWindowInfo.TYPE_SPLIT_SCREEN_DIVIDER }
@@ -523,7 +582,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         }
         val keyboard = windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
         val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
-        val show = FoldDeskApp.isInnerScreen(resources.configuration) && !locked &&
+        val show = FoldDeskApp.isInnerScreen(resources.configuration) && panelIsInner() && !locked &&
             !coversTaskbar && !shadeCoversTaskbar && !keyboard
         // Auto hide: step aside for apps, leaving a handle. The desktop and
         // open popups always get the bar.
@@ -581,7 +640,10 @@ class TaskbarService : AccessibilityService(), SystemKeys {
 
     override fun back() { performGlobalAction(GLOBAL_ACTION_BACK) }
     override fun home() { performGlobalAction(GLOBAL_ACTION_HOME) }
-    override fun recents() { performGlobalAction(GLOBAL_ACTION_RECENTS) }
+    override fun recents() {
+        shell.closePopups()
+        performGlobalAction(GLOBAL_ACTION_RECENTS)
+    }
     override fun notifications() { performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS) }
     override fun quickSettings() { performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS) }
     override fun powerMenu() { performGlobalAction(GLOBAL_ACTION_POWER_DIALOG) }
@@ -697,6 +759,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
     companion object {
         private const val REVEAL_DELAY_MS = 80L
         private const val UNFOLD_SETTLE_MS = 400L
+        private const val FOLD_SETTLE_MS = 300L
         private const val COVER_FIX_GAP_MS = 3_000L
         private const val CAPTION_HANDLE = "com.android.systemui:id/caption_handle"
         private const val MINIMIZE_WINDOW = "com.android.systemui:id/minimize_window"

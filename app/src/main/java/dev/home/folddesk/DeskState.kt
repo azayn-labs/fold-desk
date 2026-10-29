@@ -720,6 +720,9 @@ class DeskState(private val context: Context) {
         sp.edit().putBoolean("coverWelcomeSeen", true).apply()
     }
 
+    /** The "not your home app yet" notice was closed; back when opened from the icon again. */
+    var homeNoticeDismissed by mutableStateOf(false)
+
     fun updateCoverLauncher(pkg: String) {
         coverLauncher = pkg
         sp.edit().putString("coverLauncher", pkg).apply()

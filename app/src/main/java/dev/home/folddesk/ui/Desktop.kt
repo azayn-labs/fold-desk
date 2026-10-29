@@ -56,6 +56,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.Icons
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -188,11 +195,28 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
             dragTargets = showTaskbar,
         )
         DesktopPill(shell, Modifier.align(Alignment.TopCenter).padding(top = statusTop + 18.dp))
+        // Not the default home app (e.g. just installed from Play): Home and
+        // unfolding would go elsewhere, so ask first.
+        val context = LocalContext.current
+        var isHome by remember { mutableStateOf(Launcher.isDefaultHome(context)) }
+        LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { isHome = Launcher.isDefaultHome(context) }
+        val requestHome = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            isHome = Launcher.isDefaultHome(context)
+        }
+        val homeNotice = !isHome && !shell.desk.homeNoticeDismissed
+        // Notices wait while the drawer or a menu is open; they'd sit on top of it.
+        if (homeNotice && !shell.hasPopup) {
+            HomeNotice(
+                onSetHome = { requestHome.launch(Launcher.requestHomeRole(context)) },
+                onDismiss = { shell.desk.homeNoticeDismissed = true },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = aboveTaskbar + 16.dp, start = barStart, end = barEnd),
+            )
+        }
         // The fallback taskbar is showing, so the service is off: say so.
         val turnOnTaskbar = rememberTurnOnTaskbar()
         var noticeDismissed by remember { mutableStateOf(false) }
         LaunchedEffect(showTaskbar) { if (!showTaskbar) noticeDismissed = false }
-        if (showTaskbar && !noticeDismissed) {
+        if (showTaskbar && !noticeDismissed && !homeNotice && !shell.hasPopup) {
             ServiceOffNotice(
                 onTurnOn = turnOnTaskbar,
                 onDismiss = { noticeDismissed = true },
@@ -200,6 +224,43 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
             )
         }
         if (widgetActions != null) WidgetPickerLayer(shell, widgetActions, Modifier.padding(top = statusTop, bottom = aboveTaskbar, start = barStart, end = barEnd))
+    }
+}
+
+/** Asks to become the default home app, through Android's own dialog. */
+@Composable
+private fun HomeNotice(onSetHome: () -> Unit, onDismiss: () -> Unit, modifier: Modifier) {
+    Panel(22.dp, modifier.widthIn(max = 560.dp)) {
+        Row(
+            Modifier.deskGestures().padding(start = 18.dp, end = 10.dp, top = 14.dp, bottom = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).background(Dex.accent.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(Icons.Default.Home, contentDescription = null, colorFilter = ColorFilter.tint(Dex.accent), modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                BasicText("FoldDesk isn't your home app yet", style = TextStyle(color = Dex.text, fontSize = 14.sp))
+                BasicText(
+                    "Set it so Home and unfolding bring you back here. The cover screen stays as it is.",
+                    style = TextStyle(color = Dex.subtle, fontSize = 12.5.sp),
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Box(
+                Modifier.clip(RoundedCornerShape(18.dp)).background(Dex.accent)
+                    .deskGestures(onTap = { onSetHome() }).padding(horizontal = 16.dp, vertical = 9.dp),
+            ) {
+                BasicText("Set as home", style = TextStyle(color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold))
+            }
+            Box(Modifier.clip(CircleShape).deskGestures(onTap = { onDismiss() }).padding(10.dp)) {
+                BasicText("✕", style = TextStyle(color = Dex.subtle, fontSize = 16.sp))
+            }
+        }
     }
 }
 

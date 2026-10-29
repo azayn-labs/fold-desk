@@ -3,6 +3,7 @@ package dev.home.folddesk
 import android.app.ActivityOptions
 import android.app.StatusBarManager
 import android.content.ActivityNotFoundException
+import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
@@ -162,6 +163,11 @@ object Launcher {
     fun openWallpaperPicker(context: Context) =
         start(context, Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), "Wallpaper"))
     fun openHomeSettings(context: Context) = start(context, Intent(Settings.ACTION_HOME_SETTINGS))
+    fun isDefaultHome(context: Context) =
+        context.getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_HOME)
+    /** Android's own "set as default home app" dialog. */
+    fun requestHomeRole(context: Context): Intent =
+        context.getSystemService(RoleManager::class.java).createRequestRoleIntent(RoleManager.ROLE_HOME)
     fun openAccessibilitySettings(context: Context) =
         start(context, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
 

@@ -116,6 +116,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
     /** Only when opened as an app (its icon, Play's Open button), not as the home screen. */
     private fun checkWelcome(intent: Intent?) {
         val desk = shell.desk
+        if (intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true) desk.homeNoticeDismissed = false
         welcoming = !desk.coverWelcomeSeen && (desk.noFold || desk.coverUsesOneUi) &&
             intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
     }

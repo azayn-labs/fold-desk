@@ -66,6 +66,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -238,8 +239,8 @@ private fun SettingsScreen(desk: DeskState) {
             val phoneOnly = desk.noFold && !FoldDeskApp.isInnerScreen(LocalConfiguration.current)
             if (phoneOnly) {
                 Group("Home screen") {
-                    var isHome by remember { mutableStateOf(holdsHomeRole(context)) }
-                    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { isHome = holdsHomeRole(context) }
+                    var isHome by remember { mutableStateOf(Launcher.isDefaultHome(context)) }
+                    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { isHome = Launcher.isDefaultHome(context) }
                     SettingRow(
                         "Default home app",
                         hint = "Tap to choose",
@@ -369,6 +370,15 @@ private fun SettingsScreen(desk: DeskState) {
                 }
 
                 Group("Status") {
+                    var isHome by remember { mutableStateOf(Launcher.isDefaultHome(context)) }
+                    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { isHome = Launcher.isDefaultHome(context) }
+                    SettingRow("Default home app", hint = "Tap to choose", onTapAt = { Launcher.openHomeSettings(context) }) {
+                        BasicText(
+                            if (isHome) "FoldDesk" else "Another app",
+                            style = TextStyle(color = if (isHome) Dex.accent else Ui.stopped, fontSize = 13.sp),
+                        )
+                    }
+                    Divider()
                     val running = TaskbarService.running
                     val turnOnTaskbar = rememberTurnOnTaskbar()
                     SettingRow(
@@ -389,7 +399,15 @@ private fun SettingsScreen(desk: DeskState) {
             Spacer(Modifier.height(24.dp))
         }
 
-        SheetHost(sheet, onDismiss = { sheet?.buttons?.first()?.second?.invoke() })
+        // The taskbar overlay is drawn over the bottom of this window, so action
+        // sheets rising from the bottom start above it.
+        val overTaskbar = TaskbarService.running && desk.taskbarSide == TaskbarSide.Bottom &&
+            FoldDeskApp.isInnerScreen(LocalConfiguration.current)
+        SheetHost(
+            sheet,
+            bottomInset = if (overTaskbar) desk.taskbarSize.bar.dp else 0.dp,
+            onDismiss = { sheet?.buttons?.first()?.second?.invoke() },
+        )
     }
 }
 
@@ -470,9 +488,6 @@ private fun TipRow(tip: Tip, onClick: () -> Unit) {
         }
     }
 }
-
-private fun holdsHomeRole(context: android.content.Context) =
-    context.getSystemService(android.app.role.RoleManager::class.java).isRoleHeld(android.app.role.RoleManager.ROLE_HOME)
 
 @Composable
 private fun Group(title: String, content: @Composable () -> Unit) {
@@ -602,7 +617,7 @@ private fun Radio(on: Boolean) {
 // --- Action sheets (One UI style: blurred panel rising from the bottom) ---
 
 @Composable
-private fun SheetHost(sheet: Sheet?, onDismiss: () -> Unit) {
+private fun SheetHost(sheet: Sheet?, bottomInset: Dp, onDismiss: () -> Unit) {
     var shown by remember { mutableStateOf<Sheet?>(null) }
     if (sheet != null) shown = sheet
     val state = remember { MutableTransitionState(false) }
@@ -620,7 +635,7 @@ private fun SheetHost(sheet: Sheet?, onDismiss: () -> Unit) {
         ) {
             val s = shown ?: return@AnimatedVisibility
             BoxWithConstraints {
-                Panel(26.dp, Modifier.padding(bottom = 12.dp).width(minOf(560.dp, maxWidth - 24.dp))) {
+                Panel(26.dp, Modifier.padding(bottom = bottomInset + 12.dp).width(minOf(560.dp, maxWidth - 24.dp))) {
                     Column(Modifier.fillMaxWidth().deskGestures().padding(top = 10.dp)) {
                         Box(
                             Modifier.align(Alignment.CenterHorizontally).size(width = 40.dp, height = 4.dp)
