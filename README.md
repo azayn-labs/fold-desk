@@ -5,8 +5,12 @@ A Samsung DeX–style desktop launcher for the **inner screen of the Galaxy Z Fo
 any launcher you pick), so the folded phone behaves exactly as before. Or try
 its own cover screen, an at-a-glance view of your notifications and your day.
 
-It's a sideloaded, open-source app (not on the Play Store). Signed APKs are
-published on the [Releases page](../../releases).
+It's a free, open-source app. Signed APKs are published on the
+[Releases page](../../releases).
+
+> **Help wanted:** FoldDesk is on its way to Google Play, and Google needs 12
+> people to test it for 14 days before it can go public. If you can help, see
+> [issue #4](../../issues/4) for how to join.
 
 ## Compatibility
 
