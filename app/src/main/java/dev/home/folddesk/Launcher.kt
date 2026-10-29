@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.LauncherApps
 import android.graphics.Rect
 import android.net.Uri
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.view.WindowInsets
@@ -25,8 +26,19 @@ object Launcher {
     private var cascade = 0
 
     /** Pop-up windows are an inner-screen thing; on the cover screen apps always open full screen. */
-    fun open(context: Context, app: AppEntry, windowed: Boolean, size: WindowSize = WindowSize.Medium) =
-        start(context, app, windowOptions(context, windowed && FoldDeskApp.isInnerScreen(context.resources.configuration), size))
+    fun open(context: Context, app: AppEntry, windowed: Boolean, size: WindowSize = WindowSize.Medium) {
+        val inner = FoldDeskApp.isInnerScreen(context.resources.configuration)
+        if (!inner) lastCoverOpen = app.label to SystemClock.uptimeMillis()
+        start(context, app, windowOptions(context, windowed && inner, size))
+    }
+
+    /**
+     * The app FoldDesk last opened on the cover screen, and when. If Android
+     * brings it back in a pop-up window, the taskbar service makes it full
+     * screen; pop-ups the user makes themselves are left alone.
+     */
+    @Volatile var lastCoverOpen: Pair<String, Long>? = null
+        private set
 
     private fun windowOptions(context: Context, windowed: Boolean, size: WindowSize): ActivityOptions {
         val options = ActivityOptions.makeBasic()

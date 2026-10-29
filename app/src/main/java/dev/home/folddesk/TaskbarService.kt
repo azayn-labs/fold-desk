@@ -220,6 +220,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         updateVisibility()
         val inner = FoldDeskApp.isInnerScreen(newConfig)
         if (inner && !wasInner) handler.postDelayed(::returnToDesktop, UNFOLD_SETTLE_MS)
+        if (!inner && wasInner) foldedAt = SystemClock.uptimeMillis()
         wasInner = inner
     }
 
@@ -286,13 +287,17 @@ class TaskbarService : AccessibilityService(), SystemKeys {
      */
     /** Last app made full screen on the cover screen, and when; keeps it from looping. */
     private var coverFix = "" to 0L
+    /** When the phone was last folded; a pop-up that came along gets made full screen. */
+    private var foldedAt = 0L
 
     /**
      * Pop-up windows are for the inner screen. One that came along when the
-     * phone was folded, or that an app reopened in on the cover screen, is
-     * just in the way there, so press its Maximize button, the same way as
-     * Minimize for desktop switching. Launching the app again with full-screen
-     * options isn't enough on the cover screen; Android keeps the window.
+     * phone was folded, or that an app reopened in when FoldDesk opened it on
+     * the cover screen, is just in the way there, so press its Maximize
+     * button, the same way as Minimize for desktop switching. Launching the
+     * app again with full-screen options isn't enough on the cover screen;
+     * Android keeps the window. Pop-ups made on purpose (e.g. dragged from the
+     * Edge panel) stay as they are.
      */
     private fun fullScreenOnCover() {
         val handle = windows.mapNotNull { it.root }
@@ -300,6 +305,9 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             .firstOrNull() ?: return
         val label = handle.contentDescription?.toString() ?: return
         val now = SystemClock.uptimeMillis()
+        val justFolded = now - foldedAt < COVER_FIX_WINDOW_MS
+        val justOpened = Launcher.lastCoverOpen?.let { (app, at) -> now - at < COVER_FIX_WINDOW_MS && label.startsWith(app) } == true
+        if (!justFolded && !justOpened) return
         if (coverFix.first == label && now - coverFix.second < COVER_FIX_GAP_MS) return
         coverFix = label to now
         handle.performAction(AccessibilityNodeInfo.ACTION_CLICK)
@@ -761,6 +769,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         private const val UNFOLD_SETTLE_MS = 400L
         private const val FOLD_SETTLE_MS = 300L
         private const val COVER_FIX_GAP_MS = 3_000L
+        private const val COVER_FIX_WINDOW_MS = 4_000L
         private const val CAPTION_HANDLE = "com.android.systemui:id/caption_handle"
         private const val MINIMIZE_WINDOW = "com.android.systemui:id/minimize_window"
         private const val CLOSE_WINDOW = "com.android.systemui:id/close_window"
