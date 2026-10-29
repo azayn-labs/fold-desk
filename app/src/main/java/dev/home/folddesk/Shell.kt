@@ -7,6 +7,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 
 /** A menu row; with [submenu] it opens a side list instead of running [action]. */
+/** Rows of app icons on the cover screen that can be put in a new order. */
+enum class CoverRow { Dock, Favourites }
+
 data class MenuItem(
     val label: String,
     /** Current choice, shown dimmed on the right. */
@@ -167,13 +170,17 @@ class ShellController(
     }
 
     /** Long press on an app in the cover screen's app list. */
-    fun coverAppMenu(app: AppEntry, at: Offset) {
+    /** The cover screen row whose icons are being put in a new order, if any. */
+    var coverRearranging by mutableStateOf<CoverRow?>(null)
+
+    /** [row] is where the icon was held, for its "Rearrange" item. */
+    fun coverAppMenu(app: AppEntry, at: Offset, row: CoverRow? = null) {
         showMenu(
             MenuState(
                 at = at,
                 header = app,
                 groups = listOf(
-                    listOf(
+                    listOfNotNull(
                         if (desk.isInCoverDock(app)) {
                             MenuItem("Remove from dock") { desk.toggleCoverDock(app) }
                         } else {
@@ -182,6 +189,9 @@ class ShellController(
                         },
                         MenuItem(if (desk.isCoverFavourite(app)) "Remove from favourites" else "Add to favourites") {
                             desk.toggleCoverFavourite(app)
+                        },
+                        row?.let { r ->
+                            MenuItem(if (r == CoverRow.Dock) "Rearrange dock" else "Rearrange favourites") { coverRearranging = r }
                         },
                         MenuItem("Hide from app list") { desk.updateHiddenApps(desk.hiddenApps + app.key) },
                     ),

@@ -20,6 +20,13 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.Dp
+import dev.home.folddesk.CoverRow
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.gestures.detectDragGestures
 import dev.home.folddesk.Widgets
@@ -149,19 +156,20 @@ fun CoverScreen(shell: ShellController, homePresses: Int, widgetActions: WidgetA
     LaunchedEffect(homePresses) { pager.animateScrollToPage(MAIN_PAGE) }
     var visits by remember { mutableIntStateOf(0) }
     LaunchedEffect(pager.settledPage) { if (pager.settledPage == MAIN_PAGE) visits++ }
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { visits++ }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { visits++; shell.coverRearranging = null }
     BackHandler(enabled = pager.currentPage != MAIN_PAGE) { scope.launch { pager.animateScrollToPage(MAIN_PAGE) } }
     // Declared after, so it goes first: Back closes an open menu before leaving the page.
     BackHandler(enabled = shell.hasPopup) { shell.closePopups() }
-    // A menu belongs to the page it was opened on.
-    LaunchedEffect(pager.currentPage) { shell.closePopups() }
+    BackHandler(enabled = shell.coverRearranging != null && !shell.hasPopup) { shell.coverRearranging = null }
+    // A menu (or rearranging) belongs to the page it was opened on.
+    LaunchedEffect(pager.currentPage) { shell.closePopups(); shell.coverRearranging = null }
     // Editing widgets: sideways drags are for resizing, not for changing page.
     var widgetsEditing by remember { mutableStateOf(false) }
 
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     Box(Modifier.fillMaxSize()) {
-        HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = !widgetsEditing) { page ->
+        HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = !widgetsEditing && shell.coverRearranging == null) { page ->
             Box(Modifier.fillMaxSize().padding(top = top + 18.dp, bottom = bottom)) {
                 when (page) {
                     MAIN_PAGE -> {
@@ -233,6 +241,7 @@ private fun Glance(shell: ShellController, visits: Int) {
                 ),
             )
             Box(Modifier.fillMaxWidth().weight(1f - split)) { CalendarSection(now, resumes) }
+            if (shell.coverRearranging == CoverRow.Dock) RearrangeBar { shell.coverRearranging = null }
             Dock(shell, Modifier.height(dockHeight))
         }
     }
@@ -641,12 +650,17 @@ private fun Dock(shell: ShellController, modifier: Modifier) {
     var rowWidth by remember { mutableFloatStateOf(1f) }
     // Menus open above the dock rather than over it.
     var dockTop by remember { mutableFloatStateOf(0f) }
+    val rearranging = shell.coverRearranging == CoverRow.Dock
     if (apps.isEmpty()) {
         Spacer(modifier)
         return
     }
     Box(modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
-        Panel(24.dp, Modifier.fillMaxSize().onGloballyPositioned { dockTop = it.positionInRoot().y }) {
+        Panel(
+            24.dp,
+            Modifier.fillMaxSize().onGloballyPositioned { dockTop = it.positionInRoot().y }
+                .then(if (rearranging) Modifier.dashedOutline(24.dp) else Modifier),
+        ) {
             Row(
                 Modifier.fillMaxSize().padding(horizontal = 10.dp).onSizeChanged { rowWidth = it.width.toFloat() },
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -655,7 +669,7 @@ private fun Dock(shell: ShellController, modifier: Modifier) {
                 // Evenly spaced, so every icon has the same share of the row.
                 val slot = rowWidth / apps.size
                 val from = moving?.let { (key, _) -> apps.indexOfFirst { it.key == key } } ?: -1
-                val to = moving?.let { (_, dx) -> (from + (dx / slot).roundToInt()).coerceIn(0, apps.lastIndex) } ?: -1
+                val to = moving?.let { (_, dx) -> landing(from, dx, slot, apps.lastIndex) } ?: -1
                 apps.forEachIndexed { index, app ->
                     val shift = when {
                         index == from -> moving!!.second
@@ -675,17 +689,32 @@ private fun Dock(shell: ShellController, modifier: Modifier) {
                                 if (lifted) { scaleX = 1.12f; scaleY = 1.12f }
                             }
                             .size(44.dp)
-                            .deskGestures(
-                                onTap = { Launcher.open(context, app, windowed = false) },
-                                onMenu = { shell.coverAppMenu(app, Offset(it.x, dockTop)) },
-                                onDragStart = {
-                                    shell.closeMenu()
-                                    moving = app.key to 0f
-                                },
-                                onDrag = { delta -> moving = moving?.let { (key, dx) -> key to dx + delta.x } },
-                                onDragEnd = {
-                                    if (to >= 0) desk.moveCoverDock(app.key, to)
-                                    moving = null
+                            .then(
+                                if (rearranging) {
+                                    // Rearranging: a plain drag moves the icon, taps do nothing.
+                                    Modifier.rearrangeDrag(
+                                        app.key,
+                                        onStart = { moving = app.key to 0f },
+                                        onDrag = { dx -> moving = moving?.let { (key, x) -> key to x + dx } },
+                                        onEnd = {
+                                            moving?.let { (key, dx) -> desk.moveCoverDock(key, landing(apps.indexOfFirst { it.key == key }, dx, slot, apps.lastIndex)) }
+                                            moving = null
+                                        },
+                                    )
+                                } else {
+                                    Modifier.deskGestures(
+                                        onTap = { Launcher.open(context, app, windowed = false) },
+                                        onMenu = { shell.coverAppMenu(app, Offset(it.x, dockTop), CoverRow.Dock.takeIf { apps.size > 1 }) },
+                                        onDragStart = {
+                                            shell.closeMenu()
+                                            moving = app.key to 0f
+                                        },
+                                        onDrag = { delta -> moving = moving?.let { (key, dx) -> key to dx + delta.x } },
+                                        onDragEnd = {
+                                            if (to >= 0) desk.moveCoverDock(app.key, to)
+                                            moving = null
+                                        },
+                                    )
                                 },
                             ),
                     )
@@ -970,7 +999,7 @@ private fun FavouriteApps(shell: ShellController) {
     }
     if (favourites.isEmpty()) return
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        AppIconRow(shell, null, favourites, (maxWidth / RECENT_SLOT).toInt().coerceAtLeast(1), scrolls = true)
+        AppIconRow(shell, null, favourites, (maxWidth / RECENT_SLOT).toInt().coerceAtLeast(1), scrolls = true, row = CoverRow.Favourites)
     }
 }
 
@@ -980,12 +1009,48 @@ private object KeepSideways : NestedScrollConnection {
     override suspend fun onPostFling(consumed: Velocity, available: Velocity) = available.copy(y = 0f)
 }
 
-/** A labelled row of app icons, [perRow] to the width. */
+/**
+ * A labelled row of app icons, [perRow] to the width. When [row] is being
+ * rearranged, a plain drag moves an icon and the row scrolls at its edges.
+ */
 @Composable
-private fun AppIconRow(shell: ShellController, title: String?, apps: List<AppEntry>, perRow: Int, scrolls: Boolean) {
+private fun AppIconRow(
+    shell: ShellController,
+    title: String?,
+    apps: List<AppEntry>,
+    perRow: Int,
+    scrolls: Boolean,
+    row: CoverRow? = null,
+) {
     val context = LocalContext.current
+    val rearranging = row != null && shell.coverRearranging == row
+    val scroll = rememberScrollState()
+    // The icon being dragged and how far it has moved, scrolling included.
+    var moving by remember { mutableStateOf<Pair<String, Float>?>(null) }
+    LaunchedEffect(rearranging) { if (!rearranging) moving = null }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val slot = (maxWidth - 24.dp) / perRow
+        val slotPx = with(LocalDensity.current) { slot.toPx() }
+        val viewPx = with(LocalDensity.current) { (maxWidth - 24.dp).toPx() }
+        val from = moving?.let { (key, _) -> apps.indexOfFirst { it.key == key } } ?: -1
+        val to = moving?.let { (_, dx) -> landing(from, dx, slotPx, apps.lastIndex) } ?: -1
+        // Held near an edge: scroll that way, and keep the icon under the finger.
+        LaunchedEffect(moving != null) {
+            while (moving != null) {
+                val (key, dx) = moving ?: break
+                val x = apps.indexOfFirst { it.key == key } * slotPx + dx - scroll.value
+                val step = when {
+                    x < slotPx * 0.3f -> -EDGE_SCROLL_PX
+                    x > viewPx - slotPx * 1.3f -> EDGE_SCROLL_PX
+                    else -> 0f
+                }
+                if (step != 0f) {
+                    val used = scroll.scrollBy(step)
+                    moving = moving?.let { (k, d) -> k to d + used }
+                }
+                delay(16)
+            }
+        }
         Column(Modifier.fillMaxWidth()) {
             if (title != null) {
                 BasicText(
@@ -998,19 +1063,54 @@ private fun AppIconRow(shell: ShellController, title: String?, apps: List<AppEnt
             }
             Row(
                 Modifier.fillMaxWidth()
+                    .then(if (rearranging) Modifier.padding(horizontal = 6.dp).dashedOutline(18.dp) else Modifier)
                     // Sideways swipes here are for the row, never for changing page.
-                    .then(if (scrolls) Modifier.nestedScroll(KeepSideways).horizontalScroll(rememberScrollState()) else Modifier)
-                    .padding(horizontal = 12.dp),
+                    .then(if (scrolls) Modifier.nestedScroll(KeepSideways).horizontalScroll(scroll, enabled = !rearranging) else Modifier)
+                    .padding(horizontal = if (rearranging) 6.dp else 12.dp),
             ) {
-                for (app in if (scrolls) apps else apps.take(perRow)) {
+                (if (scrolls) apps else apps.take(perRow)).forEachIndexed { index, app ->
                     key(app.key) {
                         val feedback = remember { PressFeedback() }
+                        val lifted = index == from
+                        val shift = when {
+                            lifted -> moving!!.second
+                            from < 0 -> 0f
+                            index in (from + 1)..to -> -slotPx
+                            index in to until from -> slotPx
+                            else -> 0f
+                        }
                         Column(
-                            Modifier.width(slot).deskGestures(
-                                onTap = { Launcher.open(context, app, windowed = false) },
-                                onMenu = { shell.coverAppMenu(app, it) },
-                                feedback = feedback,
-                            ),
+                            Modifier.width(slot)
+                                .zIndex(if (lifted) 1f else 0f)
+                                .graphicsLayer {
+                                    translationX = shift
+                                    if (lifted) { scaleX = 1.12f; scaleY = 1.12f }
+                                }
+                                .then(
+                                    if (rearranging) {
+                                        Modifier.rearrangeDrag(
+                                            app.key,
+                                            onStart = { moving = app.key to 0f },
+                                            onDrag = { dx -> moving = moving?.let { (k, x) -> k to x + dx } },
+                                            onEnd = {
+                                                moving?.let { (k, dx) ->
+                                                    val keys = apps.map { it.key }.toMutableList()
+                                                    val at = keys.indexOf(k)
+                                                    keys.removeAt(at)
+                                                    keys.add(landing(at, dx, slotPx, apps.lastIndex), k)
+                                                    shell.desk.reorderCoverFavourites(keys)
+                                                }
+                                                moving = null
+                                            },
+                                        )
+                                    } else {
+                                        Modifier.deskGestures(
+                                            onTap = { Launcher.open(context, app, windowed = false) },
+                                            onMenu = { shell.coverAppMenu(app, it, row.takeIf { apps.size > 1 }) },
+                                            feedback = feedback,
+                                        )
+                                    },
+                                ),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Image(app.icon, contentDescription = null, modifier = Modifier.size(46.dp))
@@ -1026,6 +1126,61 @@ private fun AppIconRow(shell: ShellController, title: String?, apps: List<AppEnt
         }
     }
 }
+
+/** Where an icon dragged [dx] from slot [from] lands, in a row of [slot]-wide places. */
+private fun landing(from: Int, dx: Float, slot: Float, last: Int) =
+    (from + (dx / slot).roundToInt()).coerceIn(0, last)
+
+/** A plain sideways drag, for rows being rearranged; it starts at once, no long press. */
+private fun Modifier.rearrangeDrag(key: Any, onStart: () -> Unit, onDrag: (Float) -> Unit, onEnd: () -> Unit) =
+    pointerInput(key) {
+        detectDragGestures(
+            onDragStart = { onStart() },
+            onDrag = { change, delta -> change.consume(); onDrag(delta.x) },
+            onDragEnd = onEnd,
+            onDragCancel = onEnd,
+        )
+    }
+
+/** The dashed outline that marks a row being rearranged. */
+@Composable
+private fun Modifier.dashedOutline(radius: Dp): Modifier {
+    val color = Dex.accent.copy(alpha = 0.75f)
+    return drawWithContent {
+        drawContent()
+        val stroke = 2.dp.toPx()
+        drawRoundRect(
+            color,
+            topLeft = Offset(stroke / 2, stroke / 2),
+            size = Size(size.width - stroke, size.height - stroke),
+            cornerRadius = CornerRadius(radius.toPx()),
+            style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()))),
+        )
+    }
+}
+
+/** "Drag icons to move them" and a Done button, above a row being rearranged. */
+@Composable
+private fun RearrangeBar(onDone: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 22.dp, end = 14.dp, top = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicText(
+            "Drag icons to move them",
+            style = TextStyle(color = Dex.text.copy(alpha = 0.85f), fontSize = 12.5.sp, shadow = Shadow(Dex.bar, blurRadius = 8f)),
+            modifier = Modifier.weight(1f),
+        )
+        Box(
+            Modifier.clip(RoundedCornerShape(16.dp)).background(Dex.accent)
+                .deskGestures(onTap = onDone).padding(horizontal = 16.dp, vertical = 7.dp),
+        ) {
+            BasicText("Done", style = TextStyle(color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+        }
+    }
+}
+
+private const val EDGE_SCROLL_PX = 14f
 
 private val RECENT_SLOT = 72.dp
 /** More than any cover screen fits in a row; the row takes what fits. */
@@ -1120,7 +1275,10 @@ private fun CoverApps(shell: ShellController) {
                 )
             }
         }
-        if (query.isEmpty()) FavouriteApps(shell)
+        if (query.isEmpty()) {
+            if (shell.coverRearranging == CoverRow.Favourites) RearrangeBar { shell.coverRearranging = null }
+            FavouriteApps(shell)
+        }
     }
 }
 

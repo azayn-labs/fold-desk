@@ -164,6 +164,14 @@ class DeskState(private val context: Context) {
         sp.edit().putString("coverFavourites", coverFavourites.joinToString("\n")).apply()
     }
 
+    /** A new order for the favourites on show; ones not shown (hidden apps) keep their places. */
+    fun reorderCoverFavourites(shown: List<String>) {
+        val next = ArrayDeque(shown)
+        val moved = shown.toSet()
+        coverFavourites = coverFavourites.map { if (it in moved) next.removeFirst() else it }
+        sp.edit().putString("coverFavourites", coverFavourites.joinToString("\n")).apply()
+    }
+
     /** The cover screen's dock, by key; starts as a copy of the first taskbar apps. */
     var coverDock by mutableStateOf(if (sp.contains("coverDock")) readList("coverDock") else pinned.take(5))
         private set
