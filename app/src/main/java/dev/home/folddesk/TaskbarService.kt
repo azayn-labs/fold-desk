@@ -113,7 +113,18 @@ class TaskbarService : AccessibilityService(), SystemKeys {
     /** Lock and unlock don't always produce window events; re-check on each. */
     private var lockReceiverRegistered = false
     private val lockReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = updateVisibility()
+        override fun onReceive(context: Context, intent: Intent) {
+            updateVisibility()
+            if (intent.action == Intent.ACTION_USER_PRESENT && returnAfterUnlock) {
+                returnAfterUnlock = false
+                // The screen is settled by now, so check soon; once more in case
+                // the launcher wasn't in front yet. It does nothing once home.
+                if (panelIsInner()) {
+                    handler.postDelayed(::returnToDesktop, UNLOCK_SETTLE_MS)
+                    handler.postDelayed(::returnToDesktop, UNFOLD_SETTLE_MS)
+                }
+            }
+        }
     }
 
     /**
@@ -220,7 +231,10 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         updateVisibility()
         val inner = FoldDeskApp.isInnerScreen(newConfig)
         if (inner && !wasInner) handler.postDelayed(::returnToDesktop, UNFOLD_SETTLE_MS)
-        if (!inner && wasInner) foldedAt = SystemClock.uptimeMillis()
+        if (!inner && wasInner) {
+            foldedAt = SystemClock.uptimeMillis()
+            returnAfterUnlock = false
+        }
         wasInner = inner
     }
 
@@ -273,8 +287,17 @@ class TaskbarService : AccessibilityService(), SystemKeys {
      * running, so this works even when the app process was killed while
      * folded, and needs no background-start or usage permission.
      */
+    /** Unfolded while locked; [returnToDesktop] runs again on unlock. */
+    private var returnAfterUnlock = false
+
     private fun returnToDesktop() {
         if (!shell.desk.coverUsesOneUi) return
+        // Unfolded while locked: the lock screen is in front, and the cover
+        // launcher only shows once unlocked. Check again then.
+        if (getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
+            returnAfterUnlock = true
+            return
+        }
         val front = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
             .maxByOrNull { it.layer }?.root?.packageName?.toString()
         if (front == shell.desk.coverLauncher) performGlobalAction(GLOBAL_ACTION_HOME)
@@ -767,6 +790,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
     companion object {
         private const val REVEAL_DELAY_MS = 80L
         private const val UNFOLD_SETTLE_MS = 400L
+        private const val UNLOCK_SETTLE_MS = 100L
         private const val FOLD_SETTLE_MS = 300L
         private const val COVER_FIX_GAP_MS = 3_000L
         private const val COVER_FIX_WINDOW_MS = 4_000L
