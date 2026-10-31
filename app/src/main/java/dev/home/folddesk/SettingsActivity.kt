@@ -216,7 +216,11 @@ private fun SettingsScreen(desk: DeskState) {
             "Swipe right on the first desktop", "On an empty part of the desktop",
             buttons = listOf("Cancel" to { sheet = null }),
         ) {
-            SwipeAppPicker(desk, query) { key ->
+            SwipeAppPicker(
+                desk, query,
+                onPage = { desk.updateTodayPage(true); sheet = null },
+            ) { key ->
+                desk.updateTodayPage(false)
                 desk.updateSwipeRightApp(key)
                 sheet = null
             }
@@ -376,7 +380,7 @@ private fun SettingsScreen(desk: DeskState) {
                     Divider()
                     SettingRow(
                         "Swipe right on the first desktop",
-                        value = desk.swipeRightApp?.let(desk::app)?.label ?: "Nothing",
+                        value = if (desk.todayPage) "Today page" else desk.swipeRightApp?.let(desk::app)?.label ?: "Nothing",
                         onTapAt = { pickSwipeRightApp() },
                     )
                     Divider()
@@ -719,16 +723,21 @@ private fun HiddenAppsPicker(desk: DeskState, query: MutableState<String>) {
     shown.forEach { HiddenAppRow(desk, it) }
 }
 
-/** "Nothing", then every app, the Google app first: it's the one that gets you Discover. */
+/** "Nothing", the Today page, then every app, the Google app first: it's the one that gets you Discover. */
 @Composable
-private fun SwipeAppPicker(desk: DeskState, query: MutableState<String>, onPick: (String?) -> Unit) {
-    OptionRow("Nothing", selected = desk.swipeRightApp == null) { onPick(null) }
+private fun SwipeAppPicker(desk: DeskState, query: MutableState<String>, onPage: () -> Unit, onPick: (String?) -> Unit) {
+    OptionRow("Nothing", selected = !desk.todayPage && desk.swipeRightApp == null) { onPick(null) }
+    OptionRow(
+        "Today page", selected = desk.todayPage, tag = "NEW",
+        hint = "Your day, news from your news apps and widgets, left of desktop 1",
+    ) { onPage() }
+    PickerSection("Open an app")
     AppSearchField(query)
     val q = query.value.trim().lowercase()
     val (google, rest) = desk.apps.filter { q.isEmpty() || q in it.label.lowercase() }
         .partition { it.pkg == GOOGLE_APP }
     for (app in google + rest) {
-        OptionRow(app.label, selected = app.key == desk.swipeRightApp, icon = app.icon) { onPick(app.key) }
+        OptionRow(app.label, selected = !desk.todayPage && app.key == desk.swipeRightApp, icon = app.icon) { onPick(app.key) }
     }
 }
 

@@ -92,7 +92,7 @@ data class CoverNotification(
         }
 
         /** Opens what a notification points at, as tapping it in the shade would. */
-        private fun send(context: Context, intent: PendingIntent?, keys: List<String>, autoCancel: Boolean, fallback: () -> Unit) {
+        fun send(context: Context, intent: PendingIntent?, keys: List<String>, autoCancel: Boolean, fallback: () -> Unit) {
             val pending = intent ?: return fallback()
             try {
                 val mode = if (Build.VERSION.SDK_INT >= 36) {

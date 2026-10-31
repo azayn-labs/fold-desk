@@ -34,7 +34,7 @@ data class MenuState(
     val taskbarEdge: TaskbarSide? = null,
 )
 
-enum class OpenMode { Default, Window, Fullscreen, Front }
+enum class OpenMode { Default, Window, Fullscreen, Front, Page }
 
 /** System keys; only available while [TaskbarService] is running. */
 interface SystemKeys {
@@ -89,6 +89,8 @@ class ShellController(
     /** Widget picker (home screen only). */
     var widgetPickerOpen by mutableStateOf(false)
         private set
+    /** The Today page, left of the first desktop. Home and Back close it. */
+    var todayOpen by mutableStateOf(false)
     /** Widget showing resize handles. */
     var resizingWidget by mutableStateOf<Int?>(null)
         private set
@@ -133,6 +135,7 @@ class ShellController(
     }
 
     fun closePopups() {
+        todayOpen = false
         if (!hasPopup && !widgetPickerOpen && resizingWidget == null) return
         drawerOpen = false
         switcherOpen = false
@@ -243,6 +246,7 @@ class ShellController(
             OpenMode.Default -> Launcher.open(context, app, desk.openInWindow, desk.windowSizeFor(app))
             OpenMode.Window -> Launcher.open(context, app, true, desk.windowSizeFor(app))
             OpenMode.Fullscreen -> Launcher.open(context, app, false)
+            OpenMode.Page -> Launcher.openAsPage(context, app)
             // The taskbar can think an app is open after it was closed with Back
             // (nothing reports that), so a windowed app gets what a fresh window
             // needs; an open window keeps its place. Window options would turn a
@@ -366,12 +370,15 @@ class ShellController(
     /** Swipe on the desktop: [step] +1 for the next desktop, -1 for the previous. */
     /**
      * A sideways swipe on the empty desktop. Right on the first desktop, where
-     * there's no desktop to go back to, opens the app picked in settings.
+     * there's no desktop to go back to, opens the app picked in settings as a
+     * full-screen page.
      */
     fun swipeSideways(step: Int) {
         val onFirst = desk.desktops.firstOrNull()?.id == desk.currentDesktopId
         val app = desk.swipeRightApp?.let(desk::app)
-        if (step < 0 && onFirst && app != null) open(app)
+        // The Today page follows the finger itself; see TodayPage.
+        if (step < 0 && onFirst && desk.todayPage) return
+        if (step < 0 && onFirst && app != null) open(app, OpenMode.Page)
         else if (desk.swipeSwitchesDesktops) swipeDesktop(step)
     }
 

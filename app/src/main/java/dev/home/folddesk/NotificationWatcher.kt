@@ -33,6 +33,7 @@ class NotificationWatcher : NotificationListenerService() {
             .map { it.packageName }
             .distinct()
         desk.coverNotifications = CoverNotification.from(active.toList())
+        desk.mergeNews(News.stories(this, active.toList()))
     }
 
     companion object {

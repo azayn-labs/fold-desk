@@ -155,6 +155,16 @@ class DeskState(private val context: Context) {
     var keepOverFullScreen by mutableStateOf(sp.getBoolean("keepOverFullScreen", false))
         private set
     var hideStatusBar by mutableStateOf(sp.getBoolean("hideStatusBar", false))
+    /** Swiping right on the first desktop opens the Today page (wins over [swipeRightApp]). */
+    var todayPage by mutableStateOf(sp.getBoolean("todayPage", false))
+    /** Headlines from news apps' notifications on the Today page. */
+    var newsCards by mutableStateOf(sp.getBoolean("newsCards", true))
+    /** Widgets on the Today page, top to bottom. */
+    var pageWidgets by mutableStateOf(readList("pageWidgets").mapNotNull { it.toIntOrNull() })
+    /** Newest first; kept after the notification goes, until opened or swiped away. */
+    var newsStories by mutableStateOf(readStories())
+        private set
+    private val newsDismissed = readList("newsDismissed").toMutableList()
     /** App key opened by swiping right on the first desktop; null does nothing. */
     var swipeRightApp by mutableStateOf(sp.getString("swipeRightApp", null))
     /** Focus the search (and bring up the keyboard) when the drawer or the cover app list opens. */
@@ -730,6 +740,61 @@ class DeskState(private val context: Context) {
         sp.edit().apply { if (key == null) remove("swipeRightApp") else putString("swipeRightApp", key) }.apply()
     }
 
+    fun updateTodayPage(on: Boolean) {
+        todayPage = on
+        sp.edit().putBoolean("todayPage", on).apply()
+    }
+
+    fun updateNewsCards(on: Boolean) {
+        newsCards = on
+        sp.edit().putBoolean("newsCards", on).apply()
+    }
+
+    fun updatePageWidgets(list: List<Int>) {
+        pageWidgets = list
+        sp.edit().putString("pageWidgets", list.joinToString("\n")).apply()
+    }
+
+    /** Adds the news apps' current stories to the ones kept from before. */
+    fun mergeNews(fresh: List<NewsStory>) {
+        val byKey = LinkedHashMap<String, NewsStory>()
+        newsStories.forEach { byKey[it.key] = it }
+        for (story in fresh) {
+            if (story.key in newsDismissed) continue
+            val old = byKey[story.key]
+            // Same story again: keep its picture and link if this copy has none.
+            byKey[story.key] = if (old != null && old.title == story.title) {
+                story.copy(picture = story.picture ?: old.picture, intent = story.intent ?: old.intent)
+            } else story
+        }
+        val cutoff = System.currentTimeMillis() - NEWS_KEEP_MS
+        val merged = byKey.values.filter { it.postTime > cutoff }.sortedByDescending { it.postTime }.take(NEWS_MAX)
+        if (merged == newsStories) return
+        newsStories = merged
+        saveStories()
+    }
+
+    /** Opened or swiped away: gone from the page, and not added again. */
+    fun removeStory(key: String) {
+        newsStories = newsStories.filter { it.key != key }
+        newsDismissed += key
+        while (newsDismissed.size > NEWS_MAX * 3) newsDismissed.removeAt(0)
+        sp.edit().putString("newsDismissed", newsDismissed.joinToString("\n")).apply()
+        saveStories()
+    }
+
+    private fun saveStories() {
+        fun clean(s: String) = s.replace('\n', ' ').replace(FIELD, ' ')
+        sp.edit().putString("newsStories", newsStories.joinToString("\n") {
+            listOf(it.key, it.pkg, it.postTime.toString(), clean(it.title), clean(it.text)).joinToString(FIELD.toString())
+        }).apply()
+    }
+
+    private fun readStories(): List<NewsStory> = readList("newsStories").mapNotNull { line ->
+        val f = line.split(FIELD)
+        if (f.size < 5) null else NewsStory(f[0], f[1], f[3], f[4], f[2].toLongOrNull() ?: return@mapNotNull null)
+    }
+
     fun updateDrawerKeyboard(value: Boolean) {
         drawerKeyboard = value
         sp.edit().putBoolean("drawerKeyboard", value).apply()
@@ -1071,5 +1136,9 @@ class DeskState(private val context: Context) {
         private const val DESKTOP_ROWS_GUESS = 8
         private const val NAVIGATION_MODE = "navigation_mode"
         private const val NAV_MODE_GESTURAL = 2
+        private const val NEWS_MAX = 30
+        private const val NEWS_KEEP_MS = 2 * 24 * 60 * 60 * 1000L
+        /** Between a saved story's fields; can't occur in notification text we keep. */
+        private const val FIELD = '\u001F'
     }
 }

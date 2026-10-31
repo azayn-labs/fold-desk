@@ -51,6 +51,17 @@ object Launcher {
         return options
     }
 
+    /**
+     * Full screen, sliding in from the left with the desktop moving aside, so
+     * the app swiped to from the first desktop feels like a page next to it.
+     * One UI 9 plays its own fade for other apps' windows instead.
+     */
+    fun openAsPage(context: Context, app: AppEntry) {
+        val options = ActivityOptions.makeCustomAnimation(context, R.anim.page_in_left, R.anim.page_out_right)
+        setWindowingMode(options, WINDOWING_MODE_FULLSCREEN)
+        start(context, app, options)
+    }
+
     /** Raises an app that is already open without changing its window. */
     fun bringToFront(context: Context, app: AppEntry) = start(context, app, null)
 

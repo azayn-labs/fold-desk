@@ -30,6 +30,11 @@ import androidx.compose.animation.AnimatedContent
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
@@ -122,9 +127,27 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
         }
     }
 
+    // The Today page, left of the first desktop: 0 hidden, 1 open. It follows the finger.
+    val page = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    var pageWidth by remember { mutableFloatStateOf(1f) }
+    val canOpenPage by rememberUpdatedState(
+        shell.desk.todayPage && shell.desk.desktops.firstOrNull()?.id == shell.desk.currentDesktopId && !shell.hasPopup,
+    )
+    LaunchedEffect(shell.todayOpen) { page.animateTo(if (shell.todayOpen) 1f else 0f, tween(PAGE_MS)) }
+    val dragPage: (Float) -> Unit = { dx -> scope.launch { page.snapTo((page.value + dx / pageWidth).coerceIn(0f, 1f)) } }
+    // Past halfway, or flung, it opens; otherwise it goes back.
+    val releasePage: (Float) -> Unit = { velocity ->
+        val open = if (abs(velocity) > FLING_PX_PER_S) velocity > 0 else page.value > 0.5f
+        shell.todayOpen = open
+        scope.launch { page.animateTo(if (open) 1f else 0f, tween(PAGE_MS)) }
+    }
+
     Box(
         Modifier
             .fillMaxSize()
+            .onSizeChanged { pageWidth = it.width.toFloat().coerceAtLeast(1f) }
+            .pageDrag(direction = 1, enabled = { canOpenPage }, onDrag = dragPage, onRelease = releasePage)
             .deskGestures(
                 onTap = shell::closePopups,
                 onMenu = shell::desktopMenu,
@@ -163,6 +186,7 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
             shell,
             Modifier
                 .fillMaxSize()
+                .graphicsLayer { translationX = page.value * this.size.width }
                 .padding(top = statusTop + 14.dp, bottom = aboveTaskbar + 8.dp, start = barStart + 10.dp, end = barEnd + 10.dp),
             desktopId = desktopId,
             widgetActions = widgetActions,
@@ -175,6 +199,15 @@ fun DesktopScreen(shell: ShellController, showTaskbar: Boolean, widgetActions: W
             onDragMoved = { iconBounds -> overRemove = iconBounds.overlaps(removeZone) },
             removeOnDrop = { overRemove },
         )
+        }
+        if (page.value > 0f || shell.todayOpen) {
+            TodayPage(
+                shell, widgetActions,
+                progress = { page.value },
+                onDrag = dragPage,
+                onRelease = releasePage,
+                contentPadding = PaddingValues(top = statusTop + 18.dp, bottom = aboveTaskbar + 18.dp, start = barStart + 16.dp, end = barEnd + 16.dp),
+            )
         }
         if (showTaskbar) {
             TaskbarSurface(
@@ -347,6 +380,8 @@ private fun DesktopPill(shell: ShellController, modifier: Modifier) {
 }
 
 private const val SWITCH_MS = 320
+private const val PAGE_MS = 260
+private const val FLING_PX_PER_S = 1200f
 
 /** The "Remove from desktop" pill; turns red while an icon hovers over it. */
 @Composable

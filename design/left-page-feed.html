@@ -1,0 +1,84 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk page left of desktop 1, feed style</title>
+<style>
+  :root { --accent:#3e91ff; --text:#f3f4f7; --subtle:#a0a5b2; --card:#1d1f26; --card2:#262933; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1180px; height:1500px; overflow:hidden; display:grid; grid-template-columns:560px 560px; gap:20px; padding:20px; background:#111; color:var(--text); font-family:"Google Sans","SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; min-height:22px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; }
+  .scr { position:relative; width:560px; height:620px; border-radius:26px; overflow:hidden; background:#121318; }
+  .status { position:absolute; top:0; left:0; right:0; height:24px; display:flex; justify-content:space-between; align-items:center; padding:0 14px; font-size:11px; color:#e3e6ee; z-index:4; }
+  .bar { position:absolute; left:0; right:0; bottom:0; height:40px; background:rgba(16,17,21,.92); display:flex; align-items:center; gap:9px; padding:0 12px; z-index:5; }
+  .bar i { width:22px; height:22px; border-radius:7px; display:block; }
+  .feed { position:absolute; left:50%; transform:translateX(-50%); width:400px; top:34px; bottom:40px; overflow:hidden; }
+  .glance { padding:14px 6px 12px; }
+  .glance .day { font-size:22px; font-weight:500; }
+  .glance .sub { font-size:13px; color:var(--subtle); margin-top:4px; }
+  .search { height:48px; border-radius:24px; background:var(--card2); display:flex; align-items:center; gap:12px; padding:0 18px; font-size:15px; color:var(--subtle); }
+  .search .glass { width:14px; height:14px; border:2.5px solid #c9ccd6; border-radius:8px; }
+  .chips { display:flex; gap:8px; margin:12px 0 4px; }
+  .chip { border-radius:16px; background:var(--card2); padding:7px 12px; font-size:12px; display:flex; align-items:center; gap:6px; }
+  .card { border-radius:20px; background:var(--card); margin-top:12px; overflow:hidden; }
+  .card .hd { display:flex; align-items:center; gap:8px; padding:12px 14px 4px; font-size:12px; color:var(--subtle); }
+  .card .bd { padding:4px 14px 14px; font-size:14px; }
+  .ic { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:11px; flex:none; }
+  .ic.xs { width:18px; height:18px; border-radius:6px; font-size:9px; }
+  .img { height:120px; background:linear-gradient(135deg,#3b5ba8,#6d4fa8 55%,#c06f6f); position:relative; }
+  .img::after { content:""; position:absolute; left:30%; top:30%; width:90px; height:60px; border-radius:40px 40px 6px 6px; background:rgba(255,255,255,.18); }
+  .row { display:flex; gap:10px; align-items:center; padding:6px 0; }
+  .t { font-weight:600; font-size:13.5px; } .d { color:var(--subtle); font-size:12px; }
+  .tabs { position:absolute; left:50%; transform:translateX(-50%); bottom:48px; display:flex; gap:6px; z-index:4; }
+  .tabs i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,.35); } .tabs i.on { width:14px; background:#fff; }
+  .wall { position:absolute; inset:0; background: radial-gradient(360px 300px at 78% 18%, rgba(118,150,255,.55), transparent 65%), linear-gradient(160deg,#1b2650,#0b1022 60%,#120c25); }
+  .finger { position:absolute; width:40px; height:40px; border-radius:20px; background:rgba(255,255,255,.35); border:2px solid #fff; z-index:6; }
+  .edit { position:absolute; right:16px; top:34px; font-size:12px; color:var(--accent); z-index:4; }
+</style></head><body>
+<script>
+const C = { mail:'#e5484d', notes:'#f5a524', web:'#3e91ff', music:'#9b5cf6', chat:'#25b45e', cal:'#1f9d68', news:'#c2410c', photos:'#ff7a59', maps:'#0fa3b1' };
+const L = { mail:'M', notes:'N', web:'W', music:'♪', chat:'C', cal:'31', news:'N', photos:'P', maps:'➤' };
+const ic = (k, s='') => `<div class="ic ${s}" style="background:${C[k]}">${L[k]}</div>`;
+const bar = `<div class="bar">${['#3e91ff','#e5484d','#25b45e','#9b5cf6','#d4a017'].map(c=>`<i style="background:${c}"></i>`).join('')}</div>`;
+const status = `<div class="status"><span>12:00</span><span>▮▮ 78%</span></div>`;
+
+const head = `<div class="glance"><div class="day">Saturday, October 31</div><div class="sub">Next: Lunch with Sam at 13:30 · 2 new stories</div></div>
+  <div class="search"><span class="glass"></span>Search apps and the web<span style="margin-left:auto">🎤</span></div>
+  <div class="chips">${['web','mail','notes','maps','photos'].map(k=>`<div class="chip">${ic(k,'xs')}${{web:'Browser',mail:'Mail',notes:'Notes',maps:'Maps',photos:'Photos'}[k]}</div>`).join('')}</div>`;
+
+const newsCard = (title, src, img=true) => `<div class="card">${img ? '<div class="img"></div>' : ''}<div class="hd">${ic('news','xs')}${src}</div><div class="bd"><div class="t" style="font-size:15px">${title}</div></div></div>`;
+// Default: news from news apps' notifications, drawn as big cards by FoldDesk.
+const cards = (withWidget) => `
+  ${newsCard('Placeholder headline from a news notification, with its picture', 'News app · 20 min')}
+  <div class="card"><div class="hd">${ic('cal','xs')}Today</div><div class="bd">
+    <div class="row"><b style="color:var(--accent);width:44px">09:00</b>Team stand-up</div>
+    <div class="row"><b style="color:var(--accent);width:44px">13:30</b>Lunch with Sam</div></div></div>
+  ${newsCard('A second placeholder story, sent without a picture', 'Other news app · 1 h', false)}
+  <div class="card"><div class="hd">${ic('chat','xs')}Notifications · 2</div><div class="bd">
+    <div class="row">${ic('chat')}<div><div class="t">Sam</div><div class="d">See you at 1:30?</div></div></div>
+    <div class="row">${ic('mail')}<div><div class="t">Weekly report</div><div class="d">Your summary is ready</div></div></div></div></div>
+  ${withWidget
+    ? `<div class="card"><div class="hd">${ic('news','xs')}News app widget</div><div class="bd">
+        <div class="row" style="align-items:flex-start"><div style="width:70px;height:48px;border-radius:8px;background:linear-gradient(135deg,#3b5ba8,#c06f6f);flex:none"></div><div class="t">Placeholder top story from the widget</div></div>
+        <div class="row" style="align-items:flex-start"><div style="width:70px;height:48px;border-radius:8px;background:linear-gradient(135deg,#1f9d68,#3e91ff);flex:none"></div><div class="t">Another widget headline</div></div></div></div>`
+    : `<div class="card" style="border:1.5px dashed rgba(255,255,255,.25);background:none"><div class="bd" style="text-align:center;padding:16px;font-size:13px;color:#dfe3ec">More stories? Add your news app's widget<br><span style="display:inline-block;margin-top:10px;background:var(--accent);color:#fff;border-radius:16px;padding:7px 14px;font-weight:600;font-size:12px">Add News widget</span></div></div>`}`;
+
+const page = (withWidget, scroll=0) => `<div class="scr">${status}<div class="edit">Edit</div><div class="feed"><div style="transform:translateY(-${scroll}px)">${head}${cards(withWidget)}</div></div><div class="tabs"><i class="on"></i><i></i></div>${bar}</div>`;
+
+const swipe = `<div class="scr">
+  <div style="position:absolute;inset:0;transform:translateX(250px)"><div class="wall"></div>${status}
+     ${['mail','notes','web','music'].map((k,i)=>`<div style="position:absolute;left:${24+(i%2)*60}px;top:${50+Math.floor(i/2)*66}px">${ic(k)}</div>`).join('')}</div>
+  <div style="position:absolute;top:0;bottom:0;left:-310px;width:560px;overflow:hidden;background:#121318"><div class="feed">${head}${cards(false)}</div></div>
+  <div class="finger" style="left:230px;top:330px"></div>${bar}</div>`;
+
+const cells = [
+  ['1 · Swiping right on desktop 1: the page follows your finger', swipe, 'Part of FoldDesk, so it tracks the finger both ways; swiping left anywhere on the page goes back to desktop 1.'],
+  ['2 · Out of the box: news from your news apps\' notifications', page(false), 'No setup and no internet: headlines your news apps send as notifications (Google News, Samsung News, your newspaper\'s app, Discover updates from the Google app…) become big cards, with the picture when the notification has one. Tap to read in that app, swipe a card away to dismiss it. Mixed with your day: calendar and your other notifications. Newest first; cards stay until read or dismissed, even after the notification is cleared.'],
+  ['3 · Optional: a news app\'s widget for more stories', page(true, 560), 'Scrolled down: the card at the end offers the widget of a news app you have installed, one tap (Android asks once). Its stories show as a card in the feed. "Edit" (top right) adds, removes and reorders cards and widgets, and turns news notifications on or off.'],
+  ['What it can\'t do', `<div class="scr" style="padding:30px;font-size:15px;line-height:1.6;color:#dfe3ec">
+    <b style="font-size:18px">Not the real Discover feed</b><br><br>
+    The personalised Discover stories only exist inside the Google app; Google doesn't let other launchers show them.<br><br>
+    So the page borrows the <b>look</b>: search on top, a glance line, a single column of big cards. The <b>stories</b> are the ones your news apps send you as notifications, plus any news widget. More news apps (or more topics followed in them) means more cards. FoldDesk still never goes online.<br><br>
+    Anyone who wants the actual Discover feed can still pick <b>Open an app → Google</b> in the setting.</div>`, ''],
+];
+document.body.innerHTML = cells.map(([t,s,n]) => `<div class="col"><div class="cap">${t}</div>${s}<div class="note">${n}</div></div>`).join('');
+</script></body></html>

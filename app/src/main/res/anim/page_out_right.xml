@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The desktop moves aside to the right as that page comes in. -->
+<translate xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="320"
+    android:fromXDelta="0"
+    android:interpolator="@android:interpolator/decelerate_cubic"
+    android:toXDelta="100%" />

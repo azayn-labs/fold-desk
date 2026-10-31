@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
     private var welcoming by mutableStateOf(false)
 
     /** A widget on its way to the desktop: bound, maybe set up, then placed. */
-    private class Pending(val id: Int, val info: AppWidgetProviderInfo, val at: Cell?, val cover: Boolean = false)
+    private class Pending(val id: Int, val info: AppWidgetProviderInfo, val at: Cell?, val cover: Boolean = false, val page: Boolean = false)
     private var pending: Pending? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -163,9 +163,11 @@ class MainActivity : ComponentActivity(), WidgetActions {
 
     override fun addCoverWidget(info: AppWidgetProviderInfo) = bind(info, null, cover = true)
 
-    private fun bind(info: AppWidgetProviderInfo, at: Cell?, cover: Boolean) {
+    override fun addPageWidget(info: AppWidgetProviderInfo) = bind(info, null, cover = false, page = true)
+
+    private fun bind(info: AppWidgetProviderInfo, at: Cell?, cover: Boolean, page: Boolean = false) {
         val id = Widgets.host.allocateAppWidgetId()
-        pending = Pending(id, info, at, cover)
+        pending = Pending(id, info, at, cover, page)
         if (Widgets.manager.bindAppWidgetIdIfAllowed(id, info.profile, info.provider, null)) {
             afterBind()
         } else {
@@ -194,6 +196,10 @@ class MainActivity : ComponentActivity(), WidgetActions {
         val p = pending ?: return
         pending = null
         val desk = shell.desk
+        if (p.page) {
+            desk.updatePageWidgets(desk.pageWidgets + p.id)
+            return
+        }
         if (p.cover) {
             val (w, h) = Widgets.coverSpan(p.info, this)
             val (col, row) = freeCoverSpot(desk.coverWidgets, w, h, Widgets.COVER_COLUMNS)
@@ -232,6 +238,11 @@ class MainActivity : ComponentActivity(), WidgetActions {
         shell.desk.updateCoverWidgets(shell.desk.coverWidgets.filter { it.id != id })
     }
 
+    override fun removePageWidget(id: Int) {
+        Widgets.host.deleteAppWidgetId(id)
+        shell.desk.updatePageWidgets(shell.desk.pageWidgets - id)
+    }
+
     @Deprecated("Needed for AppWidgetHost.startAppWidgetConfigureActivityForResult")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION")
@@ -260,7 +271,9 @@ class MainActivity : ComponentActivity(), WidgetActions {
 interface WidgetActions {
     fun addWidget(info: AppWidgetProviderInfo, at: Cell?)
     fun addCoverWidget(info: AppWidgetProviderInfo)
+    fun addPageWidget(info: AppWidgetProviderInfo)
     fun configureWidget(id: Int)
     fun removeWidget(id: Int)
     fun removeCoverWidget(id: Int)
+    fun removePageWidget(id: Int)
 }
