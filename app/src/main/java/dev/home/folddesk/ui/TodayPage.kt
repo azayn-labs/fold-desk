@@ -131,12 +131,14 @@ fun TodayPage(
         if (desk.pageWidgets.isEmpty()) News.suggestedWidget(context) else null
     }
 
+    // One UI's panel blur over the wallpaper, like the notification panel. It
+    // stays put and fades in with the swipe; the content slides over it.
+    Panel(0.dp, Modifier.fillMaxSize(), blurAmount = progress()) {}
     Box(
         Modifier
             .fillMaxSize()
-            .graphicsLayer { translationX = (progress() - 1f) * size.width }
-            .background(LocalDexColors.current.page)
-            .pageDrag(direction = -1, enabled = { true }, onDrag = onDrag, onRelease = onRelease),
+            .pageDrag(direction = -1, enabled = { true }, onDrag = onDrag, onRelease = onRelease)
+            .graphicsLayer { translationX = (progress() - 1f) * size.width },
     ) {
         LazyColumn(
             Modifier.align(Alignment.TopCenter).widthIn(max = 560.dp).fillMaxHeight(),
@@ -230,9 +232,13 @@ private fun webSearch(context: android.content.Context, query: String) {
 
 private val cardShape = RoundedCornerShape(20.dp)
 
+/** Cards and the search bar: see-through, so the blurred wallpaper shows a little. */
+@Composable
+private fun cardColor() = LocalDexColors.current.card.copy(alpha = 0.62f)
+
 @Composable
 private fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxWidth().clip(cardShape).background(LocalDexColors.current.card).then(modifier)) { content() }
+    Column(Modifier.fillMaxWidth().clip(cardShape).background(cardColor()).then(modifier)) { content() }
 }
 
 @Composable
@@ -258,7 +264,7 @@ private fun Glance(events: List<CoverEvent>, stories: Int) {
 @Composable
 private fun SearchPill(query: String, onQuery: (String) -> Unit, focus: FocusRequester, onGo: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(26.dp)).background(LocalDexColors.current.card)
+        Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(26.dp)).background(cardColor())
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -299,7 +305,7 @@ private fun RecentChips(apps: List<AppEntry>, onOpen: (AppEntry) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         for (app in apps) {
             Row(
-                Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(LocalDexColors.current.card)
+                Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(cardColor())
                     .deskGestures(onTap = { onOpen(app) }).padding(horizontal = 8.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
