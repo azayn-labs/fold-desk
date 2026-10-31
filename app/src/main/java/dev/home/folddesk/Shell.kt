@@ -364,6 +364,17 @@ class ShellController(
     }
 
     /** Swipe on the desktop: [step] +1 for the next desktop, -1 for the previous. */
+    /**
+     * A sideways swipe on the empty desktop. Right on the first desktop, where
+     * there's no desktop to go back to, opens the app picked in settings.
+     */
+    fun swipeSideways(step: Int) {
+        val onFirst = desk.desktops.firstOrNull()?.id == desk.currentDesktopId
+        val app = desk.swipeRightApp?.let(desk::app)
+        if (step < 0 && onFirst && app != null) open(app)
+        else if (desk.swipeSwitchesDesktops) swipeDesktop(step)
+    }
+
     fun swipeDesktop(step: Int) {
         val list = desk.desktops
         val index = list.indexOfFirst { it.id == desk.currentDesktopId } + step

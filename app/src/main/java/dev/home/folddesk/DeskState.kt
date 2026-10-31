@@ -155,6 +155,8 @@ class DeskState(private val context: Context) {
     var keepOverFullScreen by mutableStateOf(sp.getBoolean("keepOverFullScreen", false))
         private set
     var hideStatusBar by mutableStateOf(sp.getBoolean("hideStatusBar", false))
+    /** App key opened by swiping right on the first desktop; null does nothing. */
+    var swipeRightApp by mutableStateOf(sp.getString("swipeRightApp", null))
     /** Focus the search (and bring up the keyboard) when the drawer or the cover app list opens. */
     var drawerKeyboard by mutableStateOf(sp.getBoolean("drawerKeyboard", false))
         private set
@@ -721,6 +723,11 @@ class DeskState(private val context: Context) {
     fun updateHideStatusBar(value: Boolean) {
         hideStatusBar = value
         sp.edit().putBoolean("hideStatusBar", value).apply()
+    }
+
+    fun updateSwipeRightApp(key: String?) {
+        swipeRightApp = key
+        sp.edit().apply { if (key == null) remove("swipeRightApp") else putString("swipeRightApp", key) }.apply()
     }
 
     fun updateDrawerKeyboard(value: Boolean) {

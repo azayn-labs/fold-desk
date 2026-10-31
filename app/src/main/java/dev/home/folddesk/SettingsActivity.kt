@@ -210,6 +210,19 @@ private fun SettingsScreen(desk: DeskState) {
         ) { HiddenAppsPicker(desk, query) }
     }
 
+    fun pickSwipeRightApp() {
+        val query = mutableStateOf("")
+        sheet = Sheet(
+            "Swipe right on the first desktop", "On an empty part of the desktop",
+            buttons = listOf("Cancel" to { sheet = null }),
+        ) {
+            SwipeAppPicker(desk, query) { key ->
+                desk.updateSwipeRightApp(key)
+                sheet = null
+            }
+        }
+    }
+
     fun pickColours() {
         // Colours apply live; Cancel puts back what was there.
         val before = desk.taskbarColour to desk.accentColour
@@ -360,6 +373,12 @@ private fun SettingsScreen(desk: DeskState) {
                         hint = "Swipe left or right on empty desktop",
                         onTapAt = { desk.updateSwipeSwitchesDesktops(!desk.swipeSwitchesDesktops) },
                     ) { Switch(desk.swipeSwitchesDesktops) }
+                    Divider()
+                    SettingRow(
+                        "Swipe right on the first desktop",
+                        value = desk.swipeRightApp?.let(desk::app)?.label ?: "Nothing",
+                        onTapAt = { pickSwipeRightApp() },
+                    )
                     Divider()
                     SettingRow(
                         "Swipe down to close app drawer",
@@ -688,6 +707,33 @@ private fun SheetHost(sheet: Sheet?, bottomInset: Dp, onDismiss: () -> Unit) {
 @Composable
 private fun HiddenAppsPicker(desk: DeskState, query: MutableState<String>) {
     val apps = desk.apps
+    AppSearchField(query)
+    val q = query.value.trim().lowercase()
+    val matching = apps.filter { q.isEmpty() || q in it.label.lowercase() }
+    // Sorted by what was hidden when the sheet opened, so rows don't jump while ticking.
+    val hiddenAtOpen = remember { desk.hiddenApps }
+    val (hidden, shown) = matching.partition { it.key in hiddenAtOpen }
+    if (hidden.isNotEmpty()) PickerSection("Hidden · ${hidden.size}")
+    hidden.forEach { HiddenAppRow(desk, it) }
+    if (shown.isNotEmpty()) PickerSection("All apps")
+    shown.forEach { HiddenAppRow(desk, it) }
+}
+
+/** "Nothing", then every app, the Google app first: it's the one that gets you Discover. */
+@Composable
+private fun SwipeAppPicker(desk: DeskState, query: MutableState<String>, onPick: (String?) -> Unit) {
+    OptionRow("Nothing", selected = desk.swipeRightApp == null) { onPick(null) }
+    AppSearchField(query)
+    val q = query.value.trim().lowercase()
+    val (google, rest) = desk.apps.filter { q.isEmpty() || q in it.label.lowercase() }
+        .partition { it.pkg == GOOGLE_APP }
+    for (app in google + rest) {
+        OptionRow(app.label, selected = app.key == desk.swipeRightApp, icon = app.icon) { onPick(app.key) }
+    }
+}
+
+@Composable
+private fun AppSearchField(query: MutableState<String>) {
     Row(
         Modifier.padding(horizontal = 20.dp, vertical = 4.dp).fillMaxWidth().height(40.dp)
             .clip(RoundedCornerShape(20.dp)).background(Dex.field).padding(horizontal = 18.dp),
@@ -705,16 +751,9 @@ private fun HiddenAppsPicker(desk: DeskState, query: MutableState<String>) {
             )
         }
     }
-    val q = query.value.trim().lowercase()
-    val matching = apps.filter { q.isEmpty() || q in it.label.lowercase() }
-    // Sorted by what was hidden when the sheet opened, so rows don't jump while ticking.
-    val hiddenAtOpen = remember { desk.hiddenApps }
-    val (hidden, shown) = matching.partition { it.key in hiddenAtOpen }
-    if (hidden.isNotEmpty()) PickerSection("Hidden · ${hidden.size}")
-    hidden.forEach { HiddenAppRow(desk, it) }
-    if (shown.isNotEmpty()) PickerSection("All apps")
-    shown.forEach { HiddenAppRow(desk, it) }
 }
+
+private const val GOOGLE_APP = "com.google.android.googlequicksearchbox"
 
 @Composable
 private fun PickerSection(title: String) {

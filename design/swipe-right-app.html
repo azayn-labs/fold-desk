@@ -1,0 +1,70 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FoldDesk swipe right on the first desktop</title>
+<style>
+  :root { --bg:#0c0c0e; --card:#1c1c1f; --accent:#3e91ff; --text:#fafafa; --subtle:#9a9aa0; --divider:rgba(255,255,255,.08); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1660px; height:1080px; overflow:hidden; display:flex; gap:24px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { position:relative; width:480px; height:960px; overflow:hidden; border-radius:30px; background:var(--bg); padding:30px 18px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:480px; }
+  h1 { font-size:30px; font-weight:600; padding:20px 8px 18px; }
+  .g { font-size:13px; color:var(--accent); padding:16px 10px 8px; }
+  .card { border-radius:22px; background:var(--card); }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; font-size:16px; gap:12px; }
+  .row + .row { border-top:1px solid var(--divider); }
+  .row small { display:block; color:var(--subtle); font-size:13px; margin-top:3px; }
+  .row .v { color:var(--accent); font-size:14px; white-space:nowrap; }
+  .faded { opacity:.35; }
+  .new { outline:2px dashed rgba(255,215,106,.7); outline-offset:-2px; border-radius:0; }
+  .sw { width:44px; height:26px; border-radius:13px; background:var(--accent); position:relative; flex:none; }
+  .sw::after { content:""; position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:10px; background:#fff; }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.5); }
+  .sheet { position:absolute; left:10px; right:10px; bottom:10px; border-radius:26px; background:#2b2b2f; padding:22px 22px 12px; box-shadow:0 -10px 40px rgba(0,0,0,.5); }
+  .sheet h2 { font-size:19px; font-weight:600; } .sheet p { font-size:13.5px; color:#d6d6da; margin-top:6px; }
+  .opt { display:flex; align-items:center; gap:14px; padding:12px 4px; font-size:15px; border-top:1px solid var(--divider); }
+  .radio { width:20px; height:20px; border-radius:10px; border:2px solid #777; flex:none; margin-left:auto; }
+  .radio.on { border-color:var(--accent); background:radial-gradient(circle, var(--accent) 45%, transparent 50%); }
+  .ic { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:14px; flex:none; }
+  .search { height:40px; border-radius:20px; background:rgba(255,255,255,.08); display:flex; align-items:center; padding:0 16px; color:var(--subtle); font-size:14px; margin:14px 0 6px; }
+  .btns { display:flex; justify-content:flex-end; margin-top:8px; } .btn { color:var(--accent); font-size:15px; font-weight:600; padding:8px 12px; }
+  .desk { position:relative; width:560px; height:460px; border-radius:30px; overflow:hidden; background: radial-gradient(420px 360px at 78% 18%, rgba(118,150,255,.55), transparent 65%), linear-gradient(160deg,#1b2650,#0b1022 60%,#120c25); }
+  .bar { position:absolute; left:0; right:0; bottom:0; height:46px; background:rgba(16,17,21,.86); display:flex; align-items:center; gap:10px; padding:0 14px; }
+  .bar i { width:26px; height:26px; border-radius:8px; display:block; }
+  .finger { position:absolute; width:44px; height:44px; border-radius:22px; background:rgba(255,255,255,.35); border:2px solid #fff; }
+  .trail { position:absolute; height:6px; border-radius:3px; background:linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.7)); }
+  .win { position:absolute; border-radius:14px; background:#f1f3f8; color:#222; overflow:hidden; box-shadow:0 18px 40px rgba(0,0,0,.5); }
+</style></head><body>
+<script>
+const apps = [['Google','#4285f4','G'],['Calendar','#1f9d68','31'],['Chrome','#e5484d','C'],['Keep Notes','#f5a524','K'],['News','#c2410c','N']];
+const settings = `<div class="screen"><h1>FoldDesk settings</h1>
+  <div class="g">Gestures</div><div class="card">
+    <div class="row faded"><div>Swipe up on desktop</div><span class="v">App drawer</span></div>
+    <div class="row faded"><div>Swipe down on desktop</div><span class="v">Notifications</span></div>
+    <div class="row faded"><div>Swipe to switch desktops<small>Swipe left or right on empty desktop</small></div><div class="sw"></div></div>
+    <div class="row new"><div>Swipe right on the first desktop<small>Before desktop 1, where there's no desktop to go back to</small></div><span class="v">Google</span></div>
+    <div class="row faded"><div>Swipe down to close app drawer<small>When the app list is scrolled to the top</small></div><div class="sw"></div></div>
+  </div></div>`;
+const picker = `<div class="screen"><h1>FoldDesk settings</h1><div class="faded"><div class="g">Gestures</div><div class="card"><div class="row"><div>Swipe up on desktop</div><span class="v">App drawer</span></div><div class="row"><div>Swipe down on desktop</div><span class="v">Notifications</span></div></div></div>
+  <div class="dim"></div><div class="sheet"><h2>Swipe right on the first desktop</h2><p>On an empty part of the desktop</p>
+  <div class="opt" style="margin-top:12px"><div class="ic" style="background:#3a3b41">–</div>Nothing<span class="radio"></span></div>
+  <div class="search">Search apps</div>
+  ${apps.map(([n,c,l],i) => `<div class="opt"><div class="ic" style="background:${c}">${l}</div>${n}<span class="radio ${i===0?'on':''}"></span></div>`).join('')}
+  <div class="opt" style="color:var(--subtle);justify-content:center">All apps, A–Z ⌄</div>
+  <div class="btns"><span class="btn">Cancel</span></div></div></div>`;
+const desk = (after) => `<div class="desk">
+  ${after ? `<div class="win" style="left:90px;top:30px;width:380px;height:370px"><div style="height:26px;background:#e4e7ee"></div>
+     <div style="padding:16px"><div style="font-size:22px;font-weight:700;color:#4285f4">Google</div>
+     <div style="height:36px;border-radius:18px;background:#e4e7ee;margin:14px 0"></div>
+     ${[0,1,2].map(()=>`<div style="height:90px;border-radius:12px;background:#dfe5f2;margin-bottom:10px"></div>`).join('')}</div></div>`
+  : `<div class="trail" style="left:150px;top:220px;width:260px"></div><div class="finger" style="left:400px;top:201px"></div>
+     <div style="position:absolute;left:150px;top:180px;font-size:15px;color:#fff">swipe right →</div>
+     <div style="position:absolute;left:24px;top:24px;font-size:13px;color:#cfd8ff;background:rgba(0,0,0,.3);padding:4px 10px;border-radius:10px">Desktop 1</div>`}
+  <div class="bar">${['#3e91ff','#e5484d','#25b45e','#9b5cf6'].map(c=>`<i style="background:${c}"></i>`).join('')}</div></div>`;
+const cols = [
+  ['1 · New row in Gestures', settings, 'Sits with the other swipe settings. Shows the chosen app, or "Nothing" (the default, so nothing changes for anyone who doesn\'t set it).'],
+  ['2 · Tap it: Nothing, or pick an app', picker, 'Same sheet style as the other gesture choices. A search box and the full app list, so any app works. Suggesting the Google app first, since that\'s what gets you Discover.'],
+  ['3 · On desktop 1, swipe right on an empty spot → the app opens', `<div style="display:flex;flex-direction:column;gap:20px">${desk(false)}${desk(true)}</div>`, 'Only on the first desktop, where swiping right has nothing to do today. On other desktops it still switches desktops. The app opens like any app from the taskbar: in a window or full screen, following "Open apps in windows". Works with "Swipe to switch desktops" off too.'],
+];
+document.body.innerHTML = cols.map(([t,s,n]) => `<div class="col"><div class="cap">${t}</div>${s}<div class="note" style="width:${t.startsWith('3') ? 560 : 480}px">${n}</div></div>`).join('');
+</script></body></html>
