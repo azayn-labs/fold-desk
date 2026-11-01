@@ -1245,6 +1245,7 @@ private fun CoverApps(shell: ShellController, active: Boolean) {
     val list = rememberLazyListState()
     LaunchedEffect(recent != null) { if (recent != null) list.scrollToItem(0) }
     // Where each letter's header sits in the list, for the scroller.
+    var scrub by remember { mutableStateOf<Scrub?>(null) }
     val headerIndex = remember(groups, showRecent) {
         var i = if (showRecent) 1 else 0
         groups.mapValues { (_, apps) -> i.also { i += apps.size + 1 } }
@@ -1253,37 +1254,33 @@ private fun CoverApps(shell: ShellController, active: Boolean) {
     // A light tint behind the whole list, like the app drawer's panel.
     Column(Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(Dex.bar.copy(alpha = 0.6f)).imePadding()) {
         // The list on top; search and recent apps at the bottom, within thumb reach.
-        Row(Modifier.fillMaxWidth().weight(1f)) {
-            LazyColumn(Modifier.weight(1f).fillMaxHeight(), state = list) {
-                if (showRecent) item(key = "recent") { RecentApps(shell, recent.orEmpty()) }
-                groups.forEach { (letter, apps) ->
-                    item(key = "header-$letter") {
-                        BasicText(
-                            letter.toString(),
-                            style = TextStyle(color = Dex.accent, fontSize = 12.sp),
-                            modifier = Modifier.padding(start = 26.dp, top = 10.dp, bottom = 2.dp),
-                        )
-                    }
-                    items(apps, key = { it.key }) { app ->
-                        CoverAppRow(app, onOpen = { Launcher.open(context, app, windowed = false) }, onMenu = { shell.coverAppMenu(app, it) })
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            Row(Modifier.fillMaxSize()) {
+                LazyColumn(Modifier.weight(1f).fillMaxHeight(), state = list) {
+                    if (showRecent) item(key = "recent") { RecentApps(shell, recent.orEmpty()) }
+                    groups.forEach { (letter, apps) ->
+                        item(key = "header-$letter") {
+                            BasicText(
+                                letter.toString(),
+                                style = TextStyle(color = Dex.accent, fontSize = 12.sp),
+                                modifier = Modifier.padding(start = 26.dp, top = 10.dp, bottom = 2.dp),
+                            )
+                        }
+                        items(apps, key = { it.key }) { app ->
+                            CoverAppRow(app, onOpen = { Launcher.open(context, app, windowed = false) }, onMenu = { shell.coverAppMenu(app, it) })
+                        }
                     }
                 }
+                LetterIndex(
+                    groups.keys.toList(), scrub?.letter,
+                    onMove = { letter, y ->
+                        if (letter != scrub?.letter) scope.launch { list.scrollToItem(headerIndex.getValue(letter)) }
+                        scrub = Scrub(letter, y)
+                    },
+                    onRelease = { scrub = null },
+                )
             }
-            Column(
-                Modifier.fillMaxHeight().width(22.dp).padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.SpaceEvenly,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                for (letter in groups.keys) {
-                    BasicText(
-                        letter.toString(),
-                        style = TextStyle(color = Dex.subtle, fontSize = 10.sp),
-                        modifier = Modifier.deskGestures(onTap = {
-                            scope.launch { list.scrollToItem(headerIndex.getValue(letter)) }
-                        }),
-                    )
-                }
-            }
+            scrub?.let { LetterBubble(it, Modifier.align(Alignment.TopEnd)) }
         }
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().height(42.dp)
@@ -1317,6 +1314,81 @@ private fun CoverApps(shell: ShellController, active: Boolean) {
             if (shell.coverRearranging == CoverRow.Favourites) RearrangeBar { shell.coverRearranging = null }
             FavouriteApps(shell)
         }
+    }
+}
+
+/** The letter under the finger while sliding along the index, and where the finger is. */
+private class Scrub(val letter: Char, val y: Float)
+
+/**
+ * The A–Z column beside the app list. Tap a letter, or slide along it to run
+ * through them like the scroller in Contacts, with a tick on each new letter.
+ */
+@Composable
+private fun LetterIndex(letters: List<Char>, current: Char?, onMove: (Char, Float) -> Unit, onRelease: () -> Unit) {
+    val view = LocalView.current
+    Column(
+        Modifier
+            .fillMaxHeight()
+            .width(22.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(if (current != null) Dex.text.copy(alpha = 0.08f) else Color.Transparent)
+            .pointerInput(letters) {
+                val pad = 8.dp.toPx()
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    var last: Char? = null
+                    fun pick(y: Float) {
+                        // The letters share the column evenly, so the finger's height picks one.
+                        val share = (y - pad) / (size.height - 2 * pad)
+                        val letter = letters[(share * letters.size).toInt().coerceIn(0, letters.lastIndex)]
+                        if (letter != last) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        last = letter
+                        onMove(letter, y.coerceIn(0f, size.height.toFloat()))
+                    }
+                    down.consume()
+                    pick(down.position.y)
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                        // Keep the pager from taking a slightly sideways slide.
+                        change.consume()
+                        if (!change.pressed) break
+                        pick(change.position.y)
+                    }
+                    onRelease()
+                }
+            }
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.SpaceEvenly,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        for (letter in letters) {
+            val on = letter == current
+            BasicText(
+                letter.toString(),
+                style = TextStyle(
+                    color = if (on) Dex.text else Dex.subtle,
+                    fontSize = if (on) 12.sp else 10.sp,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                ),
+            )
+        }
+    }
+}
+
+/** The big letter beside the finger, which covers the column while sliding. */
+@Composable
+private fun LetterBubble(scrub: Scrub, modifier: Modifier) {
+    val size = 56.dp
+    Box(
+        modifier
+            .offset { IntOffset(-(22.dp + 14.dp).roundToPx(), (scrub.y - size.toPx()).toInt().coerceAtLeast(0)) }
+            .size(size)
+            .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 28.dp, bottomEnd = 4.dp))
+            .background(Dex.accent),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(scrub.letter.toString(), style = TextStyle(color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold))
     }
 }
 

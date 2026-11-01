@@ -1,0 +1,53 @@
+<!doctype html><html><head><meta charset="utf-8"><title>FoldDesk cover letter scroller</title><style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; --row:rgba(28,28,30,.55); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:1560px; height:1280px; overflow:hidden; display:flex; gap:20px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .screen { flex:none; position:relative; width:480px; height:1100px; overflow:hidden; border-radius:28px;
+    background: radial-gradient(500px 420px at 80% 10%, rgba(97,150,255,.30), transparent 65%), radial-gradient(500px 500px at 10% 95%, rgba(54,196,214,.22), transparent 60%), linear-gradient(170deg,#0d1730,#05080f); }
+  .status { height:30px; display:flex; justify-content:space-between; padding:7px 22px; font-size:12.5px; color:#d8d8dc; }
+  .dots { display:flex; justify-content:center; gap:6px; margin:4px 0 8px; }
+  .dots i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,.35); } .dots i.on { background:#fff; width:16px; }
+  .panel { position:absolute; left:0; right:0; top:52px; bottom:0; background:rgba(28,28,30,.6); border-radius:24px 24px 0 0; overflow:hidden; }
+  .list { position:absolute; left:0; right:34px; top:0; bottom:200px; overflow:hidden; }
+  .letter { font-size:12px; color:var(--accent); padding:12px 26px 2px; }
+  .app { display:flex; gap:14px; align-items:center; padding:8px 24px; font-size:15px; } .app i { width:36px; height:36px; border-radius:11px; flex:none; }
+  .idx { position:absolute; right:4px; top:10px; bottom:210px; width:26px; display:flex; flex-direction:column; justify-content:space-evenly; align-items:center; font-size:10px; color:var(--subtle); border-radius:13px; }
+  .idx.active { background:rgba(255,255,255,.08); }
+  .idx b { font-weight:400; } .idx b.cur { color:#fff; font-weight:700; font-size:12px; }
+  .finger { position:absolute; width:46px; height:46px; border-radius:23px; background:rgba(255,255,255,.22); border:2px solid rgba(255,255,255,.5); }
+  .bubble { position:absolute; right:58px; width:78px; height:78px; border-radius:39px 39px 6px 39px; background:var(--accent); color:#fff; font-size:40px; font-weight:600; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 26px rgba(0,0,0,.5); transform:rotate(0deg); }
+  .tick { position:absolute; right:20px; font-size:11px; color:#ffd76a; }
+  .search { position:absolute; left:16px; right:16px; bottom:118px; height:42px; border-radius:21px; background:var(--row); display:flex; align-items:center; padding:0 16px; gap:10px; color:var(--subtle); font-size:14px; }
+  .search::before { content:""; width:12px; height:12px; border:2px solid var(--subtle); border-radius:7px; }
+  .fav { position:absolute; left:0; right:0; bottom:22px; display:flex; justify-content:space-around; padding:0 12px; }
+  .fav .a { width:72px; text-align:center; font-size:11px; color:#eee; } .fav .a i { width:46px; height:46px; border-radius:14px; display:block; margin:0 auto 5px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:480px; }
+</style></head><body>
+<script>
+const COLORS = ['#e5484d','#f5a524','#3e91ff','#9b5cf6','#ff7a59','#d4a017','#1f9d68','#25b45e','#0fa3b1','#6b7280','#2b6cb0','#556070','#c2410c','#dc2626','#16a34a','#2563eb'];
+const APPS = {
+  A:['Authenticator','Amazon','Audible'], B:['Banking','Browser'], C:['Calculator','Calendar','Camera','Chat','Clock','Contacts'],
+  D:['Drive'], F:['Files','Fitness'], G:['Gallery','Games'], M:['Mail','Maps','Messages','Music'], N:['News','Notes'],
+  P:['Phone','Photos','Podcasts'], S:['Settings','Shopping','Spotify','Store'], T:['Translate','Travel'], W:['Wallet','Weather']
+};
+const LETTERS = Object.keys(APPS);
+let ci = 0;
+const app = n => `<div class="app"><i style="background:${COLORS[(ci++) % COLORS.length]}"></i>${n}</div>`;
+const list = from => { ci = 0; let h = ''; for (const L of LETTERS.slice(LETTERS.indexOf(from))) h += `<div class="letter">${L}</div>` + APPS[L].map(app).join(''); return h; };
+const idx = (cur, active) => `<div class="idx ${active ? 'active' : ''}">${LETTERS.map(L => `<b class="${L === cur ? 'cur' : ''}">${L}</b>`).join('')}</div>`;
+// y of a letter in the index column, relative to the panel (top 10, bottom 210 inside a 1068px panel)
+const yOf = L => { const h = 1068 - 10 - 210, step = h / LETTERS.length; return 10 + step * (LETTERS.indexOf(L) + .5); };
+const fav = `<div class="search">Search</div><div class="fav">${['Photos','Notes','Chat','Store'].map((n, i) => `<div class="a"><i style="background:${COLORS[i + 3]}"></i>${n}</div>`).join('')}</div>`;
+const screen = (from, cur, dragging) => `<div class="screen"><div class="status"><span>12:00</span><span>▮▮ 78%</span></div><div class="dots"><i></i><i></i><i class="on"></i></div>
+  <div class="panel"><div class="list">${list(from)}</div>${idx(cur, dragging)}
+  ${dragging ? `<div class="finger" style="right:-10px;top:${yOf(cur) - 23}px"></div><div class="bubble" style="top:${yOf(cur) - 70}px">${cur}</div>` : ''}
+  ${fav}</div></div>`;
+const cols = [
+  ['1 · At rest: same as today', screen('A', null, false), 'The letter column on the right lists only letters that have apps. Tapping a letter still jumps straight to it.'],
+  ['2 · Drag down the column', screen('M', 'M', true), 'Put a finger on the column and slide. The list jumps to each letter as the finger passes it, with a light tick on every change. A bubble beside the finger shows the letter, since the finger covers the column. The column gets a faint background and the current letter is highlighted.'],
+  ['3 · Keep sliding, then let go', screen('S', 'S', true), 'Further down, at S. Lifting the finger hides the bubble and leaves the list at S. Sliding past the ends stays on A or W. Favourites and search below are unchanged.'],
+];
+document.body.innerHTML = cols.map(([t, s, n]) => `<div class="col"><div class="cap">${t}</div>${s}<div class="note">${n}</div></div>`).join('');
+</script></body></html>
