@@ -321,6 +321,14 @@ private fun SettingsScreen(desk: DeskState) {
                 }
 
                 Group("App drawer") {
+                    SettingRow("Size", hint = "Full uses the whole screen; Compact is the smaller drawer from before", wide = true) {
+                        Segmented(DrawerSize.entries, desk.drawerSize, { it.label }, desk::updateDrawerSize)
+                    }
+                    Divider()
+                    SettingRow("Search bar", hint = "Where the search and buttons sit in the drawer", wide = true) {
+                        Segmented(DrawerSearch.entries, desk.drawerSearch, { it.label }, desk::updateDrawerSearch)
+                    }
+                    Divider()
                     SettingRow(
                         "Open keyboard with app drawer",
                         hint = "Start typing to search straight away. Also on the cover screen's apps page",

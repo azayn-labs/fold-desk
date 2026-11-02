@@ -1,0 +1,66 @@
+<!doctype html><html><head><meta charset="utf-8"><title>FoldDesk drawer search at the bottom</title><style>
+  :root { --text:#fafafa; --subtle:#9a9aa0; --accent:#3e91ff; --panel:rgba(34,35,40,.94); --field:rgba(255,255,255,.1); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:2880px; height:900px; overflow:hidden; display:flex; gap:24px; padding:20px; background:#111; color:var(--text); font-family:"SamsungOne",Roboto,system-ui,sans-serif; }
+  .col { display:flex; flex-direction:column; gap:10px; flex:none; }
+  .cap { font-size:14px; color:#ffd76a; height:22px; }
+  .note { font-size:12.5px; color:#cfe1ff; line-height:1.45; width:540px; }
+  .screen { position:relative; width:540px; height:600px; border-radius:26px; overflow:hidden;
+    background: radial-gradient(420px 360px at 78% 18%, rgba(118,150,255,.55), transparent 65%), radial-gradient(460px 420px at 12% 92%, rgba(54,196,214,.38), transparent 60%), linear-gradient(160deg,#1b2650,#0b1022 60%,#120c25); }
+  .taskbar { position:absolute; left:0; right:0; bottom:0; height:40px; background:rgba(16,17,21,.86); display:flex; align-items:center; gap:9px; padding:0 12px; z-index:3; }
+  .tb { width:24px; height:24px; border-radius:7px; }
+  .key { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#ddd; font-size:13px; }
+  .key.on { background:rgba(255,255,255,.12); }
+  .drawer { position:absolute; left:50%; transform:translateX(-50%); width:346px; border-radius:22px; background:var(--panel); padding:14px; display:flex; flex-direction:column; gap:12px; box-shadow:0 20px 50px rgba(0,0,0,.5); }
+  .bar { display:flex; align-items:center; gap:6px; }
+  .search { flex:1; height:34px; border-radius:17px; background:var(--field); display:flex; align-items:center; gap:8px; padding:0 12px; color:var(--subtle); font-size:12.5px; }
+  .search::before { content:""; width:10px; height:10px; border:2px solid var(--subtle); border-radius:6px; }
+  .search.typing { color:var(--text); }
+  .rb { width:30px; height:30px; border-radius:15px; display:flex; align-items:center; justify-content:center; color:#ddd; font-size:14px; }
+  .grid { display:grid; grid-template-columns:repeat(var(--cols,6),1fr); gap:12px 2px; }
+  .app { display:flex; flex-direction:column; align-items:center; gap:4px; font-size:9.5px; color:#e8e8ec; }
+  .app i { width:34px; height:34px; border-radius:10px; display:block; }
+  .set { width:540px; height:600px; border-radius:26px; background:#0c0c0e; padding:22px 18px; }
+  .set h1 { font-size:24px; font-weight:600; padding:8px 6px 14px; } .set .g { font-size:12px; color:var(--accent); padding:12px 8px 6px; }
+  .set .card { border-radius:20px; background:#1c1c1f; } .set .row { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; font-size:14px; gap:12px; } .set .row + .row { border-top:1px solid rgba(255,255,255,.08); }
+  .set small { display:block; color:var(--subtle); font-size:12px; margin-top:3px; } .seg { display:flex; background:#2a2a2e; border-radius:16px; padding:3px; font-size:12.5px; } .seg span { padding:6px 14px; border-radius:13px; color:#ddd; } .seg span.on { background:var(--accent); color:#fff; }
+  .sw { width:40px; height:24px; border-radius:12px; background:#555; position:relative; } .sw::after { content:''; position:absolute; left:3px; top:3px; width:18px; height:18px; border-radius:9px; background:#fff; }
+  .faded { opacity:.35; }
+  .withidx { display:flex; gap:4px; } .withidx .grid { flex:1; }
+  .idx { width:16px; display:flex; flex-direction:column; justify-content:space-evenly; align-items:center; font-size:8.5px; color:var(--subtle); border-radius:8px; }
+  .idx.active { background:rgba(255,255,255,.08); } .idx b { font-weight:400; } .idx b.cur { color:#fff; font-weight:700; font-size:10px; }
+  .bub { position:absolute; width:46px; height:46px; border-radius:23px 23px 4px 23px; background:var(--accent); color:#fff; font-size:24px; font-weight:600; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(0,0,0,.5); }
+  .fing { position:absolute; width:30px; height:30px; border-radius:15px; background:rgba(255,255,255,.25); border:2px solid rgba(255,255,255,.55); }
+  .hl i { box-shadow:0 0 0 2px rgba(62,145,255,.8); }
+  .new { outline:2px dashed rgba(255,215,106,.75); outline-offset:4px; border-radius:20px; }
+  .kb { position:absolute; left:0; right:0; bottom:0; height:210px; background:#1f2024; z-index:4; display:flex; flex-direction:column; gap:7px; padding:12px 60px; }
+  .kb .r { display:flex; gap:5px; justify-content:center; } .kb .k { height:36px; flex:1; max-width:40px; border-radius:7px; background:#3a3b41; color:#eee; font-size:13px; display:flex; align-items:center; justify-content:center; }
+</style></head><body>
+<script>
+const C = ['#e5484d','#f5a524','#3e91ff','#9b5cf6','#ff7a59','#d4a017','#1f9d68','#25b45e','#0fa3b1','#6b7280','#2b6cb0','#556070','#c2410c','#dc2626','#16a34a'];
+const N0 = ['Banking','Books','Browser','Calendar','Camera','Chat','Clock','Contacts','Drive','Files','Fitness','Gallery','Games','Mail','Maps','Messages','Music','News','Notes','Phone','Photos','Podcasts','Settings','Shopping','Store','Translate','Travel','Wallet','Weather','Video'];
+const N = [...N0, ...N0.map(n => n + ' 2'), ...N0.map(n => n + ' 3')].sort();
+const LET = [...new Set(N.map(n => n[0]))];
+const idx = (cur) => `<div class="idx ${cur ? 'active' : ''}">${LET.map(l => `<b class="${l === cur ? 'cur' : ''}">${l}</b>`).join('')}</div>`;
+const grid = (n = 30, names = N, cols = 6) => `<div class="grid" style="--cols:${cols}">${names.slice(0, n).map((a, i) => `<div class="app"><i style="background:${C[i % C.length]}"></i>${a}</div>`).join('')}</div>`;
+const bar = (cls = '', text = 'Search apps') => `<div class="bar ${cls}"><div class="search ${text !== 'Search apps' ? 'typing' : ''}">${text}</div><div class="rb">☰</div><div class="rb">⚙</div><div class="rb">⏻</div></div>`;
+const taskbar = `<div class="taskbar"><div class="key on">⋮⋮</div><div class="key">▣</div>${C.slice(0,6).map(c => `<div class="tb" style="background:${c}"></div>`).join('')}</div>`;
+const kb = `<div class="kb">${['qwertyuiop','asdfghjkl','zxcvbnm'].map(r => `<div class="r">${[...r].map(k => `<div class="k">${k}</div>`).join('')}</div>`).join('')}<div class="r"><div class="k" style="max-width:220px">space</div><div class="k" style="max-width:60px;background:var(--accent)">Go</div></div></div>`;
+const cols = [
+  ['1 · Today: small drawer, search at the top', `<div class="screen"><div class="drawer" style="top:40px">${bar()}${grid(30)}</div>${taskbar}</div>`,
+   'Drawn to scale. The drawer uses about two thirds of the inner screen (560 × 640 dp of about 875 × 970), so it shows 6 columns and about 30 apps, with a wide empty border. Search and buttons at the far top.'],
+  ['2 · New: big drawer, search at the bottom', `<div class="screen"><div class="drawer" style="width:516px;top:30px;bottom:52px"><div class="withidx new" style="flex:1">${grid(63, N, 9)}${idx()}</div><div class="new">${bar()}</div></div>${taskbar}</div>`,
+   'The drawer fills the screen above the taskbar with a small margin (about 12 dp at the sides, 16 dp at the top and bottom). That makes 9 columns and about 63 apps at once, twice as many. Search and buttons at the bottom, by the taskbar. Icons and labels keep their size. A letter column runs down the right edge, like on the cover screen.'],
+  ['2b · Slide along the letters', `<div class="screen"><div class="drawer" style="width:516px;top:30px;bottom:52px"><div class="withidx" style="flex:1">${grid(63, N.filter(n => n >= 'M'), 9)}${idx('M')}</div><div>${bar()}</div></div><div class="bub" style="right:52px;top:208px">M</div><div class="fing" style="right:14px;top:240px"></div>${taskbar}</div>`,
+   'The same as on the cover screen: tap a letter or slide along the column. The grid jumps so the first app of that letter is in the top row, with a light tick on each new letter and a bubble beside the finger. Apps stay in one continuous A–Z grid, no gaps or headers, so no space is lost.'],
+  ['3 · Typing: shorter, search above the keyboard', `<div class="screen"><div class="drawer" style="width:516px;top:30px;bottom:218px">${grid(9, N.filter(n => n.startsWith('C')), 9)}<div style="flex:1"></div><div class="new">${bar('', 'c')}</div></div>${kb}</div>`,
+   'With the keyboard up, the drawer shrinks from the bottom instead of moving, so it keeps its top edge and the search bar sits right above the keys. The matching apps fill from the top.'],
+  ['4 · Settings → App drawer: Size and Search bar', `<div class="set"><h1>FoldDesk settings</h1><div class="faded"><div class="g">Desktop</div><div class="card"><div class="row"><div>Hide status bar on desktop</div><div class="sw"></div></div></div></div>
+    <div class="new"><div class="g">App drawer</div><div class="card"><div class="row"><div>Size<small>Full uses the whole screen; Compact is the smaller drawer from before</small></div><div class="seg"><span>Compact</span><span class="on">Full</span></div></div>
+    <div class="row"><div>Search bar<small>Where the search and buttons sit in the drawer</small></div><div class="seg"><span>Top</span><span class="on">Bottom</span></div></div>
+    <div class="row"><div>Open keyboard with app drawer<small>Start typing to search straight away. Also on the cover screen's apps page</small></div><div class="sw"></div></div><div class="row"><div>Hidden apps</div><span style="color:var(--accent);font-size:13px">None</span></div></div></div>
+    <div class="faded"><div class="g">Taskbar shortcuts</div><div class="card"><div class="row"><div>Tap Wi-Fi and battery</div><span style="color:var(--accent);font-size:13px">Connections</span></div></div></div></div>`,
+   'Two choices at the top of the App drawer group, in the same style as Taskbar position. Size: Full (panel 2, the default) or Compact (the smaller drawer from panel 1). Search bar: Bottom (default) or Top; the drawer sits on the same side as its search bar, so Compact + Top is exactly today\'s drawer, and Compact + Bottom is the small drawer just above the taskbar.'],
+];
+document.body.innerHTML = cols.map(([t, s, n]) => `<div class="col"><div class="cap">${t}</div>${s}<div class="note">${n}</div></div>`).join('');
+</script></body></html>

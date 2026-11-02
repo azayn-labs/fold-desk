@@ -1,6 +1,8 @@
 package dev.home.folddesk.ui
 
 import dev.home.folddesk.TaskbarSide
+import dev.home.folddesk.DrawerSearch
+import dev.home.folddesk.DrawerSize
 import androidx.compose.ui.platform.LocalView
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
@@ -33,6 +35,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -116,9 +122,16 @@ fun PopupLayer(shell: ShellController, modifier: Modifier = Modifier, dragTarget
             },
         ),
     ) {
+        // The drawer sits on the side of its search bar; Compact + Top is the old centred panel.
+        val drawerAt = when {
+            shell.desk.drawerSearch == DrawerSearch.Bottom -> Alignment.BottomCenter
+            shell.desk.drawerSize == DrawerSize.Full -> Alignment.TopCenter
+            else -> Alignment.Center
+        }
         AnimatedVisibility(
             visibleState = drawer,
-            modifier = Modifier.align(Alignment.Center),
+            // Above the keyboard, so a search bar at the bottom stays in sight.
+            modifier = Modifier.align(drawerAt).imePadding(),
             enter = fadeIn(tween(DRAWER_OPEN_MS)) +
                 scaleIn(tween(DRAWER_OPEN_MS, easing = LinearOutSlowInEasing), initialScale = 0.94f) +
                 slideInVertically(tween(DRAWER_OPEN_MS, easing = LinearOutSlowInEasing)) { it / 24 },
@@ -167,73 +180,115 @@ private fun AppDrawer(shell: ShellController, modifier: Modifier, blurAmount: Fl
             .sortedBy { if (it.label.lowercase().startsWith(q)) 0 else 1 }
     }
 
+    // Where each letter starts in the list, for the A–Z column. Only while not searching:
+    // search results are ordered by match, not by name.
+    val letterStarts = remember(results, query.isEmpty()) {
+        if (query.isNotEmpty()) emptyMap()
+        else buildMap { results.forEachIndexed { i, app -> putIfAbsent(indexLetter(app.label), i) } }
+    }
+    var scrub by remember { mutableStateOf<Scrub?>(null) }
+    val scope = rememberCoroutineScope()
+
     BoxWithConstraints(modifier) {
-        val width = minOf(560.dp, maxWidth * 0.7f)
-        val height = minOf(640.dp, maxHeight)
+        val full = desk.drawerSize == DrawerSize.Full
+        // Full leaves a small margin round the drawer (with the 8 dp outside it);
+        // Compact is the panel from before.
+        val width = if (full) minOf(1000.dp, maxWidth - 8.dp) else minOf(560.dp, maxWidth * 0.7f)
+        val height = if (full) maxHeight - 16.dp else minOf(640.dp, maxHeight)
         val grid = rememberLazyGridState()
-        Panel(26.dp, Modifier.size(width, height), blurAmount) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .swipeDownToClose(grid, { shell.desk.swipeDownClosesDrawer }, shell::closePopups)
-                // Taps inside the drawer close an open menu, never the drawer itself.
-                .deskGestures(onTap = shell::closeMenu, onMenu = { shell.closeMenu() })
-                .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 14.dp),
-        ) {
-            // Search across the top, with the drawer's buttons at its right end.
+        val searchAtTop = desk.drawerSearch == DrawerSearch.Top
+
+        val searchBar = @Composable {
+            // Search with the drawer's buttons at its right end.
             Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                Modifier
-                    .weight(1f)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(21.dp))
-                    .background(Dex.field)
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SearchGlyph()
-                Spacer(Modifier.width(10.dp))
-                Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) BasicText("Search", style = TextStyle(color = Dex.subtle, fontSize = 14.sp))
-                    BasicTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        singleLine = true,
-                        textStyle = TextStyle(color = Dex.text, fontSize = 14.sp),
-                        cursorBrush = SolidColor(Dex.accent),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                        keyboardActions = KeyboardActions(onGo = { results.firstOrNull()?.let { shell.open(it) } }),
-                        modifier = Modifier.fillMaxWidth().focusRequester(search),
-                    )
+                Row(
+                    Modifier
+                        .weight(1f)
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(21.dp))
+                        .background(Dex.field)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SearchGlyph()
+                    Spacer(Modifier.width(10.dp))
+                    Box(Modifier.weight(1f)) {
+                        if (query.isEmpty()) BasicText("Search", style = TextStyle(color = Dex.subtle, fontSize = 14.sp))
+                        BasicTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            singleLine = true,
+                            textStyle = TextStyle(color = Dex.text, fontSize = 14.sp),
+                            cursorBrush = SolidColor(Dex.accent),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                            keyboardActions = KeyboardActions(onGo = { results.firstOrNull()?.let { shell.open(it) } }),
+                            modifier = Modifier.fillMaxWidth().focusRequester(search),
+                        )
+                    }
                 }
-            }
-            Spacer(Modifier.width(6.dp))
-            RoundButton(onTap = shell::openDeskSettings) { Glyph(DexGlyph.Sliders, 20.dp) }
-            RoundButton(onTap = { shell.closePopups(); Launcher.openSettings(context) }) { Glyph(DexGlyph.Settings, 20.dp) }
-            shell.keys?.let { keys ->
-                RoundButton(onTap = { shell.closePopups(); keys.powerMenu() }) { Glyph(DexGlyph.Power, 20.dp) }
-            }
-            }
-            Spacer(Modifier.height(14.dp))
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(84.dp),
-                state = grid,
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                items(results, key = { it.key }) { app ->
-                    val feedback = remember { PressFeedback() }
-                    AppTile(
-                        app, onWallpaper = false, feedback = feedback,
-                        modifier = Modifier.deskGestures(
-                            onTap = { shell.open(app) },
-                            onMenu = { shell.appMenu(app, it, fromDrawer = true) },
-                            feedback = feedback,
-                        ),
-                    )
+                Spacer(Modifier.width(6.dp))
+                RoundButton(onTap = shell::openDeskSettings) { Glyph(DexGlyph.Sliders, 20.dp) }
+                RoundButton(onTap = { shell.closePopups(); Launcher.openSettings(context) }) { Glyph(DexGlyph.Settings, 20.dp) }
+                shell.keys?.let { keys ->
+                    RoundButton(onTap = { shell.closePopups(); keys.powerMenu() }) { Glyph(DexGlyph.Power, 20.dp) }
                 }
             }
         }
+
+        Panel(26.dp, Modifier.size(width, height), blurAmount) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    // A slide down the letter column isn't a swipe to close.
+                    .swipeDownToClose(grid, { shell.desk.swipeDownClosesDrawer && scrub == null }, shell::closePopups)
+                    // Taps inside the drawer close an open menu, never the drawer itself.
+                    .deskGestures(onTap = shell::closeMenu, onMenu = { shell.closeMenu() })
+                    .padding(start = 18.dp, end = 10.dp, top = 18.dp, bottom = 14.dp),
+            ) {
+                if (searchAtTop) {
+                    Box(Modifier.padding(end = 8.dp)) { searchBar() }
+                    Spacer(Modifier.height(14.dp))
+                }
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    Row(Modifier.fillMaxSize()) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(84.dp),
+                            state = grid,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            items(results, key = { it.key }) { app ->
+                                val feedback = remember { PressFeedback() }
+                                AppTile(
+                                    app, onWallpaper = false, feedback = feedback,
+                                    modifier = Modifier.deskGestures(
+                                        onTap = { shell.open(app) },
+                                        onMenu = { shell.appMenu(app, it, fromDrawer = true) },
+                                        feedback = feedback,
+                                    ),
+                                )
+                            }
+                        }
+                        if (letterStarts.size > 1) {
+                            LetterIndex(
+                                letterStarts.keys.toList(), scrub?.letter,
+                                onMove = { letter, y ->
+                                    if (letter != scrub?.letter) scope.launch { grid.scrollToItem(letterStarts.getValue(letter)) }
+                                    scrub = Scrub(letter, y)
+                                },
+                                onRelease = { scrub = null },
+                            )
+                        } else {
+                            Spacer(Modifier.width(8.dp))
+                        }
+                    }
+                    scrub?.let { LetterBubble(it, Modifier.align(Alignment.TopEnd)) }
+                }
+                if (!searchAtTop) {
+                    Spacer(Modifier.height(14.dp))
+                    Box(Modifier.padding(end = 8.dp)) { searchBar() }
+                }
+            }
         }
     }
 }

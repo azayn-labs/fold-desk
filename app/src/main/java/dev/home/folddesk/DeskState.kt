@@ -289,6 +289,10 @@ class DeskState(private val context: Context) {
         private set
     var taskbarSize by mutableStateOf(readEnum("taskbarSize", TaskbarSize.Default))
         private set
+    var drawerSize by mutableStateOf(readEnum("drawerSize", DrawerSize.Full))
+        private set
+    var drawerSearch by mutableStateOf(readEnum("drawerSearch", DrawerSearch.Bottom))
+        private set
     /** Custom taskbar colour and accent (ARGB); null follows the light/dark theme. */
     var taskbarColour by mutableStateOf(sp.getLong("taskbarColour", 0L).takeIf { it != 0L })
         private set
@@ -852,6 +856,16 @@ class DeskState(private val context: Context) {
     fun updateTaskbarSize(value: TaskbarSize) {
         taskbarSize = value
         saveEnum("taskbarSize", value)
+    }
+
+    fun updateDrawerSize(value: DrawerSize) {
+        drawerSize = value
+        saveEnum("drawerSize", value)
+    }
+
+    fun updateDrawerSearch(value: DrawerSearch) {
+        drawerSearch = value
+        saveEnum("drawerSearch", value)
     }
 
     /** Colours apply at once (live preview); null resets to the theme default. */

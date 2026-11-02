@@ -40,6 +40,12 @@ enum class SwipeAction(val label: String) {
     None("Nothing"),
 }
 
+/** App drawer size: the whole screen above the taskbar, or the smaller panel from before. */
+enum class DrawerSize(val label: String) { Compact("Compact"), Full("Full") }
+
+/** Where the drawer's search bar sits; the drawer sits on that side of the screen too. */
+enum class DrawerSearch(val label: String) { Top("Top"), Bottom("Bottom") }
+
 /** Taskbar background material. */
 enum class TaskbarBackground(val label: String) { Solid("Solid"), Translucent("Translucent"), Blurred("Blurred") }
 
