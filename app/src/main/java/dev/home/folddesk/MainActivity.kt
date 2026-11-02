@@ -2,6 +2,7 @@ package dev.home.folddesk
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.appwidget.AppWidgetManager
@@ -183,8 +184,8 @@ class MainActivity : ComponentActivity(), WidgetActions {
 
     private fun afterBind() {
         val p = pending ?: return
-        val needsSetup = p.info.configure != null &&
-            (p.info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL) == 0
+        val needsSetup = p.info.configure != null && (Build.VERSION.SDK_INT < 31 ||
+            (p.info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL) == 0)
         if (needsSetup) {
             Widgets.host.startAppWidgetConfigureActivityForResult(this, p.id, 0, REQUEST_CONFIGURE, null)
         } else {

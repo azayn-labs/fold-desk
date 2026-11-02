@@ -24,7 +24,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.home.folddesk"
-        minSdk = 34
+        minSdk = 30
         targetSdk = 36
         versionCode = releaseVersionCode ?: 1
         versionName = releaseVersion ?: "0.1.0"

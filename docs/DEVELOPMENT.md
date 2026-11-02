@@ -69,7 +69,8 @@ Gotchas learned the hard way:
 ## Toolchain
 
 - AGP 9.4.1, Gradle 9.8.2 (wrapper), Kotlin Compose plugin 2.4.21.
-- `compileSdk 37`, `targetSdk 36`, `minSdk 34`.
+- `compileSdk 37`, `targetSdk 36`, `minSdk 30`. Calls to newer APIs sit behind
+  `Build.VERSION.SDK_INT` checks; lint's `NewApi` check catches any that don't.
 - JDK 21 via Gradle toolchain (auto-provisioned by the foojay resolver).
 - `local.properties` (SDK path) is per machine and not committed.
 - Release builds are signed with the debug key (personal sideloaded app).

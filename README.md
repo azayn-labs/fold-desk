@@ -15,7 +15,9 @@ It's a free, open-source app. Signed APKs are published on the
 ## Compatibility
 
 - **Built and tested on:** Galaxy Z Fold7, One UI 9 (Android 17).
-- **Needs:** Android 14+ (minSdk 34) and a device with freeform window support.
+- **Needs:** Android 11+ (minSdk 30). The desktop needs a device with freeform
+  window support; on phones without a fold, FoldDesk runs as a simple home
+  screen (phone mode). Phone mode is also tested on a Xiaomi with Android 12.
 - **Samsung-specific:** the panel blur, Recents sync and window minimising rely
   on One UI internals. Other Samsung foldables/tablets on a recent One UI will
   likely work; other brands will run with reduced features. Reports welcome

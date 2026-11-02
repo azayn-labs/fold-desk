@@ -251,6 +251,7 @@ private fun livePreview(context: Context, info: AppWidgetProviderInfo): RemoteVi
         Widgets.manager.getWidgetPreview(info.provider, info.profile, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN)
             ?.let { return@runCatching it }
     }
+    if (Build.VERSION.SDK_INT < 31) return@runCatching null
     info.previewLayout.takeIf { it != 0 }?.let { RemoteViews(info.provider.packageName, it) }
 }.getOrNull()
 

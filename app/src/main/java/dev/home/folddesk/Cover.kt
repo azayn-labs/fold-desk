@@ -95,14 +95,15 @@ data class CoverNotification(
         fun send(context: Context, intent: PendingIntent?, keys: List<String>, autoCancel: Boolean, fallback: () -> Unit) {
             val pending = intent ?: return fallback()
             try {
-                val mode = if (Build.VERSION.SDK_INT >= 36) {
-                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS
-                } else {
-                    @Suppress("DEPRECATION")
-                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                // Before Android 14 the opt-in doesn't exist, and isn't needed.
+                val options = when {
+                    Build.VERSION.SDK_INT >= 36 -> ActivityOptions.makeBasic()
+                        .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS)
+                    Build.VERSION.SDK_INT >= 34 -> @Suppress("DEPRECATION") ActivityOptions.makeBasic()
+                        .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                    else -> null
                 }
-                val options = ActivityOptions.makeBasic().setPendingIntentBackgroundActivityStartMode(mode)
-                pending.send(context, 0, null, null, null, null, options.toBundle())
+                pending.send(context, 0, null, null, null, null, options?.toBundle())
                 if (autoCancel) NotificationWatcher.dismiss(keys)
             } catch (e: PendingIntent.CanceledException) {
                 fallback()

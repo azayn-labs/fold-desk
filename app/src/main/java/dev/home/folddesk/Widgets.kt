@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
 import android.view.HapticFeedbackConstants
@@ -33,7 +34,9 @@ object Widgets {
 
     /** Default span on FoldDesk's grid: the provider's target cells, else from its minimum size. */
     fun defaultSpan(info: AppWidgetProviderInfo, context: Context, cellWidthDp: Float, cellHeightDp: Float): Pair<Int, Int> {
-        if (info.targetCellWidth > 0 && info.targetCellHeight > 0) return info.targetCellWidth to info.targetCellHeight
+        if (Build.VERSION.SDK_INT >= 31 && info.targetCellWidth > 0 && info.targetCellHeight > 0) {
+            return info.targetCellWidth to info.targetCellHeight
+        }
         val density = context.resources.displayMetrics.density
         val w = ceil(info.minWidth / density / cellWidthDp).toInt().coerceAtLeast(1)
         val h = ceil(info.minHeight / density / cellHeightDp).toInt().coerceAtLeast(1)
@@ -86,7 +89,12 @@ object Widgets {
 
     /** Tells the widget how big it is now, so it can pick a layout. */
     fun reportSize(view: AppWidgetHostView, widthDp: Float, heightDp: Float) {
-        view.updateAppWidgetSize(Bundle(), listOf(SizeF(widthDp, heightDp)))
+        if (Build.VERSION.SDK_INT >= 31) {
+            view.updateAppWidgetSize(Bundle(), listOf(SizeF(widthDp, heightDp)))
+        } else {
+            val w = widthDp.toInt(); val h = heightDp.toInt()
+            @Suppress("DEPRECATION") view.updateAppWidgetSize(null, w, h, w, h)
+        }
     }
 }
 

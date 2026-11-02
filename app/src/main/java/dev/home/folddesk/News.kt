@@ -8,6 +8,9 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Icon
+import android.os.Build
+import android.os.Bundle
+import android.os.Parcelable
 import android.service.notification.StatusBarNotification
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -87,10 +90,15 @@ object News {
             )
         }
 
+    private inline fun <reified T : Parcelable> parcel(extras: Bundle, key: String): T? =
+        if (Build.VERSION.SDK_INT >= 33) extras.getParcelable(key, T::class.java)
+        else @Suppress("DEPRECATION") extras.getParcelable(key) as? T
+
     private fun picture(context: Context, n: Notification): ImageBitmap? {
         val extras = n.extras
-        val bitmap = extras.getParcelable(Notification.EXTRA_PICTURE, Bitmap::class.java)
-            ?: extras.getParcelable(Notification.EXTRA_PICTURE_ICON, Icon::class.java)?.let { icon(context, it) }
+        val bitmap = parcel<Bitmap>(extras, Notification.EXTRA_PICTURE)
+            ?: (if (Build.VERSION.SDK_INT >= 31) parcel<Icon>(extras, Notification.EXTRA_PICTURE_ICON) else null)
+                ?.let { icon(context, it) }
             ?: n.getLargeIcon()?.let { icon(context, it) }
             ?: return null
         // Cards are at most about this wide; full-size pictures would just use memory.
