@@ -122,11 +122,12 @@ fun PopupLayer(shell: ShellController, modifier: Modifier = Modifier, dragTarget
             },
         ),
     ) {
-        // The drawer sits on the side of its search bar; Compact + Top is the old centred panel.
+        // Compact stays centred wherever its search bar is; Full keeps the search
+        // bar's edge put, so the keyboard shortens it from the other side.
         val drawerAt = when {
+            shell.desk.drawerSize == DrawerSize.Compact -> Alignment.Center
             shell.desk.drawerSearch == DrawerSearch.Bottom -> Alignment.BottomCenter
-            shell.desk.drawerSize == DrawerSize.Full -> Alignment.TopCenter
-            else -> Alignment.Center
+            else -> Alignment.TopCenter
         }
         AnimatedVisibility(
             visibleState = drawer,

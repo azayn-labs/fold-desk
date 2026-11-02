@@ -60,7 +60,7 @@ const cols = [
     <div class="row"><div>Search bar<small>Where the search and buttons sit in the drawer</small></div><div class="seg"><span>Top</span><span class="on">Bottom</span></div></div>
     <div class="row"><div>Open keyboard with app drawer<small>Start typing to search straight away. Also on the cover screen's apps page</small></div><div class="sw"></div></div><div class="row"><div>Hidden apps</div><span style="color:var(--accent);font-size:13px">None</span></div></div></div>
     <div class="faded"><div class="g">Taskbar shortcuts</div><div class="card"><div class="row"><div>Tap Wi-Fi and battery</div><span style="color:var(--accent);font-size:13px">Connections</span></div></div></div></div>`,
-   'Two choices at the top of the App drawer group, in the same style as Taskbar position. Size: Full (panel 2, the default) or Compact (the smaller drawer from panel 1). Search bar: Bottom (default) or Top; the drawer sits on the same side as its search bar, so Compact + Top is exactly today\'s drawer, and Compact + Bottom is the small drawer just above the taskbar.'],
+   'Two choices at the top of the App drawer group, in the same style as Taskbar position. Size: Full (panel 2, the default) or Compact (the smaller drawer from panel 1). Search bar: Bottom (default) or Top; Compact stays centred either way (Compact + Top is exactly today\'s drawer); Full keeps its search bar\'s edge in place.'],
 ];
 document.body.innerHTML = cols.map(([t, s, n]) => `<div class="col"><div class="cap">${t}</div>${s}<div class="note">${n}</div></div>`).join('');
 </script></body></html>
