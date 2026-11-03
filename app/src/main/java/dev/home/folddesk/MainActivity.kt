@@ -15,6 +15,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -31,6 +32,8 @@ import dev.home.folddesk.ui.PhoneWelcome
 class MainActivity : ComponentActivity(), WidgetActions {
     private lateinit var shell: ShellController
     private var inner by mutableStateOf(true)
+    /** Bumped to build the desktop again from scratch. */
+    private var rebuild by mutableIntStateOf(0)
     /** Home pressed while already home; the cover screen goes back to its first page. */
     private var homePresses by mutableIntStateOf(0)
     private var lastHandOff = 0L
@@ -77,8 +80,9 @@ class MainActivity : ComponentActivity(), WidgetActions {
                         if (useFoldDesk) desk.updateCoverLauncher(COVER_SCREEN) else handOffCoverScreen()
                     }
                     !inner && desk.ownCoverScreen -> CoverScreen(shell, homePresses, this@MainActivity)
-                    inner || !desk.coverUsesOneUi ->
+                    inner || !desk.coverUsesOneUi -> key(rebuild) {
                         DesktopScreen(shell, showTaskbar = !TaskbarService.running, widgetActions = this@MainActivity)
+                    }
                 }
             }
         }
@@ -99,8 +103,22 @@ class MainActivity : ComponentActivity(), WidgetActions {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        val wasInner = inner
         inner = FoldDeskApp.isInnerScreen(newConfig)
+        if (inner && !wasInner) rebuildSoon()
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) handOffCoverScreen()
+    }
+
+    /**
+     * After an unfold the desktop sometimes stayed laid out for a moment that had
+     * passed (icons a little too far in, a widget cut off) until a rotation. Build
+     * it again once the window has settled.
+     */
+    private val rebuildDesktop = Runnable { rebuild++ }
+
+    private fun rebuildSoon() {
+        window.decorView.removeCallbacks(rebuildDesktop)
+        window.decorView.postDelayed(rebuildDesktop, REBUILD_DELAY_MS)
     }
 
     /** Hidden on the desktop only; a swipe from the top edge still brings it back for a moment. */
@@ -262,6 +280,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
 
     private companion object {
         const val HAND_OFF_GAP_MS = 1500L
+        const val REBUILD_DELAY_MS = 600L
         const val REQUEST_BIND = 41
         const val REQUEST_CONFIGURE = 42
         const val REQUEST_RECONFIGURE = 43
