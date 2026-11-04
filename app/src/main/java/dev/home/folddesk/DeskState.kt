@@ -108,6 +108,30 @@ data class DeskWidget(val id: Int, val cell: Cell, val w: Int, val h: Int) {
     val cells get() = (0 until w).flatMap { dx -> (0 until h).map { dy -> Cell(cell.col + dx, cell.row + dy) } }
 }
 
+/**
+ * A folder of apps on a desktop. Its icon sits in the desktop's icon map under
+ * [key]; [apps] are app keys. A [large] folder covers 2×2 cells and shows its apps.
+ */
+data class DeskFolder(val id: Int, val name: String, val apps: List<String>, val large: Boolean = false) {
+    val key get() = folderKey(id)
+}
+
+private const val FOLDER_PREFIX = "folder:"
+fun folderKey(id: Int) = "$FOLDER_PREFIX$id"
+fun isFolderKey(key: String) = key.startsWith(FOLDER_PREFIX)
+
+/** Cells per side of a large folder. */
+const val LARGE_FOLDER = 2
+
+private fun blockCells(at: Cell, size: Int) =
+    (0 until size).flatMap { dx -> (0 until size).map { dy -> Cell(at.col + dx, at.row + dy) } }
+
+/** Where each icon shows on the grid; [large] are the folders laid out as 2×2 blocks. */
+class DesktopLayout(private val cells: Map<String, Cell>, val large: Set<String>) : Map<String, Cell> by cells {
+    /** Cells that [key]'s icon covers. */
+    fun footprint(key: String): List<Cell> = getValue(key).let { if (key in large) blockCells(it, LARGE_FOLDER) else listOf(it) }
+}
+
 /** A virtual desktop: its own icons and its own app windows. */
 data class Desktop(val id: Int, val name: String)
 
@@ -139,6 +163,9 @@ class DeskState(private val context: Context) {
         private set
     /** Icons on the current desktop. */
     var desktop by mutableStateOf(readDesktop(currentDesktopId))
+        private set
+    /** Every folder, on any desktop; a desktop's icon map says where each one sits. */
+    var folders by mutableStateOf(readFolders())
         private set
     /** Widgets on the current desktop. */
     var widgets by mutableStateOf(readWidgets(currentDesktopId))
@@ -490,11 +517,20 @@ class DeskState(private val context: Context) {
 
     // --- Desktop icons ---
 
-    fun isOnDesktop(app: AppEntry) = app.key in desktop
+    fun isOnDesktop(app: AppEntry) = app.key in desktop || folderOf(app) != null
+
+    /** The folder on this desktop that holds [app], if any. */
+    fun folderOf(app: AppEntry): DeskFolder? = folders.firstOrNull { it.key in desktop && app.key in it.apps }
+
+    /** The folder behind a desktop icon [key], if it is one. */
+    fun folder(key: String): DeskFolder? = if (isFolderKey(key)) folders.firstOrNull { it.key == key } else null
+
+    fun folderById(id: Int): DeskFolder? = folders.firstOrNull { it.id == id }
 
     fun addToDesktop(app: AppEntry, rows: Int) {
         if (isOnDesktop(app)) return
-        val taken = desktop.values.toSet() + widgetCells()
+        val taken = desktop.flatMap { (key, cell) -> if (folder(key)?.large == true) blockCells(cell, LARGE_FOLDER) else listOf(cell) }
+            .toSet() + widgetCells()
         // Fill column by column, like a desktop OS.
         val cell = generateSequence(0) { it + 1 }
             .map { Cell(it / rows, it % rows) }
@@ -502,26 +538,45 @@ class DeskState(private val context: Context) {
         saveDesktop(desktop + (app.key to cell))
     }
 
-    fun removeFromDesktop(app: AppEntry) = saveDesktop(desktop - app.key)
+    /** Takes [app] off the desktop; out of its folder if that's where it sits. */
+    fun removeFromDesktop(app: AppEntry) {
+        if (app.key in desktop) {
+            saveDesktop(desktop - app.key)
+        } else folderOf(app)?.let { folder ->
+            val next = desktop.toMutableMap()
+            shrinkFolder(folder, folder.apps - app.key, next)
+            saveDesktop(next)
+        }
+    }
+
+    /** Icons saved on desktop [id] (the current one, or one sliding away). */
+    fun iconsOf(id: Int): Map<String, Cell> = if (id == currentDesktopId) desktop else readDesktop(id)
 
     /**
      * Where each icon shows on a [cols]×[rows] grid. Icons whose saved cell is
      * off this grid (placed in the other orientation) show in the nearest free
      * cell instead; their saved cell is kept, so rotating back restores them.
+     * Large folders claim their 2×2 blocks first and the icons flow around them.
      */
-    /** Icons saved on desktop [id] (the current one, or one sliding away). */
-    fun iconsOf(id: Int): Map<String, Cell> = if (id == currentDesktopId) desktop else readDesktop(id)
-
     fun desktopLayout(
         cols: Int,
         rows: Int,
         icons: Map<String, Cell> = desktop,
         blocked: Set<Cell> = widgetCells(),
-    ): Map<String, Cell> {
-        val desktop = icons
-        val fits = desktop.filterValues { it.col < cols && it.row < rows && it !in blocked }
+    ): DesktopLayout {
+        val taken = blocked.toMutableSet()
+        val large = LinkedHashMap<String, Cell>()
+        for ((key, saved) in icons) {
+            if (folder(key)?.large != true) continue
+            // With no 2×2 free anywhere, it shows as a small folder.
+            val spot = freeBlock(saved, LARGE_FOLDER, cols, rows, taken) ?: continue
+            large[key] = spot
+            taken += blockCells(spot, LARGE_FOLDER)
+        }
+        val desktop = icons.filterKeys { it !in large }
+        val fits = desktop.filterValues { it.col < cols && it.row < rows && it !in taken }
         val placed = LinkedHashMap(fits)
-        val taken = (fits.values + blocked).toMutableSet()
+        taken += fits.values
         for ((key, saved) in desktop) {
             if (key in placed) continue
             val want = Cell(saved.col.coerceAtMost(cols - 1), saved.row.coerceAtMost(rows - 1))
@@ -532,7 +587,8 @@ class DeskState(private val context: Context) {
             placed[key] = cell
             taken += cell
         }
-        return placed
+        placed.putAll(large)
+        return DesktopLayout(placed, large.keys)
     }
 
     /**
@@ -542,6 +598,7 @@ class DeskState(private val context: Context) {
     fun moveOnDesktop(key: String, cell: Cell, layout: Map<String, Cell>) {
         val from = layout[key] ?: return
         if (cell in widgetCells()) return // A widget is there.
+        if (cell in largeFolderCells(layout, except = key)) return // So is a large folder.
         val occupant = layout.entries.firstOrNull { it.value == cell }?.key
         val next = desktop.toMutableMap().apply { putAll(layout) }
         next[key] = cell
@@ -550,12 +607,27 @@ class DeskState(private val context: Context) {
     }
 
     /**
+     * Drops the large folder [key] with its top-left on [cell]. Nothing happens
+     * if a widget or another large folder is there; icons it lands on flow to the
+     * nearest free cells, and that arrangement is what's saved.
+     */
+    fun moveLargeFolder(key: String, cell: Cell, cols: Int, rows: Int, layout: Map<String, Cell>) {
+        val at = Cell(
+            cell.col.coerceIn(0, (cols - LARGE_FOLDER).coerceAtLeast(0)),
+            cell.row.coerceIn(0, (rows - LARGE_FOLDER).coerceAtLeast(0)),
+        )
+        if (blockCells(at, LARGE_FOLDER).any { it in widgetCells() || it in largeFolderCells(layout, except = key) }) return
+        val next = desktop.toMutableMap().apply { putAll(layout); put(key, at) }
+        saveDesktop(desktopLayout(cols, rows, next))
+    }
+
+    /**
      * Drops a group of icons: the first lands on [start], the rest on the next
      * free cells after it (down the column, then on to the next column).
      */
     fun moveGroupOnDesktop(keys: List<String>, start: Cell, rows: Int, layout: Map<String, Cell>) {
         val next = desktop.toMutableMap().apply { putAll(layout) }
-        val taken = (next.filterKeys { it !in keys }.values + widgetCells()).toMutableSet()
+        val taken = (next.filterKeys { it !in keys }.values + widgetCells() + largeFolderCells(layout)).toMutableSet()
         var index = start.col * rows + start.row
         for (key in keys) {
             var cell: Cell
@@ -569,7 +641,146 @@ class DeskState(private val context: Context) {
         saveDesktop(next)
     }
 
-    fun removeFromDesktop(keys: Collection<String>) = saveDesktop(desktop - keys.toSet())
+    /** Takes the icons [keys] off the desktop; a folder goes with its apps. */
+    fun removeFromDesktop(keys: Collection<String>) {
+        if (keys.any { isFolderKey(it) }) saveFolders(folders.filter { it.key !in keys })
+        saveDesktop(desktop - keys.toSet())
+    }
+
+    // --- Folders ---
+
+    /** Cells covered by large folders in [layout], except the one [except]. */
+    private fun largeFolderCells(layout: Map<String, Cell>, except: String? = null): Set<Cell> {
+        val large = (layout as? DesktopLayout)?.large ?: return emptySet()
+        return large.filter { it != except }.flatMap { blockCells(layout.getValue(it), LARGE_FOLDER) }.toSet()
+    }
+
+    /** Every cell the icons in [layout] cover. */
+    private fun coveredCells(layout: Map<String, Cell>): Set<Cell> =
+        if (layout is DesktopLayout) layout.keys.flatMap { layout.footprint(it) }.toSet() else layout.values.toSet()
+
+    /** The free [size]×[size] block nearest to [want], by its top-left cell. */
+    private fun freeBlock(want: Cell, size: Int, cols: Int, rows: Int, taken: Set<Cell>): Cell? {
+        var best: Cell? = null
+        var bestDistance = Int.MAX_VALUE
+        for (col in 0..cols - size) for (row in 0..rows - size) {
+            val at = Cell(col, row)
+            if (blockCells(at, size).any { it in taken }) continue
+            val distance = (col - want.col) * (col - want.col) + (row - want.row) * (row - want.row)
+            if (distance < bestDistance) { best = at; bestDistance = distance }
+        }
+        return best
+    }
+
+    private fun nearestFreeCell(near: Cell, cols: Int, rows: Int, taken: Set<Cell>): Cell? =
+        freeBlock(near, 1, cols, rows, taken)
+
+    /**
+     * Drops the app [draggedKey] on the icon [targetKey]: a folder takes it in,
+     * and another app becomes a new folder together with it.
+     */
+    fun mergeIntoFolder(targetKey: String, draggedKey: String, layout: Map<String, Cell>) {
+        if (isFolderKey(draggedKey) || targetKey == draggedKey) return
+        val cell = layout[targetKey] ?: return
+        val next = desktop.toMutableMap().apply { putAll(layout); remove(draggedKey) }
+        val existing = folder(targetKey)
+        if (existing != null) {
+            if (draggedKey !in existing.apps) {
+                saveFolders(folders.map { if (it.id == existing.id) it.copy(apps = it.apps + draggedKey) else it })
+            }
+        } else {
+            if (isFolderKey(targetKey)) return // A folder icon whose folder is gone.
+            val id = (folders.maxOfOrNull { it.id } ?: 0) + 1
+            saveFolders(folders + DeskFolder(id, DEFAULT_FOLDER_NAME, listOf(targetKey, draggedKey)))
+            next.remove(targetKey)
+            next[folderKey(id)] = cell
+        }
+        saveDesktop(next)
+    }
+
+    /**
+     * Puts [appKey] back on the desktop at [at] (or the free cell nearest to it)
+     * and out of the folder. Leaves the folder as it is when the grid is full.
+     */
+    fun takeOutOfFolder(folderId: Int, appKey: String, at: Cell, cols: Int, rows: Int, layout: Map<String, Cell>) {
+        val folder = folderById(folderId)?.takeIf { appKey in it.apps } ?: return
+        val spot = nearestFreeCell(at, cols, rows, coveredCells(layout) + widgetCells()) ?: return
+        val next = desktop.toMutableMap().apply { putAll(layout) }
+        if (appKey !in next) next[appKey] = spot
+        shrinkFolder(folder, folder.apps - appKey, next)
+        saveDesktop(next)
+    }
+
+    /** Breaks the folder up: its apps go back on the desktop, nearest its icon first. */
+    fun ungroupFolder(id: Int, cols: Int, rows: Int, layout: Map<String, Cell>) {
+        val folder = folderById(id) ?: return
+        val cell = layout[folder.key] ?: return
+        val next = desktop.toMutableMap().apply { putAll(layout); remove(folder.key) }
+        val freed = if (layout is DesktopLayout && folder.key in layout.large) layout.footprint(folder.key) else listOf(cell)
+        val taken = (coveredCells(layout) - freed.toSet() + widgetCells()).toMutableSet()
+        for (key in folder.apps) {
+            if (key in next || app(key) == null) continue
+            val spot = nearestFreeCell(cell, cols, rows, taken) ?: break
+            next[key] = spot
+            taken += spot
+        }
+        saveFolders(folders.filter { it.id != id })
+        saveDesktop(next)
+    }
+
+    fun renameFolder(id: Int, name: String) {
+        val clean = name.trim().take(MAX_FOLDER_NAME)
+        if (clean.isEmpty()) return
+        saveFolders(folders.map { if (it.id == id) it.copy(name = clean) else it })
+    }
+
+    /** Can folder [id] become a large one: is there a 2×2 clear of widgets, with room for the icons it pushes aside? */
+    fun canEnlargeFolder(id: Int, cols: Int, rows: Int, layout: Map<String, Cell>): Boolean {
+        val folder = folderById(id) ?: return false
+        if (layout is DesktopLayout && folder.key in layout.large) return true
+        val blocked = widgetCells() + largeFolderCells(layout)
+        val icons = layout.keys.count { it != folder.key && (layout as? DesktopLayout)?.large?.contains(it) != true }
+        return freeBlock(layout[folder.key] ?: Cell(0, 0), LARGE_FOLDER, cols, rows, blocked) != null &&
+            icons <= cols * rows - blocked.size - LARGE_FOLDER * LARGE_FOLDER
+    }
+
+    /** Resizes a folder; icons in the way of a large one move to the nearest free cells and stay there. */
+    fun setFolderLarge(id: Int, large: Boolean, cols: Int, rows: Int) {
+        saveFolders(folders.map { if (it.id == id) it.copy(large = large) else it })
+        if (large) saveDesktop(desktopLayout(cols, rows))
+    }
+
+    /**
+     * [folder] keeps [remaining] apps. One app left is just that app again, in
+     * the folder's place; none left removes it. Edits [next], the icon map to save.
+     */
+    private fun shrinkFolder(folder: DeskFolder, remaining: List<String>, next: MutableMap<String, Cell>) {
+        if (remaining.size >= 2) {
+            saveFolders(folders.map { if (it.id == folder.id) it.copy(apps = remaining) else it })
+            return
+        }
+        val cell = next.remove(folder.key)
+        remaining.firstOrNull()?.let { if (cell != null && it !in next) next[it] = cell }
+        saveFolders(folders.filter { it.id != folder.id })
+    }
+
+    private fun saveFolders(list: List<DeskFolder>) {
+        folders = list
+        sp.edit().putString(
+            "folders", list.joinToString("\n") { "${it.id}|${if (it.large) 1 else 0}|${it.apps.joinToString(",")}|${it.name}" },
+        ).apply()
+    }
+
+    private fun readFolders(): List<DeskFolder> = readList("folders").mapNotNull { line ->
+        val parts = line.split('|', limit = 4)
+        val id = parts[0].toIntOrNull() ?: return@mapNotNull null
+        DeskFolder(
+            id = id,
+            name = parts.getOrElse(3) { DEFAULT_FOLDER_NAME },
+            apps = parts.getOrElse(2) { "" }.split(',').filter { it.isNotEmpty() },
+            large = parts.getOrNull(1) == "1",
+        )
+    }
 
     /** Moves the shortcut [key] from this desktop to desktop [id]'s first free cell. */
     fun moveIconToDesktop(key: String, id: Int) {
@@ -1084,7 +1295,7 @@ class DeskState(private val context: Context) {
     fun widgetCells(list: List<DeskWidget> = widgets): Set<Cell> = list.flatMap { it.cells }.toSet()
 
     /** Icons on this desktop, as cells, for widget placement. */
-    private fun iconCells(layout: Map<String, Cell>) = layout.values.toSet()
+    private fun iconCells(layout: Map<String, Cell>) = coveredCells(layout)
 
     /** Is [w]×[h] at [cell] free of icons and other widgets (ignoring widget [except])? */
     fun areaFree(cell: Cell, w: Int, h: Int, cols: Int, rows: Int, layout: Map<String, Cell>, except: Int? = null): Boolean {
@@ -1145,6 +1356,8 @@ class DeskState(private val context: Context) {
         private const val RECENT_WINDOW_MS = 4 * 60 * 60 * 1000L
         private const val MAX_OPEN = 10
         const val MAX_DESKTOPS = 4
+        const val DEFAULT_FOLDER_NAME = "Folder"
+        const val MAX_FOLDER_NAME = 24
         private const val SWITCH_GRACE_MS = 6000L
         // Merging icons from a deleted desktop happens off-screen; rows get fixed up on display.
         private const val DESKTOP_ROWS_GUESS = 8

@@ -93,7 +93,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import dev.home.folddesk.AppEntry
 import dev.home.folddesk.Cell
+import dev.home.folddesk.DeskFolder
+import dev.home.folddesk.LARGE_FOLDER
+import dev.home.folddesk.isFolderKey
 import dev.home.folddesk.DesktopDrag
 import dev.home.folddesk.ShellController
 import kotlinx.coroutines.delay
@@ -464,6 +468,15 @@ private fun DesktopIcons(
         }
         val leaderPos = dragKey?.let { layout[it] }
             ?.let { Offset(it.col * cellW, it.row * cellH) + dragOffset }
+        // An app held over the middle of another icon: letting go makes (or fills) a folder.
+        val mergeTarget = dragKey?.takeIf { group.isEmpty() && !isFolderKey(it) }?.let { dragged ->
+            val top = layout[dragged]?.let { Offset(it.col * cellW, it.row * cellH) + dragOffset } ?: return@let null
+            layout.entries.firstOrNull { (k, c) ->
+                k != dragged && (desk.app(k) != null || desk.folder(k) != null) &&
+                    overMiddle(top, c, if (k in layout.large) LARGE_FOLDER else 1, cellW, cellH)
+            }?.key
+        }
+        LaunchedEffect(mergeTarget) { if (mergeTarget != null) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
 
         fun endDrag() {
             dragKey = null
@@ -473,7 +486,11 @@ private fun DesktopIcons(
         }
 
         for ((key, cell) in layout) {
-            val app = desk.app(key) ?: continue
+            val app = desk.app(key)
+            val folder = desk.folder(key)
+            val folderApps = folder?.apps?.mapNotNull(desk::app).orEmpty()
+            if (if (folder != null) folderApps.isEmpty() else app == null) continue
+            val large = key in layout.large
             // Per-icon state (press feedback, join animation) must follow the icon.
             androidx.compose.runtime.key(key) {
             val leading = key == dragKey
@@ -487,88 +504,121 @@ private fun DesktopIcons(
 
             if (leading || riding) {
                 // A faded copy marks where the icon came from.
-                AppTile(
-                    app, onWallpaper = true,
-                    modifier = Modifier
-                        .offset { IntOffset(base.x.roundToInt(), base.y.roundToInt()) }
-                        .width(Dex.desktopCellWidth)
-                        .alpha(0.35f),
+                DeskIcon(
+                    app, folder, folderApps, large,
+                    modifier = Modifier.offset { IntOffset(base.x.roundToInt(), base.y.roundToInt()) }.alpha(0.35f),
+                    selected = false, feedback = null,
                 )
             }
             val pos = when {
                 leading -> base + dragOffset
-                riding -> lerp(base, leaderPos!! + stackStep * (groupIndex + 1).toFloat(), join.value)
+                riding -> lerp(base, leaderPos!!, join.value, stackStep * (groupIndex + 1).toFloat())
                 else -> base
             }
             val feedback = remember(key) { PressFeedback() }
-            AppTile(
-                app = app,
-                onWallpaper = true,
-                showLabel = !riding,
-                selected = leading || riding || shell.menu?.header == app,
-                feedback = feedback,
+
+            val open: () -> Unit = { if (folder != null) shell.openFolder(folder.id) else shell.open(app!!) }
+            val tap: () -> Unit = {
+                val leader = dragKey
+                when {
+                    leader == null || leading -> open()
+                    // Folders neither ride along nor take riders.
+                    folder != null || isFolderKey(leader) -> Unit
+                    else -> {
+                        // Second-finger tap during a drag: join (or leave) the group.
+                        if (!group.remove(key)) group.add(key)
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    }
+                }
+            }
+            val menu: (Offset) -> Unit = {
+                finger = it
+                if (dragKey == null) {
+                    if (folder != null) shell.folderMenu(folder, it) else shell.appMenu(app!!, it, desktopRows = rows)
+                }
+            }
+            val dragStart: () -> Unit = {
+                if (dragKey == null) {
+                    shell.closePopups()
+                    dragKey = key
+                    dragOffset = Offset.Zero
+                    onDragging(true)
+                    // Desktops appear too; dropping an app on one moves it there (a folder stays put).
+                    if (app != null) shell.dragToDesktops(app, finger + screenOffset(), showIcon = false, iconKey = key)
+                }
+            }
+            val drag: (Offset) -> Unit = {
+                if (dragKey == key) {
+                    dragOffset += it
+                    finger += it
+                    onDragMoved(Rect(origin + base + dragOffset, Size(cellW, cellH)))
+                    DesktopDrag.moveTo(finger + screenOffset())
+                    // Held over a desktop: the app went there and so did we.
+                    if (app != null && !DesktopDrag.active) endDrag()
+                }
+            }
+            val dragEnd: () -> Unit = {
+                if (dragKey == key && DesktopDrag.active && DesktopDrag.hovered != null) {
+                    DesktopDrag.release()
+                    group.clear()
+                    endDrag()
+                } else if (dragKey == key) {
+                    DesktopDrag.finish()
+                    val keys = listOf(key) + group
+                    val drop = base + dragOffset
+                    val target = Cell(
+                        (drop.x / cellW).roundToInt().coerceIn(0, cols - 1),
+                        (drop.y / cellH).roundToInt().coerceIn(0, fitRows - 1),
+                    )
+                    when {
+                        removeOnDrop() -> desk.removeFromDesktop(keys)
+                        mergeTarget != null -> desk.mergeIntoFolder(mergeTarget, key, layout)
+                        large -> desk.moveLargeFolder(key, target, cols, fitRows, layout)
+                        group.isEmpty() -> desk.moveOnDesktop(key, target, layout)
+                        else -> desk.moveGroupOnDesktop(keys, target, fitRows, layout)
+                    }
+                    endDrag()
+                }
+            }
+            val selected = leading || riding || (app != null && shell.menu?.header == app) ||
+                (folder != null && shell.menu?.folderHeader?.id == folder.id)
+            DeskIcon(
+                app, folder, folderApps, large,
                 modifier = Modifier
                     .offset { IntOffset(pos.x.roundToInt(), pos.y.roundToInt()) }
                     .zIndex(if (leading) 2f else if (riding) 1.9f - groupIndex * 0.01f else 0f)
-                    .lifted(leading || riding, RoundedCornerShape(12.dp))
-                    .width(Dex.desktopCellWidth)
+                    .mergeTarget(key == mergeTarget, if (large) 28.dp else 12.dp)
+                    .lifted((leading || riding) && !large, RoundedCornerShape(12.dp))
                     .deskGestures(
-                        onTap = {
-                            if (dragKey != null && !leading) {
-                                // Second-finger tap during a drag: join (or leave) the group.
-                                if (!group.remove(key)) group.add(key)
-                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            } else {
-                                shell.open(app)
-                            }
-                        },
-                        onMenu = {
-                            finger = it
-                            if (dragKey == null) shell.appMenu(app, it, desktopRows = rows)
-                        },
+                        onTap = tap,
+                        onMenu = menu,
                         feedback = feedback,
-                        onDragStart = {
-                            if (dragKey == null) {
-                                shell.closePopups()
-                                dragKey = key
-                                dragOffset = Offset.Zero
-                                onDragging(true)
-                                // Desktops appear too; dropping on one moves the app there.
-                                shell.dragToDesktops(app, finger + screenOffset(), showIcon = false, iconKey = key)
-                            }
-                        },
-                        onDrag = {
-                            if (dragKey == key) {
-                                dragOffset += it
-                                finger += it
-                                onDragMoved(Rect(origin + base + dragOffset, Size(cellW, cellH)))
-                                DesktopDrag.moveTo(finger + screenOffset())
-                                // Held over a desktop: the app went there and so did we.
-                                if (!DesktopDrag.active) endDrag()
-                            }
-                        },
-                        onDragEnd = {
-                            if (dragKey == key && DesktopDrag.active && DesktopDrag.hovered != null) {
-                                DesktopDrag.release()
-                                group.clear()
-                                endDrag()
-                            } else if (dragKey == key) {
-                                DesktopDrag.finish()
-                                val keys = listOf(key) + group
-                                val drop = base + dragOffset
-                                val target = Cell(
-                                    (drop.x / cellW).roundToInt().coerceIn(0, cols - 1),
-                                    (drop.y / cellH).roundToInt().coerceIn(0, fitRows - 1),
-                                )
-                                when {
-                                    removeOnDrop() -> desk.removeFromDesktop(keys)
-                                    group.isEmpty() -> desk.moveOnDesktop(key, target, layout)
-                                    else -> desk.moveGroupOnDesktop(keys, target, fitRows, layout)
-                                }
-                                endDrag()
-                            }
-                        },
+                        onDragStart = dragStart,
+                        onDrag = drag,
+                        onDragEnd = dragEnd,
                     ),
+                selected = selected,
+                feedback = feedback,
+                showLabel = !riding,
+                // A large folder's apps launch on tap; held, they act for the whole folder.
+                slot = { slotApp ->
+                    Modifier.deskGestures(
+                        onTap = { if (dragKey == null) shell.open(slotApp) },
+                        onMenu = menu,
+                        feedback = feedback,
+                        onDragStart = dragStart,
+                        onDrag = drag,
+                        onDragEnd = dragEnd,
+                    )
+                },
+                more = Modifier.deskGestures(
+                    onTap = { if (dragKey == null) open() },
+                    onMenu = menu,
+                    feedback = feedback,
+                    onDragStart = dragStart,
+                    onDrag = drag,
+                    onDragEnd = dragEnd,
+                ),
             )
             if (leading && group.isNotEmpty()) {
                 GroupBadge(
@@ -581,6 +631,46 @@ private fun DesktopIcons(
             }
             }
         }
+    }
+}
+
+/** One desktop icon: an app, a folder one cell big, or a large folder of 2×2 cells. */
+@Composable
+private fun DeskIcon(
+    app: AppEntry?,
+    folder: DeskFolder?,
+    folderApps: List<AppEntry>,
+    large: Boolean,
+    modifier: Modifier,
+    selected: Boolean,
+    feedback: PressFeedback?,
+    showLabel: Boolean = true,
+    slot: @Composable (AppEntry) -> Modifier = { Modifier },
+    more: Modifier = Modifier,
+) {
+    when {
+        folder == null -> AppTile(
+            app!!, onWallpaper = true, showLabel = showLabel, selected = selected, feedback = feedback,
+            modifier = modifier.width(Dex.desktopCellWidth),
+        )
+        large -> LargeFolderTile(folder, folderApps, modifier, selected, feedback, slot, more)
+        else -> FolderTile(folder, folderApps.map { it.icon }, modifier.width(Dex.desktopCellWidth), selected, feedback)
+    }
+}
+
+/** How close to an icon's centre a dragged icon must be, in cells, to drop into it. */
+private const val MERGE_ZONE = 0.32f
+
+/** Is a tile with top-left [top] over the middle of the icon at [cell], [span] cells wide? */
+private fun overMiddle(top: Offset, cell: Cell, span: Int, cellW: Float, cellH: Float): Boolean {
+    val centre = top + Offset(cellW / 2, cellH / 2)
+    val x = cell.col * cellW
+    val y = cell.row * cellH
+    // A large folder takes the drop anywhere on it; a small icon only near its middle.
+    return if (span == 1) {
+        abs(centre.x - (x + cellW / 2)) < cellW * MERGE_ZONE && abs(centre.y - (y + cellH / 2)) < cellH * MERGE_ZONE
+    } else {
+        centre.x in x..(x + span * cellW) && centre.y in y..(y + span * cellH)
     }
 }
 
@@ -603,7 +693,7 @@ private fun GroupBadge(count: Int, modifier: Modifier) {
     }
 }
 
-private fun lerp(a: Offset, b: Offset, t: Float) = a + (b - a) * t
+private fun lerp(a: Offset, b: Offset, t: Float, extra: Offset) = a + (b + extra - a) * t
 
 // --- Widgets ---
 

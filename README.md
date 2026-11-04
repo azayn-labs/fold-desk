@@ -34,6 +34,10 @@ It's a free, open-source app. Signed APKs are published on the
   material (blurred, like the notification panel).
 - **Desktop** with draggable icons, multi‑select group drag (second finger),
   drag‑to‑remove, and **widgets** (add, move, resize, configure, remove).
+- **Folders**: drop one icon on the middle of another to make a folder, drop more
+  on it to add them. Tap to open, tap its name to rename, drag an app out to put it
+  back. A folder can be small (one icon) or large (2×2, with its apps on the
+  desktop). Long-press a folder for rename, size and ungroup.
 - **Multiple desktops** (up to 4): each with its own icons, widgets and windows.
   Switch from the taskbar, by swiping, or by dragging an app onto a desktop.
 - **Gestures**: choose what swiping up or down on the desktop does (app drawer,

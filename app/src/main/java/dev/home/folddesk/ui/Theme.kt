@@ -143,7 +143,7 @@ object Dex {
 }
 
 /** Line-drawn taskbar glyphs, matching the mockup's SVGs. */
-enum class DexGlyph { Apps, Recents, Home, Back, Wifi, Cellular, Power, Settings, Sliders, Trash, Desktops }
+enum class DexGlyph { Apps, Recents, Home, Back, Wifi, Cellular, Power, Settings, Sliders, Trash, Desktops, Edit, Check }
 
 @Composable
 fun Glyph(glyph: DexGlyph, size: Dp = 22.dp, color: Color = Dex.text) {
@@ -199,6 +199,11 @@ fun Glyph(glyph: DexGlyph, size: Dp = 22.dp, color: Color = Dex.text) {
                 drawRoundRect(color, Offset(3 * u, 7 * u), Size(13 * u, 11 * u), CornerRadius(2.5f * u), style = stroke)
                 drawPath(path(u, 8f to 4f, 18.5f to 4f, 21f to 6.5f, 21f to 14f), color, style = stroke)
             }
+            DexGlyph.Edit -> {
+                drawPath(path(u, 4f to 20f, 4f to 16f, 15f to 5f, 19f to 9f, 8f to 20f).apply { close() }, color, style = stroke)
+                drawLine(color, Offset(12.5f * u, 7.5f * u), Offset(16.5f * u, 11.5f * u), stroke.width, StrokeCap.Round)
+            }
+            DexGlyph.Check -> drawPath(path(u, 5f to 12.5f, 9.5f to 17f, 19f to 7.5f), color, style = Stroke(2.4f * u, cap = StrokeCap.Round, join = StrokeJoin.Round))
             DexGlyph.Sliders -> for ((y, w) in listOf(5f to 18f, 12f to 12f, 19f to 18f)) {
                 drawLine(color, Offset(3 * u, y * u), Offset((3 + w) * u, y * u), 2f * u, StrokeCap.Round)
             }

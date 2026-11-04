@@ -155,6 +155,7 @@ fun PopupLayer(shell: ShellController, modifier: Modifier = Modifier, dragTarget
             }
             DesktopSwitcher(shell, Modifier.align(at).padding(8.dp))
         }
+        shell.openFolderId?.let { FolderPanel(shell, it) }
         shell.menu?.let { ContextMenu(it, onDismiss = shell::closeMenu) }
         if (dragging && DesktopDrag.showIcon) DragGhost()
     }
@@ -435,8 +436,21 @@ private fun ContextMenu(state: MenuState, onDismiss: () -> Unit) {
                         )
                     }
                 }
+                state.folderHeader?.let { folder ->
+                    Row(
+                        Modifier.padding(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        FolderGlyph(folder.icons, 22.dp)
+                        Spacer(Modifier.width(10.dp))
+                        BasicText(
+                            folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = TextStyle(color = Dex.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                        )
+                    }
+                }
                 state.groups.filter { it.isNotEmpty() }.forEachIndexed { i, group ->
-                    if (i > 0 || state.header != null) MenuDivider()
+                    if (i > 0 || state.header != null || state.folderHeader != null) MenuDivider()
                     for (item in group) {
                         var top by remember { mutableStateOf(0f) }
                         MenuRow(

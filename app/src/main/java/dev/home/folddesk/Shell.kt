@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
+import dev.home.folddesk.ui.DesktopGrid
 
 /** A menu row; with [submenu] it opens a side list instead of running [action]. */
 /** Rows of app icons on the cover screen that can be put in a new order. */
@@ -29,10 +31,14 @@ data class MenuState(
     val at: Offset,
     val groups: List<List<MenuItem>>,
     val header: AppEntry? = null,
+    /** Header for a folder's menu: its name and the icons of its apps. */
+    val folderHeader: MenuFolder? = null,
     val anchorBottom: Boolean = false,
     /** Raised from the taskbar on this edge: [at] is on screen, and the menu opens beside the bar. */
     val taskbarEdge: TaskbarSide? = null,
 )
+
+class MenuFolder(val id: Int, val name: String, val icons: List<ImageBitmap>)
 
 enum class OpenMode { Default, Window, Fullscreen, Front, Page }
 
@@ -82,6 +88,12 @@ class ShellController(
     /** Desktop whose name is being edited in the switcher. */
     var renamingDesktop by mutableStateOf<Int?>(null)
         private set
+    /** Folder whose apps are showing in a panel over the desktop. */
+    var openFolderId by mutableStateOf<Int?>(null)
+        private set
+    /** The open folder's name is being edited. */
+    var renamingFolder by mutableStateOf(false)
+        private set
 
     /** Called whenever a popup opens or closes, so an overlay can resize its window. */
     var onPopupsChanged: () -> Unit = {}
@@ -95,10 +107,11 @@ class ShellController(
     var resizingWidget by mutableStateOf<Int?>(null)
         private set
 
-    val hasPopup get() = drawerOpen || switcherOpen || menu != null
+    val hasPopup get() = drawerOpen || switcherOpen || menu != null || openFolderId != null
 
     fun toggleDrawer() {
         menu = null
+        openFolderId = null
         switcherOpen = false
         drawerOpen = !drawerOpen
         onPopupsChanged()
@@ -118,6 +131,7 @@ class ShellController(
         menu = null
         drawerOpen = false
         renamingDesktop = null
+        openFolderId = null
         switcherOpen = !switcherOpen
         onPopupsChanged()
     }
@@ -140,6 +154,8 @@ class ShellController(
         drawerOpen = false
         switcherOpen = false
         renamingDesktop = null
+        openFolderId = null
+        renamingFolder = false
         menu = null
         widgetPickerOpen = false
         resizingWidget = null
@@ -263,6 +279,9 @@ class ShellController(
     fun appMenu(app: AppEntry, at: Offset, fromTaskbar: Boolean = false, fromDrawer: Boolean = false, desktopRows: Int = 6) {
         val placement = buildList {
             add(MenuItem(if (desk.isPinned(app)) "Unpin from taskbar" else "Pin to taskbar") { desk.togglePin(app) })
+            desk.folderOf(app)?.let { folder ->
+                add(MenuItem("Remove from folder") { takeOutOfFolder(folder, app) })
+            }
             if (desk.isOnDesktop(app)) add(MenuItem("Remove from desktop") { desk.removeFromDesktop(app) })
             else add(MenuItem("Add to desktop") { desk.addToDesktop(app, desktopRows) })
             if (fromTaskbar && !desk.isPinned(app)) add(MenuItem("Remove from taskbar") { desk.dismissOpen(app) })
@@ -288,6 +307,72 @@ class ShellController(
                     listOf(
                         MenuItem("App info") { Launcher.appInfo(context, app) },
                         MenuItem("Uninstall") { Launcher.uninstall(context, app) },
+                    ),
+                ),
+            ),
+        )
+    }
+
+    // --- Folders ---
+
+    /** Opens folder [id]'s panel; [rename] starts on its name. */
+    fun openFolder(id: Int, rename: Boolean = false) {
+        menu = null
+        drawerOpen = false
+        switcherOpen = false
+        openFolderId = id
+        renamingFolder = rename
+        onPopupsChanged()
+    }
+
+    fun closeFolder() {
+        if (openFolderId == null) return
+        openFolderId = null
+        renamingFolder = false
+        onPopupsChanged()
+    }
+
+    fun startFolderRename() {
+        renamingFolder = true
+    }
+
+    fun finishFolderRename(id: Int, name: String) {
+        desk.renameFolder(id, name)
+        renamingFolder = false
+    }
+
+    /** Puts [app] back on the desktop, by its folder. */
+    private fun takeOutOfFolder(folder: DeskFolder, app: AppEntry) {
+        val at = DesktopGrid.layout[folder.key] ?: Cell(0, 0)
+        desk.takeOutOfFolder(folder.id, app.key, at, DesktopGrid.cols, DesktopGrid.rows, DesktopGrid.layout)
+    }
+
+    /** Long press on a folder: Open / Rename / Folder size / Ungroup / Remove from desktop. */
+    fun folderMenu(folder: DeskFolder, at: Offset) {
+        val cols = DesktopGrid.cols
+        val rows = DesktopGrid.rows
+        val layout = DesktopGrid.layout
+        val sizes = listOf(
+            MenuItem("Small · 1×1", checked = !folder.large) { desk.setFolderLarge(folder.id, false, cols, rows) },
+            MenuItem(
+                "Large · 2×2",
+                checked = folder.large,
+                enabled = desk.canEnlargeFolder(folder.id, cols, rows, layout),
+            ) { desk.setFolderLarge(folder.id, true, cols, rows) },
+        )
+        showMenu(
+            MenuState(
+                at = at,
+                folderHeader = MenuFolder(folder.id, folder.name, folder.apps.mapNotNull { desk.app(it)?.icon }),
+                groups = listOf(
+                    listOf(
+                        MenuItem("Open") { openFolder(folder.id) },
+                        MenuItem("Rename") { openFolder(folder.id, rename = true) },
+                        MenuItem("Folder size", value = if (folder.large) "Large" else "Small", submenu = sizes),
+                    ),
+                    listOf(
+                        MenuItem("Ungroup") { desk.ungroupFolder(folder.id, cols, rows, layout) },
+                        MenuItem("Remove from desktop") { desk.removeFromDesktop(listOf(folder.key)) },
                     ),
                 ),
             ),

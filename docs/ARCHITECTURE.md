@@ -33,7 +33,8 @@ which can only sit behind floating windows.
 | `ui/Taskbar.kt` | The taskbar (horizontal or vertical), tray, clock, icon reordering. |
 | `ui/Popups.kt` | Popup layer: app drawer, context menus (with submenus), app tiles. |
 | `ui/Desktops.kt` | Desktop switcher strip and cards, drag ghost. |
-| `ui/Desktop.kt` | Home screen: icon grid, group drag, drag-to-remove, desktop switch animation, widgets on the grid, resize frame, widget picker layer. |
+| `ui/Desktop.kt` | Home screen: icon grid, group drag, drop-to-make-a-folder, drag-to-remove, desktop switch animation, widgets on the grid, resize frame, widget picker layer. |
+| `ui/Folders.kt` | Folders: the glass icon, small and large desktop tiles, the open-folder panel (rename, drag an app out), the merge-target highlight. |
 | `ui/WidgetPicker.kt` | Widget picker panel. |
 | `ui/DesktopGrid.kt` | Last laid-out grid geometry, for code outside Compose. |
 | `ui/Gestures.kt` | `deskGestures`: tap, long-press (haptic + instant menu), right-click, drag-after-long-press, swipes. Used for nearly every touch target. |
@@ -83,6 +84,19 @@ use; it's applied via reflection to a backing `View` behind each panel. Blur
 radius and tint are animated together with the drawer, because the system draws
 the blur separately from Compose.
 
+### Folders
+A folder is an icon-map entry under `folder:<id>` whose apps live in the `folders`
+pref, so it moves, swaps and is removed like any icon (and travels with a deleted
+desktop's icons). While an app is dragged, the icon whose middle it is over
+(`overMiddle`, within about a third of a cell; anywhere on a large folder) is the
+merge target; dropping makes a folder or adds to one, while dropping near the
+edge swaps as usual. A large folder is a 2×2 block: `desktopLayout` places those
+first, like widgets, and the other icons flow around them (it returns a
+`DesktopLayout`, a `Map` that also knows which folders got their block). Without
+a free 2×2 it shows small. A folder with one app left becomes that app again.
+The open panel is a popup (`ShellController.openFolderId`); dragging an app off it
+drops the app at the grid cell under the finger (`DesktopGrid`).
+
 ### Widgets
 Standard `AppWidgetHost`. Binding needs `ACTION_APPWIDGET_BIND` (the "Allow
 access to widget content?" dialog) because FoldDesk isn't a system app.
@@ -96,7 +110,8 @@ All in the SharedPreferences file `desk`, managed by `DeskState`:
 |---|---|
 | `pinned` | Taskbar pins in order (`component#userSerial`, newline-separated). |
 | `desktops`, `currentDesktop` | Desktop list (`id\|name`) and the current one. |
-| `desktop_<id>` (`desktop` for legacy desktop 1) | Icons: `key\|col\|row`. |
+| `desktop_<id>` (`desktop` for legacy desktop 1) | Icons: `key\|col\|row`. A folder's key is `folder:<id>`. |
+| `folders` | Folders on any desktop: `id\|large (0 or 1)\|app keys, comma separated\|name`. |
 | `widgets_<id>` | Widgets: `appWidgetId\|col\|row\|w\|h`. |
 | `appDesktop` | Open app package → desktop id. |
 | `windows_<id>` | Windows visible when that desktop was left, bottom→top. |
