@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity(), WidgetActions {
 
     override fun onResume() {
         super.onResume()
+        if (rebuildPending) rebuildSoon()
         if (!handOffCoverScreen()) shell.desk.refreshOpenApps()
     }
 
@@ -114,7 +115,16 @@ class MainActivity : ComponentActivity(), WidgetActions {
      * passed (icons a little too far in, a widget cut off) until a rotation. Build
      * it again once the window has settled.
      */
-    private val rebuildDesktop = Runnable { rebuild++ }
+    private val rebuildDesktop = Runnable {
+        // Unfolding with an app in front leaves the home stopped; build it when it's back.
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            rebuildPending = false
+            rebuild++
+        } else {
+            rebuildPending = true
+        }
+    }
+    private var rebuildPending = false
 
     private fun rebuildSoon() {
         window.decorView.removeCallbacks(rebuildDesktop)
