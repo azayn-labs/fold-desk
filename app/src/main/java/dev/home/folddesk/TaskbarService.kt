@@ -579,6 +579,18 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         if (focused != null && focused != packageName) {
             shell.desk.noteAppWindow(focused, fullScreen = split || focusedFullScreen)
         }
+        // One UI keeps pop-up windows above a full-screen app. When one comes to
+        // the front, put them away, as maximising a window does on DeX.
+        val fullScreenFront = focused?.takeIf {
+            it != packageName && it != Launcher.ONE_UI_HOME && focusedFullScreen &&
+                FoldDeskApp.isInnerScreen(resources.configuration)
+        }
+        if (fullScreenFront == null) {
+            if (focused != null) fullScreenFocus = null
+        } else if (fullScreenFront != fullScreenFocus) {
+            fullScreenFocus = fullScreenFront
+            putPopupsAway(fullScreenFront)
+        }
         // Step aside for anything in front that reaches into the taskbar's strip:
         // full-screen apps, bottom-sheet dialogs, windows dragged over it.
         val thickness = barThickness()
@@ -720,6 +732,24 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         .filter { it != packageName && shell.desk.appForPackage(it) != null }
         .distinct()
 
+    /** The full-screen app last put in front, so its pop-up windows are put away once. */
+    private var fullScreenFocus: String? = null
+    private var lastPopupSweep = 0L
+
+    /** Minimises the pop-up windows over [pkg], which has just come up full screen. */
+    private fun putPopupsAway(pkg: String) {
+        val now = SystemClock.uptimeMillis()
+        if (shell.desk.switching || now - lastPopupSweep < POPUP_SWEEP_GAP_MS) return
+        val own = shell.desk.appForPackage(pkg)?.label
+        fun isPopup(node: AccessibilityNodeInfo) = own == null || node.contentDescription?.startsWith(own) != true
+        val any = windows.mapNotNull { it.root }
+            .flatMap { it.findAccessibilityNodeInfosByViewId(CAPTION_HANDLE) }
+            .any(::isPopup)
+        if (!any) return
+        lastPopupSweep = now
+        handler.postDelayed({ minimizeNextWindow(MAX_WINDOWS_TO_MINIMIZE, skip = setOfNotNull(own)) {} }, POPUP_SWEEP_DELAY_MS)
+    }
+
     override fun minimizeApp(app: AppEntry) {
         // Each pop-up window's handle is labelled "<app> Window handle".
         val handle = windows.mapNotNull { it.root }
@@ -803,6 +833,8 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         private const val NOTIFICATION_OPEN_MS = 4000L
         private const val SYSTEM_UI = "com.android.systemui"
         private const val MAX_WINDOWS_TO_MINIMIZE = 12
+        private const val POPUP_SWEEP_DELAY_MS = 300L
+        private const val POPUP_SWEEP_GAP_MS = 2_500L
         private const val RECENTS_TASK = "${Launcher.ONE_UI_HOME}:id/taskView"
         private const val RECENTS_LIST = "${Launcher.ONE_UI_HOME}:id/taskListContainer"
         private const val RECENTS_EMPTY = "${Launcher.ONE_UI_HOME}:id/empty_text_view"

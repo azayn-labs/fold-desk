@@ -904,7 +904,7 @@ class DeskState(private val context: Context) {
         refreshOpenApps()
     }
 
-    private val switching get() = System.currentTimeMillis() < switchingUntil
+    val switching get() = System.currentTimeMillis() < switchingUntil
 
     /**
      * An app came to the front without FoldDesk opening it (Samsung's

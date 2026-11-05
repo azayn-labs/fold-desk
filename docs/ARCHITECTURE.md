@@ -58,6 +58,10 @@ rejects apps that ship one.)
 - It can press buttons in other windows. Minimising = click the window's
   `com.android.systemui:id/caption_handle`, then `…:id/minimize_window`.
   Closing via `…:id/close_window` is detected the same way.
+- One UI keeps pop-up windows above a full-screen app. When an app comes to the
+  front full screen on the inner screen, the service minimises the pop-ups once
+  (`putPopupsAway`), the way maximising a window does on DeX. Pop-ups opened
+  afterwards stay where they are.
 
 ### Open apps on the taskbar
 Usage stats report resumed/paused but **never** closed. The list is built from
