@@ -366,7 +366,19 @@ private fun SettingsScreen(desk: DeskState) {
                         onTapAt = { desk.updateNotificationsInWindows(!desk.notificationsInWindows) },
                     ) { Switch(desk.notificationsInWindows) }
                     Divider()
-                    SettingRow("New window size", value = desk.windowSize.label, onTapAt = {
+                    SettingRow(
+                        "Stage mode",
+                        hint = "One app in the middle, the others wait in a strip at the left edge. Opening an app puts the others aside.",
+                        onTapAt = { desk.updateStageMode(!desk.stageMode) },
+                    ) { Switch(desk.stageMode) }
+                    Divider()
+                    if (desk.stageMode) {
+                        SettingRow("Stage size", value = desk.stageSize.label, onTapAt = {
+                            pick("Stage size", StageSize.entries.toTypedArray(), { e -> e.label }, desk.stageSize, desk::updateStageSize)
+                        })
+                        Divider()
+                    }
+                    SettingRow("New window size", hint = if (desk.stageMode) "Used when stage mode is off" else null, value = desk.windowSize.label, onTapAt = {
                         pick("New window size", WindowSize.entries.toTypedArray(), { e -> e.label }, desk.windowSize, desk::updateWindowSize)
                     })
                 }

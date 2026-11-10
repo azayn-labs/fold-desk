@@ -32,6 +32,12 @@ enum class WindowSize(val label: String, val width: Float, val height: Float) {
     Large("Large", 0.8f, 0.92f),
 }
 
+/** The window in stage mode, as a fraction of the space right of the strip. */
+enum class StageSize(val label: String, val width: Float, val height: Float) {
+    Medium("Medium", 0.72f, 0.86f),
+    Large("Large", 0.94f, 0.96f),
+}
+
 /** What a vertical swipe on the empty desktop does. */
 enum class SwipeAction(val label: String) {
     Drawer("App drawer"),

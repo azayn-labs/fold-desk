@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stage mode</title>
+<style>
+  :root { --bar: rgba(12,12,14,.86); --bg: #0c0c0e; --card: #1c1c1f; --panel: rgba(38,38,42,.95); --menu: #2b2b2f; --hover: rgba(255,255,255,.12);
+    --accent: #3e91ff; --text: #fafafa; --subtle: #a8a8ad; --divider: rgba(255,255,255,.08); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 875px; height: 971px; overflow: hidden; color: var(--text); font-family: "SamsungOne", Roboto, system-ui, sans-serif; }
+  .screen { position: relative; width: 875px; height: 971px; overflow: hidden;
+    background: radial-gradient(700px 520px at 78% 22%, rgba(97,150,255,.55), transparent 65%),
+      radial-gradient(640px 520px at 20% 85%, rgba(54,196,214,.35), transparent 60%),
+      linear-gradient(155deg, #0f2c63 0%, #0b1b3d 55%, #07122a 100%); }
+
+  .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: var(--bar); display: flex; align-items: center; padding: 0 6px; z-index: 30; }
+  .key { width: 44px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .key svg { width: 22px; height: 22px; }
+  .vsep { width: 1px; height: 22px; background: rgba(255,255,255,.18); margin: 0 6px; }
+  .app { width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; position: relative; border-radius: 8px; }
+  .app.focus { background: rgba(255,255,255,.12); }
+  .app .run { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 2px; background: var(--subtle); }
+  .app.focus .run { width: 14px; background: var(--accent); }
+  .tray { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 12.5px; padding-right: 10px; }
+  .clock { text-align: right; line-height: 1.25; } .clock small { display: block; font-size: 11px; color: #d6d6da; }
+
+  .ico { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #fff; flex: none; }
+  .ico.s20 { width: 20px; height: 20px; border-radius: 6px; font-size: 10px; }
+  .ico.s24 { width: 24px; height: 24px; border-radius: 7px; font-size: 11px; }
+  .ico.s40 { width: 40px; height: 40px; border-radius: 12px; font-size: 17px; }
+
+  .tag { position: absolute; font-size: 11.5px; color: #ffd76a; background: rgba(0,0,0,.7); padding: 5px 9px; border-radius: 6px; line-height: 1.4; z-index: 40; }
+  .finger { position: absolute; width: 34px; height: 34px; border-radius: 17px; background: rgba(255,255,255,.35); border: 2px solid rgba(255,255,255,.7); z-index: 38; }
+
+  /* a pop-up window: One UI draws the frame and the blue handle */
+  .win { position: absolute; border-radius: 14px; overflow: hidden; background: var(--bg); box-shadow: 0 16px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08); }
+  .win.focus { box-shadow: 0 20px 56px rgba(0,0,0,.6), 0 0 0 1.5px rgba(255,255,255,.2); }
+  .win .cap { height: 30px; display: flex; align-items: center; justify-content: center; }
+  .win .cap i { width: 40px; height: 4px; border-radius: 2px; background: #3e91ff; }
+  .win .head { height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 16px; font-size: 16px; font-weight: 600; }
+  .win .body { padding: 6px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .line { height: 12px; border-radius: 6px; background: rgba(255,255,255,.12); }
+  .block { height: 120px; border-radius: 14px; background: rgba(255,255,255,.08); }
+  .rowx { display: flex; gap: 12px; align-items: center; }
+  .rowx .dot { width: 36px; height: 36px; border-radius: 18px; background: rgba(255,255,255,.14); flex: none; }
+  .rowx .ls { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+  /* strip cards: a small picture of the app, its icon in the corner */
+  .card { position: absolute; border-radius: 16px; overflow: hidden; background: var(--bg); box-shadow: 0 8px 22px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.1); }
+  .card .tb { height: 14px; }
+  .card .ln { height: 5px; border-radius: 3px; background: rgba(255,255,255,.14); margin: 6px 10px 0; }
+  .card .ln.s { width: 55%; }
+  .card .bl { height: 26px; border-radius: 6px; background: rgba(255,255,255,.08); margin: 8px 10px 0; }
+  .card .badge { position: absolute; left: 8px; bottom: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .card.ring { box-shadow: 0 0 0 2.5px var(--accent), 0 0 24px rgba(62,145,255,.6); }
+  .card.under { opacity: .55; transform: translate(6px, 6px); }
+  .stack { position: absolute; }
+  .stack .card { position: absolute; }
+  .count { position: absolute; right: -6px; top: -6px; width: 22px; height: 22px; border-radius: 11px; background: var(--accent); font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; z-index: 3; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .more { position: absolute; width: 128px; text-align: center; font-size: 12px; color: #d6d6da; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+
+  .rail { position: absolute; border-radius: 24px; background: rgba(12,12,14,.55); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); backdrop-filter: blur(8px); }
+  .rail .it { position: absolute; left: 10px; width: 40px; height: 40px; }
+  .rail .it.on::before { content: ""; position: absolute; left: -10px; top: 12px; width: 4px; height: 16px; border-radius: 2px; background: var(--accent); }
+  .pop { position: absolute; width: 190px; border-radius: 18px; background: var(--menu); box-shadow: 0 10px 34px rgba(0,0,0,.6); padding: 10px 10px 12px; z-index: 22; }
+  .pop .nm { font-size: 13px; margin-top: 8px; padding-left: 4px; }
+
+  /* settings */
+  .win.set { background: var(--bg); }
+  .set h1 { font-size: 30px; font-weight: 600; margin: 8px 8px 14px; }
+  .set .page { padding: 4px 18px 18px; }
+  .gt { font-size: 13px; color: var(--accent); font-weight: 600; margin: 14px 12px 8px; }
+  .cardx { background: var(--card); border-radius: 22px; overflow: hidden; }
+  .row { display: flex; align-items: center; padding: 14px 20px; gap: 14px; min-height: 64px; }
+  .row + .row { border-top: 1px solid var(--divider); }
+  .row .t { flex: 1; } .row .t div { font-size: 15.5px; }
+  .row .t small { display: block; font-size: 13px; color: var(--subtle); margin-top: 3px; line-height: 1.35; }
+  .switch { width: 44px; height: 24px; border-radius: 12px; background: var(--accent); position: relative; flex: none; }
+  .switch::after { content: ""; position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 9px; background: #fff; }
+  .seg { display: flex; background: #2a2a2e; border-radius: 18px; padding: 3px; flex: none; }
+  .seg span { padding: 6px 15px; border-radius: 15px; font-size: 13px; color: var(--subtle); }
+  .seg span.on { background: var(--accent); color: #fff; }
+  .seg.dis span { opacity: .45; }
+</style>
+</head>
+<body>
+<div class="screen" id="s"></div>
+<script>
+  const st = new URLSearchParams(location.search).get('s') || 'strip';
+  // Placeholder apps only.
+  const A = {
+    mail: ['Mail', '#ea4335', '✉'], notes: ['Notes', '#f2b01e', '✎'], web: ['Browser', '#3e91ff', '◎'], photos: ['Photos', '#9b59d0', '✿'],
+    maps: ['Maps', '#34a853', '⌖'], music: ['Music', '#e8467c', '♪'], chat: ['Chat', '#25d366', '✆'], files: ['Files', '#e8a21a', '▤'],
+  };
+  const ico = (k, c = '') => `<div class="ico ${c}" style="background:${A[k][1]}">${A[k][2]}</div>`;
+  const style = (o) => Object.entries(o).map(([k, v]) => `${k}:${typeof v === 'number' ? v + 'px' : v}`).join(';');
+
+  // Window with a little fake content.
+  const win = (k, x, y, w, h, cls = '', extra = '') => `<div class="win ${cls}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;${extra}">
+    <div class="cap"><i></i></div>
+    <div class="head" style="color:#fff">${ico(k, 's24')}${A[k][0]}</div>
+    <div class="body">
+      <div class="block" style="background:${A[k][1]}33"></div>
+      ${Array.from({ length: Math.max(3, Math.floor((h - 260) / 56)) }, () => `<div class="rowx"><div class="dot"></div><div class="ls"><div class="line" style="width:80%"></div><div class="line" style="width:50%"></div></div></div>`).join('')}
+    </div></div>`;
+
+  // Strip card: the app as it was when it left the stage.
+  const card = (k, x, y, w, h, extra = '') => `<div class="card ${extra}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">
+    <div class="tb" style="background:${A[k][1]}"></div><div class="ln"></div><div class="ln s"></div><div class="bl"></div><div class="ln"></div><div class="ln s"></div>
+    <div class="badge">${ico(k, 's24')}</div></div>`;
+  const group = (ks, x, y, w, h) => `<div class="stack" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><div class="count">${ks.length}</div>
+    ${card(ks[1], 16, -14, w - 16, h - 12, 'under')}${card(ks[0], 0, 0, w - 16, h - 12)}</div>`;
+
+  const bar = (focusKey) => `<div class="taskbar">
+    <div class="key"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg></div>
+    <div class="vsep"></div>${['web', 'mail', 'notes', 'photos', 'maps', 'music'].map(k => `<div class="app ${k === focusKey ? 'focus' : ''}">${ico(k)}<div class="run"></div></div>`).join('')}
+    <div class="tray"><span>84%</span><div class="clock">13:55<small>Tue, Oct 27</small></div></div></div>`;
+
+  let body = '';
+
+  if (st === 'strip') {
+    // A: strip on the left, one app on the stage.
+    body = `${card('mail', 14, 56, 128, 104)}${card('notes', 14, 174, 128, 104)}${card('photos', 14, 292, 128, 104)}${group(['maps', 'music'], 14, 420, 128, 104)}
+      <div class="more" style="left:14px;top:538px">+ 2 more</div>
+      ${win('web', 176, 28, 665, 880, 'focus')}
+      <div class="tag" style="left:14px;top:600px;width:148px">A · Stage with a strip.<br>One app in the middle at a set size. The apps you used last wait on the left, newest on top.</div>
+      <div class="tag" style="left:14px;top:716px;width:148px">Each card is a picture of the app as it was when it left the stage, plus its icon.</div>
+      <div class="tag" style="left:14px;top:810px;width:148px">The taskbar stays as it is. The app on stage is underlined.</div>
+      ${bar('web')}`;
+  } else if (st === 'switch') {
+    // Tapping a card swaps it with the app on the stage.
+    body = `${card('mail', 14, 56, 128, 104)}${card('notes', 14, 174, 128, 104, 'ring')}${card('photos', 14, 292, 128, 104)}${group(['maps', 'music'], 14, 420, 128, 104)}
+      <div class="finger" style="left:92px;top:240px"></div>
+      ${win('web', 176, 28, 665, 880, '', 'opacity:.45;transform:scale(.96) translateX(-24px)')}
+      ${win('notes', 176, 28, 665, 880, 'focus', 'opacity:.7;transform:translateX(18px)')}
+      <div class="tag" style="left:200px;top:600px;width:330px">B · Tap a card. The app on stage steps aside into the strip (it takes the tapped card's place) and the tapped app comes up in the middle, same size and position.<br>Under the hood: minimise the old window, bring the new one to the front, about 0.3 s.</div>
+      <div class="tag" style="left:14px;top:560px;width:148px">Tapping the app on stage again, or the desktop key, shows the desktop as today.</div>
+      ${bar('notes')}`;
+  } else if (st === 'group') {
+    // Second step: two apps on the stage together.
+    body = `${card('mail', 14, 56, 128, 104)}${card('photos', 14, 174, 128, 104)}${group(['maps', 'music'], 14, 302, 128, 104)}
+      ${win('notes', 168, 84, 430, 800, '')}${win('web', 372, 28, 470, 880, 'focus')}
+      <div class="tag" style="left:14px;top:440px;width:148px">C · Groups (second step).<br>Drag a card onto the stage to add it beside the app there, or press and hold a card and choose "Add to stage".</div>
+      <div class="tag" style="left:14px;top:582px;width:148px">A group leaves the stage as one card, with a number on it, and comes back together.</div>
+      <div class="tag" style="left:14px;top:690px;width:148px">Up to 2 apps at first. The window in front is the one with focus.</div>
+      ${bar('web')}`;
+  } else if (st === 'dock') {
+    // Alternative: strip along the bottom.
+    body = `${win('web', 110, 24, 655, 770, 'focus')}
+      ${card('mail', 150, 812, 128, 88)}${card('notes', 294, 812, 128, 88)}${card('photos', 438, 812, 128, 88)}${group(['maps', 'music'], 582, 812, 128, 88)}
+      <div class="tag" style="left:14px;top:26px;width:86px">Alt. 2 · Strip along the bottom.<br>Full width for the app, about 110 px less height.</div>
+      <div class="tag" style="left:14px;top:200px;width:86px">Better for tall apps, worse for apps that want height.</div>
+      ${bar('web')}`;
+  } else if (st === 'rail') {
+    // Alternative: a slim rail with icons only.
+    body = `<div class="rail" style="left:10px;top:56px;width:60px;height:372px">
+        ${['mail', 'notes', 'photos', 'maps', 'music'].map((k, i) => `<div class="it ${k === 'notes' ? 'on' : ''}" style="top:${14 + i * 68}px">${ico(k, 's40')}</div>`).join('')}</div>
+      ${win('web', 84, 28, 770, 880, 'focus')}
+      <div class="pop" style="left:78px;top:150px;height:166px">${card('notes', 10, 10, 170, 108)}
+        <div class="nm" style="position:absolute;left:14px;top:130px">Notes · waiting on the left</div></div>
+      <div class="tag" style="left:84px;top:350px;width:300px">Alt. 3 · Slim rail, icons only (about 70 px wide).<br>Hover or press and hold an icon to see its picture.<br>The least space, but no picture until you ask for it.</div>
+      ${bar('web')}`;
+  } else if (st === 'settings') {
+    const row = (t, sub, right) => `<div class="row"><div class="t"><div>${t}</div>${sub ? `<small>${sub}</small>` : ''}</div>${right}</div>`;
+    const seg = (items, on, dis = '') => `<div class="seg ${dis}">${items.map((i, n) => `<span${n === on ? ' class="on"' : ''}>${i}</span>`).join('')}</div>`;
+    body = `<div class="win set" style="left:150px;top:36px;width:600px;height:830px">
+        <div class="cap"><i></i></div>
+        <div class="page"><h1>Windows</h1>
+          <div class="gt">Stage</div>
+          <div class="cardx">
+            ${row('Stage mode', 'One app in the middle, the others wait in a strip. Opening an app puts the others aside.', '<div class="switch"></div>')}
+            ${row('Strip position', '', seg(['Left', 'Bottom', 'Rail'], 0))}
+            ${row('Strip shows', 'Pictures are taken when an app leaves the stage and stay on the phone.', seg(['Pictures', 'Icons'], 0))}
+            ${row('Apps on stage', 'Two apps side by side. Off by default.', seg(['1', '2'], 0))}
+            ${row('Stage size', '', seg(['Medium', 'Large'], 1))}
+          </div>
+          <div class="gt">Pop-up windows</div>
+          <div class="cardx">
+            ${row('Open apps in windows', '', '<div class="switch"></div>')}
+            ${row('Window size', 'Used when stage mode is off.', seg(['Small', 'Medium', 'Large'], 1, 'dis'))}
+          </div>
+        </div></div>
+      <div class="tag" style="left:150px;top:876px;width:600px">Settings, in the existing Windows group: stage mode is off by default; nothing changes for anyone who doesn't turn it on.</div>
+      ${bar('')}`;
+  }
+  document.getElementById('s').innerHTML = body;
+</script>
+</body>
+</html>

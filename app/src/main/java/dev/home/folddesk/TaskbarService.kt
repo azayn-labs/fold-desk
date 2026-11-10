@@ -49,6 +49,8 @@ import dev.home.folddesk.ui.DRAWER_CLOSE_MS
 import dev.home.folddesk.ui.PopupLayer
 import dev.home.folddesk.ui.TaskbarSurface
 import dev.home.folddesk.ui.EdgeHandle
+import dev.home.folddesk.ui.STAGE_STRIP_DP
+import dev.home.folddesk.ui.StageStrip
 import androidx.compose.foundation.layout.PaddingValues
 
 /**
@@ -145,7 +147,10 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             val source = event.source
             when (source?.viewIdResourceName) {
                 CAPTION_HANDLE -> lastHandleLabel = source.contentDescription?.toString()?.removeSuffix(" Window handle")
-                CLOSE_WINDOW -> lastHandleLabel?.let { shell.desk.dismissOpen(it) }
+                CLOSE_WINDOW -> lastHandleLabel?.let {
+                    shell.desk.dismissOpen(it)
+                    shell.desk.dropFromStage(it)
+                }
                 NOTIFICATION_ROW -> if (shell.desk.notificationsInWindows) {
                     notificationTap = SystemClock.uptimeMillis() to lastFocused
                 }
@@ -464,6 +469,8 @@ class TaskbarService : AccessibilityService(), SystemKeys {
 
     private fun removeBar() {
         handler.removeCallbacks(revealBar)
+        handler.removeCallbacks(hideStrip)
+        hideStrip.run()
         setHandleShown(false)
         bar?.let {
             it.animate().cancel()
@@ -591,6 +598,21 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             fullScreenFocus = fullScreenFront
             putPopupsAway(fullScreenFront)
         }
+        // Stage mode: the app that came to the front stays on the stage and the
+        // other pop-ups wait in the strip at the left edge.
+        val stageFront = focused?.takeIf {
+            shell.desk.stageMode && it != packageName && it != Launcher.ONE_UI_HOME && !focusedFullScreen &&
+                FoldDeskApp.isInnerScreen(resources.configuration)
+        }
+        if (SystemClock.uptimeMillis() >= stageBusyUntil) {
+            if (stageFront == null) {
+                if (focused != null) stageFocus = null
+            } else if (stageFront != stageFocus) {
+                stageFocus = stageFront
+                shell.desk.noteOnStage(stageFront)
+                tidyStage(stageFront)
+            }
+        }
         // Step aside for anything in front that reaches into the taskbar's strip:
         // full-screen apps, bottom-sheet dialogs, windows dragged over it.
         val thickness = barThickness()
@@ -629,6 +651,7 @@ class TaskbarService : AccessibilityService(), SystemKeys {
             !coversTaskbar && !shadeCoversTaskbar && !keyboard
         // Auto hide: step aside for apps, leaving a handle. The desktop and
         // open popups always get the bar.
+        setStripShown(stageFront != null && !locked && !keyboard && shell.desk.stageStrip(stageFront).isNotEmpty())
         val appInFront = topPackage != null && topPackage != packageName
         if (!appInFront) revealed = false
         val tucked = show && shell.desk.autoHideTaskbar && appInFront && !revealed && popup == null
@@ -731,6 +754,68 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         .mapNotNull { it.root?.packageName?.toString() }
         .filter { it != packageName && shell.desk.appForPackage(it) != null }
         .distinct()
+
+    // --- Stage mode ---
+
+    private var stripView: View? = null
+    private val hideStrip = Runnable {
+        stripView?.let { wm.removeView(it) }
+        stripView = null
+    }
+
+    /** The strip is a small window at the left edge, so the desktop around its cards stays usable. */
+    private fun setStripShown(show: Boolean) {
+        handler.removeCallbacks(hideStrip)
+        if (!show) {
+            // Focus blinks off for a moment between windows; don't flicker the strip with it.
+            if (stripView != null) handler.postDelayed(hideStrip, STRIP_HIDE_DELAY_MS)
+            return
+        }
+        if (stripView != null) return
+        val density = resources.displayMetrics.density
+        val view = composeView { StageStrip(shell) }
+        val params = overlayParams((STAGE_STRIP_DP * density).toInt(), WindowManager.LayoutParams.WRAP_CONTENT, focusable = false)
+            .apply {
+                gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
+                if (barSide == TaskbarSide.Left) x = barThickness()
+            }
+        wm.addView(view, params)
+        stripView = view
+    }
+
+    /** The app on the stage, and when clicking through the other windows is done. */
+    private var stageFocus: String? = null
+    private var stageBusyUntil = 0L
+
+    /**
+     * Minimises the pop-ups beside [pkg], which has just come to the front. A new
+     * window is still animating in at first, so a window whose Minimise button
+     * doesn't show yet is tried again a little later.
+     */
+    private fun tidyStage(pkg: String, attempt: Int = 0) {
+        if (shell.desk.switching) return
+        val own = shell.desk.appForPackage(pkg)?.label
+        if (otherWindows(own) == 0) {
+            if (attempt > 0) finishTidy()
+            return
+        }
+        // Clicking another window's handle moves focus to it for a moment; ignore that.
+        stageBusyUntil = Long.MAX_VALUE
+        handler.postDelayed({
+            minimizeNextWindow(MAX_WINDOWS_TO_MINIMIZE, skip = setOfNotNull(own)) {
+                if (attempt < STAGE_RETRIES && otherWindows(own) > 0) tidyStage(pkg, attempt + 1) else finishTidy()
+            }
+        }, if (attempt == 0) STAGE_FIRST_DELAY_MS else STAGE_RETRY_MS)
+    }
+
+    private fun otherWindows(own: String?) = windows.mapNotNull { it.root }
+        .flatMap { it.findAccessibilityNodeInfosByViewId(CAPTION_HANDLE) }
+        .count { own == null || it.contentDescription?.startsWith(own) != true }
+
+    private fun finishTidy() {
+        stageBusyUntil = SystemClock.uptimeMillis() + STAGE_SETTLE_MS
+        stageFocus = null
+    }
 
     /** The full-screen app last put in front, so its pop-up windows are put away once. */
     private var fullScreenFocus: String? = null
@@ -835,6 +920,11 @@ class TaskbarService : AccessibilityService(), SystemKeys {
         private const val MAX_WINDOWS_TO_MINIMIZE = 12
         private const val POPUP_SWEEP_DELAY_MS = 300L
         private const val POPUP_SWEEP_GAP_MS = 2_500L
+        private const val STRIP_HIDE_DELAY_MS = 350L
+        private const val STAGE_SETTLE_MS = 600L
+        private const val STAGE_FIRST_DELAY_MS = 700L
+        private const val STAGE_RETRY_MS = 500L
+        private const val STAGE_RETRIES = 2
         private const val RECENTS_TASK = "${Launcher.ONE_UI_HOME}:id/taskView"
         private const val RECENTS_LIST = "${Launcher.ONE_UI_HOME}:id/taskListContainer"
         private const val RECENTS_EMPTY = "${Launcher.ONE_UI_HOME}:id/empty_text_view"

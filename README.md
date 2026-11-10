@@ -30,6 +30,9 @@ It's a free, open-source app. Signed APKs are published on the
   battery and clock. Back/Home/Recents keys appear only with 3‑button navigation.
 - **Apps in floating windows** (One UI pop‑up view), cascaded and sized by
   setting, with an optional size per app (long press → Window size).
+- **Stage mode** (optional, off by default): one app in the middle of the screen, the
+  others waiting as cards in a strip at the left edge. Opening an app, or tapping a
+  card, puts the app that was there aside.
 - **App drawer** centred on screen with search, styled with One UI's panel
   material (blurred, like the notification panel).
 - **Desktop** with draggable icons, multi‑select group drag (second finger),

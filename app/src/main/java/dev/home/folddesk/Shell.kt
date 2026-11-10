@@ -1,6 +1,8 @@
 package dev.home.folddesk
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -258,21 +260,36 @@ class ShellController(
             return
         }
         desk.assignApp(app.pkg, desk.currentDesktopId)
-        when (mode) {
-            OpenMode.Default -> Launcher.open(context, app, desk.openInWindow, desk.windowSizeFor(app))
-            OpenMode.Window -> Launcher.open(context, app, true, desk.windowSizeFor(app))
-            OpenMode.Fullscreen -> Launcher.open(context, app, false)
-            OpenMode.Page -> Launcher.openAsPage(context, app)
-            // The taskbar can think an app is open after it was closed with Back
-            // (nothing reports that), so a windowed app gets what a fresh window
-            // needs; an open window keeps its place. Window options would turn a
-            // full-screen app into a window, so those are only raised.
-            OpenMode.Front ->
-                if (desk.openInWindow && !desk.wasFullScreen(app.pkg)) {
-                    Launcher.open(context, app, true, desk.windowSizeFor(app))
-                } else {
-                    Launcher.bringToFront(context, app)
-                }
+        val launch = {
+            when (mode) {
+                OpenMode.Default -> Launcher.open(context, app, desk.openInWindow, desk.windowSizeFor(app))
+                OpenMode.Window -> Launcher.open(context, app, true, desk.windowSizeFor(app))
+                OpenMode.Fullscreen -> Launcher.open(context, app, false)
+                OpenMode.Page -> Launcher.openAsPage(context, app)
+                // The taskbar can think an app is open after it was closed with Back
+                // (nothing reports that), so a windowed app gets what a fresh window
+                // needs; an open window keeps its place. Window options would turn a
+                // full-screen app into a window, so those are only raised.
+                OpenMode.Front ->
+                    if (desk.openInWindow && !desk.wasFullScreen(app.pkg)) {
+                        Launcher.open(context, app, true, desk.windowSizeFor(app))
+                    } else {
+                        Launcher.bringToFront(context, app)
+                    }
+            }
+        }
+        // Stage mode: the app on the stage steps aside first, while its window still
+        // has focus (an unfocused window's Minimise button often isn't reachable).
+        val onStage = desk.focusedPackage
+            ?.takeIf { desk.stageMode && it != app.pkg && mode != OpenMode.Fullscreen && mode != OpenMode.Page }
+            ?.takeIf { FoldDeskApp.isInnerScreen(context.resources.configuration) }
+            ?.let { desk.appForPackage(it) }
+        val keys = windowKeys()
+        if (onStage != null && keys != null) {
+            keys.minimizeApp(onStage)
+            Handler(Looper.getMainLooper()).postDelayed(launch, STAGE_STEP_ASIDE_MS)
+        } else {
+            launch()
         }
     }
 
@@ -619,6 +636,9 @@ class ShellController(
     }
 
     companion object {
+        /** Long enough for the old stage window's Minimise click to land before the next app opens. */
+        private const val STAGE_STEP_ASIDE_MS = 450L
+
         private val all = mutableSetOf<ShellController>()
 
         fun register(shell: ShellController) = all.add(shell)

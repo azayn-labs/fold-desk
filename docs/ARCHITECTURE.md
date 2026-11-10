@@ -62,6 +62,13 @@ rejects apps that ship one.)
   front full screen on the inner screen, the service minimises the pop-ups once
   (`putPopupsAway`), the way maximising a window does on DeX. Pop-ups opened
   afterwards stay where they are.
+- Stage mode (off by default) builds on the same pieces. `Shell.open` first
+  minimises the focused window, while its Minimise button is still reachable
+  (an unfocused window's often isn't), then launches the next app at a fixed
+  centre-stage size (`Launcher.stageBounds`). `TaskbarService.tidyStage` is the
+  backup for windows opened some other way. The strip is a small accessibility
+  overlay at the left edge (`ui/Stage.kt`); its cards come from `DeskState.stageApps`,
+  not from usage events, so it works without usage access.
 
 ### Open apps on the taskbar
 Usage stats report resumed/paused but **never** closed. The list is built from

@@ -14,6 +14,7 @@ import android.provider.Settings
 import android.util.Log
 import android.view.WindowInsets
 import android.view.WindowManager
+import dev.home.folddesk.ui.STAGE_STRIP_DP
 import android.widget.Toast
 
 /** Starts apps fullscreen or in freeform windows, plus a few system shortcuts. */
@@ -43,7 +44,8 @@ object Launcher {
     private fun windowOptions(context: Context, windowed: Boolean, size: WindowSize): ActivityOptions {
         val options = ActivityOptions.makeBasic()
         if (windowed) {
-            options.setLaunchBounds(nextWindowBounds(context, size))
+            val desk = (context.applicationContext as FoldDeskApp).desk
+            options.setLaunchBounds(if (desk.stageMode) stageBounds(context, desk.stageSize) else nextWindowBounds(context, size))
             setWindowingMode(options, WINDOWING_MODE_FREEFORM)
         } else {
             setWindowingMode(options, WINDOWING_MODE_FULLSCREEN)
@@ -106,6 +108,29 @@ object Launcher {
         val left = (minX + (maxX - minX - width) / 2 - 2 * step + index * step)
             .coerceIn(minX, maxX - width)
         val y = (top + index * step).coerceAtMost(bottom - height)
+        return Rect(left, y, left + width, y + height)
+    }
+
+    /** Stage mode: one window in the middle of the space right of the strip, same place every time. */
+    private fun stageBounds(context: Context, size: StageSize): Rect {
+        val metrics = context.getSystemService(WindowManager::class.java).maximumWindowMetrics
+        val screen = metrics.bounds
+        val density = context.resources.displayMetrics.density
+        val insets = metrics.windowInsets.getInsets(WindowInsets.Type.systemBars())
+        val top = insets.top + (16 * density).toInt()
+        val desk = (context.applicationContext as FoldDeskApp).desk
+        val side = desk.taskbarSide
+        val barSize = desk.taskbarSize
+        val bar = ((if (side.vertical) barSize.sideBar else barSize.bar) * density).toInt()
+        val air = (16 * density).toInt()
+        val bottom = screen.height() - insets.bottom - (if (side == TaskbarSide.Bottom) bar else 0) - air
+        // The strip sits on the left edge, beside a taskbar there.
+        val minX = (if (side == TaskbarSide.Left) bar + air else 0) + (STAGE_STRIP_DP * density).toInt()
+        val maxX = screen.width() - if (side == TaskbarSide.Right) bar + air else air
+        val width = ((maxX - minX) * size.width).toInt()
+        val height = ((bottom - top) * size.height).toInt()
+        val left = minX + (maxX - minX - width) / 2
+        val y = top + (bottom - top - height) / 2
         return Rect(left, y, left + width, y + height)
     }
 

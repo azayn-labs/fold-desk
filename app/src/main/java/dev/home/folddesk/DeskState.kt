@@ -333,6 +333,11 @@ class DeskState(private val context: Context) {
         private set
     var clockAction by mutableStateOf(readEnum("clockAction", ClockAction.Notifications))
         private set
+    /** Stage mode: one app in the middle, the others wait in a strip at the left edge. */
+    var stageMode by mutableStateOf(sp.getBoolean("stageMode", false))
+        private set
+    var stageSize by mutableStateOf(readEnum("stageSize", StageSize.Large))
+        private set
     var windowSize by mutableStateOf(readEnum("windowSize", WindowSize.Medium))
         private set
     var swipeUp by mutableStateOf(readSwipe("swipeUp", "swipeUpForDrawer", SwipeAction.Drawer))
@@ -1123,6 +1128,38 @@ class DeskState(private val context: Context) {
         saveEnum("clockAction", value)
     }
 
+    fun updateStageMode(value: Boolean) {
+        stageMode = value
+        sp.edit().putBoolean("stageMode", value).apply()
+    }
+
+    fun updateStageSize(value: StageSize) {
+        stageSize = value
+        saveEnum("stageSize", value)
+    }
+
+    /** Packages that have been on the stage, most recent first; kept in memory only. */
+    private var stageApps by mutableStateOf<List<String>>(emptyList())
+
+    fun noteOnStage(pkg: String) {
+        stageApps = (listOf(pkg) + stageApps.filter { it != pkg }).take(MAX_STAGE_APPS)
+    }
+
+    /** A window closed from its own X button no longer waits in the strip. */
+    fun dropFromStage(label: String) {
+        val pkg = apps.firstOrNull { it.label == label }?.pkg ?: return
+        stageApps = stageApps.filter { it != pkg }
+    }
+
+    /**
+     * The cards in the stage strip: apps that were on the stage before, most recent
+     * first, without [focused]. Doesn't need usage access, unlike the taskbar's open apps.
+     */
+    fun stageStrip(focused: String?): List<AppEntry> = stageApps
+        .filter { it != focused }
+        .mapNotNull { appForPackage(it) }
+        .take(MAX_STRIP)
+
     fun updateWindowSize(value: WindowSize) {
         windowSize = value
         saveEnum("windowSize", value)
@@ -1355,6 +1392,8 @@ class DeskState(private val context: Context) {
     companion object {
         private const val RECENT_WINDOW_MS = 4 * 60 * 60 * 1000L
         private const val MAX_OPEN = 10
+        private const val MAX_STRIP = 5
+        private const val MAX_STAGE_APPS = 8
         const val MAX_DESKTOPS = 4
         const val DEFAULT_FOLDER_NAME = "Folder"
         const val MAX_FOLDER_NAME = 24
